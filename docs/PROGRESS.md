@@ -19,3 +19,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M1.15 0647edc config store: strict AppConfigV1, no-catalogs state, queued atomic saves, an invalid file is CONFIG_INVALID (new code) and never overwritten
 2026-10-28 M1.16 5abd1af validateRegistry: all 31 registry.json problem lists, in order; parseYamlMaps keeps YAML key types
 2026-10-28 M1.17 7eb7f0e planImport/applyImport: catalogs match every valid registry.json case; quoted flags read strictly and reported; dropped/unknown keys reported; STALE_PLAN and REFUSED guards; Host gains fs.realPath
+2026-10-28 M1.18 6bfacc8 loadRegistry: skip reasons (not cloned yet / not found / can't parse), RCAT-08 single and all-unreadable errors (new NO_READABLE_CATALOG), winners keyed by name

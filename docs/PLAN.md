@@ -159,7 +159,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
     `quoted-false-flags` reports each coerced flag and imports `false`; the old file's bytes are
     unchanged after apply.
 
-- [ ] **M1.18 Registry.** `registry/`: `Registry` over config + catalog data: `active()`,
+- [x] **M1.18 Registry.** `registry/`: `Registry` over config + catalog data: `active()`,
   `writable()`, `entries()`, `entriesOf(id)`, skip reasons (local file unreadable; remote clone
   absent at `clones/<id>` → "not cloned yet"); loading never touches the network.
   - Rules: RCAT-02, RCAT-08, RCAT-09, RES-18
