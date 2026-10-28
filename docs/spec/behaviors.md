@@ -52,6 +52,71 @@ desktop/src (Vue) ─invoke─▶ desktop/src-tauri/src (Rust) ─spawn─▶ ./
 PyYAML is missing (`library.py:37-47`). Exit 3 is documented as a contract between the CLI and its
 front doors ("Nothing else in this CLI exits 3", `library.py:44-46`). `Tags: incidental/drop/free`
 
+### 0.1 Decisions applied (2026-10-28)
+
+The answers in `open-questions.md` change some rules below. Each affected rule keeps its description
+of what the CLI does (that is still what the golden fixtures record) and gains a `(rebuild, §0.1: …)`
+note. **Where a note and the rule disagree, the note wins for the new app.** Rules retagged
+`contract` → `free` are deliberate deviations: their goldens are recorded from `library.py` as usual,
+and the fixture also carries a hand-written `rebuild` expectation that the core is tested against.
+
+Context: the Python CLI is being retired (F3), so byte compatibility protects shared catalogs during
+the transition, not long-term coexistence. Only github.com and bitbucket.org hosts exist (F1), and no
+real catalog uses the layouts EDIT-04..09 trip on (F2).
+
+| Rule(s) | Decision | Source | New behavior |
+|---|---|---|---|
+| EDIT-05, EDIT-09 | A13 fix | Part 4 | A missing `skills`/`agents`/`prompts` section is created on insert (rule D1 below) |
+| EDIT-09 | A12 fix | Part 4 | Layouts the splice can't edit return `SPLICE_UNSUPPORTED` before any write (rule D2) |
+| EDIT-10, EDIT-11 | Q4 C | Q4 | Remove keeps the blank lines and comments around the item (rule D3) |
+| EDIT-12 | Q4 C | Q4 | Update edits fields in place, keeping unknown keys, comments and blank lines (rule D4) |
+| EDIT-01, DEP-11 | A11 fix | Part 4 | A `requires` ref whose name contains `"`, `\` or a control character is refused on input (`INVALID_REF`) |
+| FETCH-10 | Q13d | Q13 | `add`/`update` refuse a skill source at a repo root, explaining that the whole repo (`.git` included) would be copied; installing an existing such entry copies the root **without `.git`** |
+| FETCH-11 | A9 | Part 4 | Install keeps today's behavior; `add`/`update` refuse a source that points at a directory |
+| FETCH-12 | A7 fix | Part 4 | Verification is real: a skill needs `SKILL.md` at the destination (checked in staging, before the rename); an agent/prompt needs its `.md` file. Failure → `VERIFY_FAILED`, nothing lands |
+| WRITE-02, doctor #6 | Q11 | Q11 | `default_add_catalog` dropped: 0 writable → `NO_WRITABLE_CATALOG`; 1 → it; more → `AMBIGUOUS_CATALOG` |
+| WRITE-08 | A15 fix | Part 4 | PR branch timestamp is `%Y%m%dT%H%M%S`; if that branch already exists on the remote, append `-2`, `-3`, … |
+| WRITE-11 | Q10 A | Q10 | `autopush` dropped: after the push, github.com + `gh` installed + `gh auth status` ok → `gh pr create`; a `gh` failure is a **warning** and the result falls back to `manual` with the compare URL; anything else (incl. Bitbucket, Q13e) → `manual` |
+| WRITE-14 | Q11 | Q11 | `git_commit` dropped: `local` mode writes the file (atomically) and never runs git |
+| INST-01, MIG-03, MIG-04 | Q11 | Q11 | `default_dirs` dropped: install dirs are fixed; import reports a `default_dirs` override, never imports or lifts it |
+| UNIN-02 | Q17 A | Q17 | Uninstalling a skill or prompt that is off also deletes its `skillOverrides` entry; the confirmation says so |
+| §1.10, DIS-* | Q14 A, Q15 A, Q16 B | arch §4.5 | Toggle on/off only (other values shown read-only); skills **and prompts**; agents later; parked copies are migrated automatically on first launch after showing the list |
+| UI-40 | Q3 A | Q3 | The app edits remote catalogs too: protected → PR, unprotected → direct push after confirmation |
+| INST-05 | Q5 A | Q5 | `planInstall` fetches for a file-level preview; offline → destination-only preview |
+| SYNC-03, INST-02 | Q8 A | Q8 | Unmanaged content is reported; replacing it is an explicit per-item action that asks first |
+| §7.1 rows A2–A6, A11, A12, A15, A18–A23, A25–A32 | fix | Part 4 | The table's recommendation is the decision |
+
+**D1. Creating a missing section (A13).** When `library:` exists but the target section does not, the
+insert adds `  <section>:` followed by the rendered block. Position: sections keep canonical order
+`skills`, `agents`, `prompts`. The new section goes right after the nearest existing section that
+precedes it in that order, placed by the append rule (back up over that section's trailing blank
+lines); with no preceding section it goes directly after the `library:` line. A missing `library:`
+line is still an error (EDIT-04).
+
+**D2. Layouts refused up front (A12).** Before splicing, the section must satisfy all of: inline value
+empty or exactly `[]`; every non-blank, non-comment line inside it starts with four spaces; every item
+starts `    - name:`. Otherwise `SPLICE_UNSUPPORTED` with the line number and "Loadout can't edit this
+catalog's layout". WRITE-16's re-parse still runs as a backstop. CRLF files keep today's behavior
+(EDIT-09: new lines are LF).
+
+**D3. Remove (Q4).** An item's own lines are its `    - ` line plus the lines after it that are
+indented six or more spaces; a blank line counts only when another such line follows it before
+anything else. Removing a **non-last** item deletes its own lines plus the blank lines directly after
+them. Removing the **last** item deletes its own lines plus the blank lines directly **above** it (back to
+the previous item's content), so the separator before the next section stays. Comment lines indented
+fewer than six spaces are never deleted. If the section becomes empty, the header becomes
+`  <section>: []`, blank lines directly under the header are removed, any remaining comments stay, and
+the file's trailing newline is kept.
+
+**D4. Update (Q4).** Within the target item's own lines (D3): `name` is untouched; the `description` and
+`source` values are rewritten in place (a multi-line value collapses to one line); `requires` is
+rewritten in flow style in place, inserted after `source` when absent, removed when empty; a missing
+`description`/`source` key is inserted in canonical order. Every other key, comment and blank line
+stays byte-for-byte.
+
+D1–D4 outputs are hand-written expectations, not generated, and get reviewed with the golden fixtures
+in M0.
+
 ## 1. Domain model
 
 ### 1.1 Glossary
@@ -462,7 +527,7 @@ reason `not_found`; the install proceeds without it. Source: `library.py:2123-21
 cycle detected at <type>:<name>; skipping re-entry`, records `{ref: "<type>:<name>", required_by:
 <name of the re-entered node>, reason: "cycle"}`, and the walk terminates with each node once. (Note:
 `required_by` is the re-entered node itself, not its parent; §7.) Source: `library.py:2110-2114`.
-Tags: cli/mvp/free
+Tags: cli/mvp/free (rebuild, §0.1: `required_by` names the parent that re-entered the cycle, A29)
 
 **DEP-06** Given `use a b` where both require `c`, then `c` is installed once (closures merged and
 de-duplicated by `(type, name)` in request order). Source: `library.py:4036-4054`. Tags: cli/mvp/free
@@ -585,17 +650,16 @@ destination.` before anything is deleted. — `library.py:2291-2317`, `2328`. Ta
 
 **FETCH-10** Given a skill whose source file sits at the repo root (e.g. `…/blob/main/SKILL.md`), then
 the copied directory is the clone root itself, `.git` included (no exclusion exists in `_copy_dir`). Source: `library.py:2268-2274`, `2413`. UNKNOWN: whether any catalog relies on this; no test found by
-searching `tests/test_library.py` for `.git` exclusion in installs. (§7) Tags: cli/mvp?/contract (mvp? because copying `.git` into `~/.claude/skills` looks
-accidental; decide whether to preserve).
+searching `tests/test_library.py` for `.git` exclusion in installs. (§7) Tags: cli/mvp/free (rebuild, §0.1: refused on add/update with an explanation; existing entries install without `.git`, Q13d)
 
 **FETCH-11** Given a skill source that is itself a directory path (not a file), then the copied
 folder is that directory's **parent** (`ref.parent`), not the directory. Source: `library.py:2327`,
-`2413`. (§7) Tags: cli/mvp/contract
+`2413`. (§7) Tags: cli/mvp/contract (rebuild, §0.1: install unchanged; add/update refuse directory sources, A9)
 
 **FETCH-12** Post-copy verification: `verified = main_file_for(entry, dest).exists()`, where
 `main_file_for` returns `dest/SKILL.md`, else `dest/AGENT.md`, else `dest` itself for a skill, and
 `dest` for agents/prompts. Because the fallback is `dest`, which the copy just created, `verified` is
-true after every successful copy (§7). `use` exits 1 if any result is unverified. Source: `library.py:2571-2578`, `3301-3305`, `4154`. Tags: cli/mvp/free
+true after every successful copy (§7). `use` exits 1 if any result is unverified. Source: `library.py:2571-2578`, `3301-3305`, `4154`. Tags: cli/mvp/free (rebuild, §0.1: real check, `SKILL.md` or the `.md` file must exist in staging, else `VERIFY_FAILED`, A7)
 
 ### 2.5 Update detection
 
@@ -646,7 +710,7 @@ skipped → `unknown catalog '<id>' (available: …)`; `writable: false` → `ca
 **WRITE-02** Given no `--catalog` on `add`, then: no writable catalog → `no writable catalog is
 configured; nothing can be written` (exit 1); exactly one writable → it; else the writable catalog
 whose id equals `default_add_catalog` (a stale default is ignored, never an error); else
-`AMBIGUOUS_CATALOG`. Source: `library.py:1176-1199`. Tags: cli/mvp/free
+`AMBIGUOUS_CATALOG`. Source: `library.py:1176-1199`. Tags: cli/mvp/free (rebuild, §0.1: no `default_add_catalog`; more than one writable → `AMBIGUOUS_CATALOG`, Q11)
 
 **WRITE-03** `AMBIGUOUS_CATALOG` is not a failure: JSON `{"status": "AMBIGUOUS_CATALOG", "catalogs":
 [<writable ids>]}`, exit 2; human output names the choices and `--catalog`/`default_add_catalog`. Source: `library.py:105-115`, `1202-1217`; fixture `payloads/ambiguous.json`. Tags: cli/mvp/free
@@ -678,7 +742,7 @@ create`. Temp dir always removed. — `library.py:3109-3147`, `2896-2911`, `2914
 (team process: protected catalogs only change through PRs)
 
 **WRITE-08** PR branch name = `library/<op>-<name with [^a-zA-Z0-9_-] → '-'>-<local time %Y%m%dT%H%M>`;
-ops: `add`, `add-batch` (hint `<n>-entries`), `remove`, `update`; `push` uses `update`. Source: `library.py:2889-2893`, `5131-5143`, `5240`, `5414`, `5519`. Tags: cli/mvp/free
+ops: `add`, `add-batch` (hint `<n>-entries`), `remove`, `update`; `push` uses `update`. Source: `library.py:2889-2893`, `5131-5143`, `5240`, `5414`, `5519`. Tags: cli/mvp/free (rebuild, §0.1: seconds in the timestamp, `-2`… suffix on collision, A15)
 
 **WRITE-09** Push rejection: if `git push` stderr (lower-cased) contains any of `denied`, `permission`,
 `403`, `forbidden`, `not authorized`, `protected branch`, `remote rejected`, `remote: error`, die
@@ -696,7 +760,7 @@ and github.com → `gh pr create --repo <owner>/<repo> --base <base> --head <bra
 `autopush is on but gh pr create failed: <last stderr line>` + the compare URL; `gh` missing → die
 `autopush is on but the gh CLI is not installed …`. Bitbucket with autopush → warn `autopush has no CLI
 path for Bitbucket; open the PR via the printed URL` and return manual. The branch is pushed in every
-case. Source: `library.py:2962-2996`. Tags: cli/mvp/free
+case. Source: `library.py:2962-2996`. Tags: cli/mvp/free (rebuild, §0.1: no `autopush`; `gh pr create` whenever it is installed and signed in for a github.com catalog; `gh` failure is a warning with the compare URL, Q10)
 
 **WRITE-12** PR/commit copy: add (one) commit `library: added <type> <name>`, title `library: add
 <type> <name>`, body `Adds \`<name>\` (<type>) to the catalog.\n\nSource: <source>`; add (batch) commit
@@ -715,7 +779,7 @@ Tags: cli/mvp/free
 inside a git work tree: best-effort `git pull --ff-only` before writing (warn `could not pull catalog
 '<id>' before writing (…); writing against the local copy`), then add/commit/`git push` (plain, to
 the upstream). `git_commit: true` outside a work tree → warn and just write. Source: `library.py:3072-3080`,
-`3011-3023`, `3044`. Tags: cli/mvp/free
+`3011-3023`, `3044`. Tags: cli/mvp/free (rebuild, §0.1: `git_commit` dropped; local mode only writes the file, Q11)
 
 **WRITE-15** Every write recomputes the edit against the exact bytes it will write (`update` reads the
 entry from the text handed to `edit`, so a stale registry copy can never clobber an upstream change);
@@ -887,7 +951,7 @@ Rules (each was confirmed by running the functions above against PyYAML 6.0.3 fr
 
 **EDIT-01** Rendering: exactly three lines `    - name: <v>`, `      description: <v>`, `      source:
 <v>` (4/6-space indent, this key order), plus `      requires: ["a", "b"]` only when `requires` is
-non-empty. Refs are wrapped in `"` with **no escaping**. Source: `library.py:2681-2691`. Tags: cli/mvp/contract
+non-empty. Refs are wrapped in `"` with **no escaping**. Source: `library.py:2681-2691`. Tags: cli/mvp/contract (rebuild, §0.1: refs with `"`, `\` or control characters are refused on input, A11)
 
 **EDIT-02** Scalar quoting is whatever PyYAML's `safe_dump` emits for `{"v": value}` with
 `default_flow_style=False, allow_unicode=True, width=10**9`, minus the `v: ` prefix: plain when
@@ -907,7 +971,7 @@ in catalog entries; keep it on one line")`. — `library.py:2676-2677`. Tags: cl
 key in catalog`). — `library.py:2699-2701`. Tags: cli/mvp/contract
 
 **EDIT-05** A section is found only as a line `^  <section>:\s*(.*)$` (exactly two spaces) inside the
-`library:` block; a missing section is **not created**: `section '<section>' not found under library`. Source: `library.py:2703-2713`. Tags: cli/mvp/contract
+`library:` block; a missing section is **not created**: `section '<section>' not found under library`. Source: `library.py:2703-2713`. Tags: cli/mvp/free (rebuild, §0.1 D1: a missing section is created, A13)
 
 **EDIT-06** A section ends at the first non-blank line that starts at column 0 or with exactly two
 spaces then a non-space (so a 2-space-indented comment or a column-0 comment ends it); blank lines are
@@ -928,7 +992,7 @@ not re-sorted. Source: `library.py:2742-2765`. Tags: cli/mvp/contract
 **EDIT-09** Insert edge cases (all confirmed): inline `[ ]` (with a space) is not converted, producing
 invalid YAML that WRITE-16 then rejects with a YAML parse error; items at 2-space indent make the
 splice insert a 4-space block above them (invalid YAML, rejected); CRLF files get LF-only new lines;
-a file without a trailing newline stays without one. Source: `library.py:2750`, `2721`. Tags: cli/mvp/contract
+a file without a trailing newline stays without one. Source: `library.py:2750`, `2721`. Tags: cli/mvp/free (rebuild, §0.1 D1/D2: unsupported layouts refused up front with `SPLICE_UNSUPPORTED`; missing sections created; CRLF and no-trailing-newline behavior kept)
 
 **EDIT-10** Remove: the item's block (item line through the line before the next item, or through
 the line before the section end) is deleted, so any blank lines and comments **below** the item go
@@ -939,18 +1003,18 @@ section end (comments included, `tests/test_library.py:913`) is deleted and the 
 `  <section>: []`; when the section was last in the file this also removes the file's trailing
 newline. Splice-then-remove restores the original bytes except when the section ended in a blank
 line, which is lost (`tests/test_library.py:1046-1057`). Not found → `'<name>' not found in
-<section>`. — `library.py:2768-2797`. Tags: cli/mvp/contract
+<section>`. — `library.py:2768-2797`. Tags: cli/mvp/free (rebuild, §0.1 D3: blank lines and comments around the item are kept, Q4)
 
 **EDIT-11** Comments: a comment line inside an item block belongs to that item (removed/replaced with
 it); a comment between items belongs to the preceding item. Source: `library.py:2788-2790`, `2823-2825`.
-Tags: cli/mvp/contract
+Tags: cli/mvp/free (rebuild, §0.1 D3/D4: only comments indented six or more spaces belong to the item, Q4)
 
 **EDIT-12** Replace (`update`): the target's block is replaced by `render_entry(new)`, keeping its
 position. Consequences: any key in the entry other than name/description/source/requires is
 **dropped**; block-style `requires` becomes flow style; comments in the block are dropped
 (`tests/test_library.py:1015`); blank lines below the item are absorbed, for a middle item
 (`tests/test_library.py:981`) as for the last one (the separator before the next section). Name and
-type cannot change. Source: `library.py:2800-2826`, `5312-5313`. Tags: cli/mvp/contract
+type cannot change. Source: `library.py:2800-2826`, `5312-5313`. Tags: cli/mvp/free (rebuild, §0.1 D4: fields are edited in place; unknown keys, comments and blank lines kept, Q4)
 
 **EDIT-13** Batch add applies `splice_entry` once per entry in batch order to the same text, producing
 one write (one commit/PR). Source: `library.py:5145-5148`. Tags: cli/mvp/contract
@@ -976,7 +1040,7 @@ library:
 ### 2.8 Install
 
 **INST-01** Destinations (global): skill → `~/.claude/skills/<name>/`; agent → `~/.claude/agents/<name>.md`;
-prompt → `~/.claude/commands/<name>.md`; overridable per device via `default_dirs`. Source: `library.py:77-81`, `2284-2288`, `1785-1810`. Tags: cli/mvp/contract (where Claude Code loads them)
+prompt → `~/.claude/commands/<name>.md`; overridable per device via `default_dirs`. Source: `library.py:77-81`, `2284-2288`, `1785-1810`. Tags: cli/mvp/contract (where Claude Code loads them) (rebuild, §0.1: no `default_dirs` override, Q11)
 
 **INST-02** Overwrite: installing over an existing destination replaces it with no refusal, whatever
 its state (`drifted` and `untracked` included); for a skill, files present only in the old copy are
@@ -1017,7 +1081,7 @@ Tags: cli/mvp/free
 present and no receipt and not `--force` → refuse, reporting the occupied paths; else delete the dest
 **and** its archived copy and drop the receipt. JSON `{"status": "OK" | "REFUSED", "results": [{type,
 name, deleted: [paths], refused: [paths]}]}`; exit 2 when anything was refused. Source: `library.py:4313-4341`, `4381-4392`. Tags: cli/mvp/free
-(rebuild: there is no archive copy; what happens to the skill's override on uninstall is open question Q17, architecture §4.5)
+(rebuild: there is no archive copy; §0.1: uninstall deletes the skill's or prompt's `skillOverrides` entry and says so in the confirmation, Q17)
 
 The four DIS rules describe the CLI's move-based mechanism, which the rebuild replaces (architecture §4.5). What
 carries over: every name in a batch is resolved before anything changes (RES-05), and turning off a
@@ -1103,7 +1167,7 @@ message}], "warnings": [...]}`; exit 1 iff any error. Checks, in order:
 | 3 | No config file | error | `no local config at …` | `library.py:6368-6369` | cli/mvp/free |
 | 4 | Config fails validation (every problem) / unparsable | error | `config at …: <problem>` / `config parse error: …` | `library.py:6370-6383` | cli/mvp/free |
 | 5 | Legacy `catalog:` shape | warning | `run library catalog migrate` | `library.py:6389-6392` | cli/drop/free |
-| 6 | `default_add_catalog` not writable | warning | `default_add_catalog names '<id>', which is not a writable catalog` | `library.py:6393-6399` | cli/mvp/free |
+| 6 | `default_add_catalog` not writable | warning | `default_add_catalog names '<id>', which is not a writable catalog` | `library.py:6393-6399` | cli/drop/free (§0.1, Q11) |
 | 7 | Remote clone absent | warning | `catalog not yet cloned at …` | `library.py:6403-6405` | cli/mvp/free |
 | 8 | Clone has no `origin` | error | `catalog clone is missing 'origin' remote` | `library.py:6407-6412` | cli/mvp/free |
 | 9 | Clone origin ≠ configured repo | warning | `catalog clone remote (…) differs from config catalog.repo (…)` | `library.py:6413-6416` | cli/mvp/free |
@@ -1147,8 +1211,7 @@ config to `catalogs:` form and reports `migrated` notes; `catalog migrate` does 
 
 **MIG-03** Migration lifts the shared catalog's `default_dirs` into the config (as `{section: [{scope:
 path}, …]}`) unless the config already has a `default_dirs` override, which is kept; unrecognized
-top-level keys are carried over. Source: `library.py:1044-1075`. Tags: cli/mvp/free (the import needs the
-same lifting when importing a legacy config)
+top-level keys are carried over. Source: `library.py:1044-1075`. Tags: cli/mvp/free (rebuild, §0.1: `default_dirs` is dropped, so the import reports it and lifts nothing, Q11)
 
 **MIG-04** Scope key `default` in any `default_dirs` is an alias of `project`. Source: `library.py:1504-1515`.
 Tags: cli/drop/free
@@ -1853,8 +1916,8 @@ Tags: app/mvp/free
 Tags: app/mvp/free unless noted
 
 - **UI-40** Product rule: only catalogs with `kind == local && writable && !skipped` are editable from
-  the UI (add/edit/remove entries); remote catalogs are never written from the app today. Source: `catalog.ts:326-339`, `468-471`. Tags: app/mvp?/free (mvp? because the decisions put add/update/
-  remove with PR mode in MVP, which implies remote catalog writes the current UI deliberately avoids).
+  the UI (add/edit/remove entries); remote catalogs are never written from the app today. Source: `catalog.ts:326-339`, `468-471`. Tags: app/drop/free (rebuild, §0.1: remote catalogs are editable too; protected → PR,
+  unprotected → direct push after confirmation, Q3 A).
 - **UI-41** Registry level: "Add a catalog", "Check catalog health"; a no-personal-catalog card when
   no local catalog exists ("You don't have a personal catalog yet" + "Create a personal catalog");
   catalog rows with location, note (`describeCatalog`), "Manage entries" (editable only), and
@@ -2142,6 +2205,9 @@ Vue-side workarounds:
 
 ### 7.1 Behaviors that look accidental (the rebuild must decide; none is fixed silently)
 
+Decided 2026-10-28 (`open-questions.md` Part 4, applied in §0.1): every row's recommendation is
+the decision unless the row says **Decided** otherwise.
+
 | # | Behavior | Evidence | Recommendation | Tags |
 |---|---|---|---|---|
 | A1 | `sync` reinstalls a disabled dependency into the active tree, leaving two copies (SYNC-07) | `library.py:4758-4778`; observed in sandbox | Moot in the rebuild (no archive; off skills stay in place) | cli/drop/free |
@@ -2150,13 +2216,13 @@ Vue-side workarounds:
 | A4 | Direct-mode push failure leaves the persistent clone diverged forever (RCAT-10) | `library.py:3044-3050`, `2616-2623` | Fix: doctor detects, offers re-clone | cli/mvp/free |
 | A5 | `ls-remote <url> <branch>` tail-matches (`feature/main`, tags) and takes the first line | `library.py:2434-2437`; experiment by git-net reader | Fix: `refs/heads/<branch>` | cli/mvp/free |
 | A6 | `catalog_behind` reports 0 when offline (no fetch happened) | `library.py:2638-2657`; experiment | Fix: show "couldn't check" | cli/mvp/free |
-| A7 | `verified` is vacuous (fallback to the destination itself) | `library.py:2571-2578`, `3301-3302`; observed | Fix or drop the field | cli/mvp/free |
-| A8 | Root-level skill source copies the whole clone including `.git`; push of it fails on an empty pathspec | `library.py:2268-2274`, `2413`, `5543-5550`; experiment | Decide (FETCH-10); recommend refusing a root-level skill source | cli/mvp?/contract |
+| A7 | `verified` is vacuous (fallback to the destination itself) | `library.py:2571-2578`, `3301-3302`; observed | **Decided: fix** (§0.1 FETCH-12) | cli/mvp/free |
+| A8 | Root-level skill source copies the whole clone including `.git`; push of it fails on an empty pathspec | `library.py:2268-2274`, `2413`, `5543-5550`; experiment | **Decided:** refuse on add, install existing ones without `.git` (Q13d, §0.1) | cli/mvp/free |
 | A9 | A directory skill source installs its **parent** directory (FETCH-11) | `library.py:2327`, `2413` | Keep for compat; refuse on add | cli/mvp/contract |
-| A10 | `update` drops unknown entry keys and in-entry comments; remove/replace eat blank lines below the item (EDIT-10/12) | `library.py:2788-2825`; tests `tests/test_library.py:913`, `981`, `1015`, `1057` | Replicate in v1 (byte compat), revisit with Python users | cli/mvp/contract |
+| A10 | `update` drops unknown entry keys and in-entry comments; remove/replace eat blank lines below the item (EDIT-10/12) | `library.py:2788-2825`; tests `tests/test_library.py:913`, `981`, `1015`, `1057` | **Decided: fix all three** (Q4 C, §0.1 D3/D4) | cli/mvp/free |
 | A11 | `requires` refs rendered without escaping (`"` inside a ref yields invalid YAML, then a parse-error traceback) | `library.py:2689-2690` | Validate refs on input | cli/mvp/contract |
 | A12 | Inline `[ ]` sections and 2-space item lists make writes produce invalid YAML (rejected by verify, as a traceback) (EDIT-09) | probe in Appendix D | Return a typed `SPLICE_UNSUPPORTED` | cli/mvp/contract |
-| A13 | Missing sections are never created (EDIT-05) | `library.py:2712-2713`; `tests/test_library.py:821` | Keep (compat); explain in the UI | cli/mvp/contract |
+| A13 | Missing sections are never created (EDIT-05) | `library.py:2712-2713`; `tests/test_library.py:821` | **Decided: fix**, create the section (§0.1 D1) | cli/mvp/free |
 | A14 | Uncaught `LibraryError`s give tracebacks (ERR-02) | `library.py:4966`, `5362`, `5485`, `3131-3133`, `2786` | Moot: typed results | incidental/drop/free |
 | A15 | PR branch names have minute resolution; a second identical write within the minute fails | `library.py:2891`; observed | Add seconds or a suffix | cli/mvp/free |
 | A16 | `init` treats the first **remote** catalog as `shared` (wrong when a remote personal catalog precedes it) | `library.py:845-861`, `6705-6722`, `6736-6738` (code-derived, untested) | Moot: `init` dropped | cli/drop/free |

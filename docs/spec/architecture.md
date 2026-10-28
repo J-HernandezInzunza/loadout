@@ -248,14 +248,14 @@ Reading catalogs uses `yaml.parse(text, { version: "1.1" })` so `yes`, `on`, sex
 timestamps resolve the way PyYAML does, then validates field types (the CLI does not; a non-string
 name crashes it, §7). WRITE-16's verification re-parses with the same function.
 
-Quirks to replicate (they are byte-visible to Python-CLI users of the same catalog): EDIT-09 (no
-creation of missing sections; `[ ]` not converted), EDIT-10 (removing an item takes the blank lines
-and comments below it; collapsing a section drops its comments, and at EOF the trailing newline),
-EDIT-12 (update drops unknown keys and in-entry comments and absorbs the blank lines below the entry).
-The Python suite pins most of these as "current behavior" (`tests/test_library.py:835`, `913`, `981`,
-`1015`, `1057`). Recommendation: replicate all of them in v1 and record each as a known
-deviation from ideal behaviour; fixing any of them changes bytes Python users would also produce
-differently (open question 3).
+Quirks (decided 2026-10-28: **fix**, Q4 C, A12, A13; exact rules in behaviors.md §0.1 D1–D4): missing
+sections are created (D1); layouts the splice can't edit, including `[ ]` and 2-space items, are refused
+up front with `SPLICE_UNSUPPORTED` (D2); remove keeps the blank lines and comments around the item (D3);
+update edits fields in place and keeps unknown keys, comments and blank lines (D4). The port still starts
+from the line-based functions, and every golden case is still generated from `library.py`; cases where
+the rebuild deviates carry a hand-written `rebuild` expectation alongside the recorded Python output.
+The Python suite pins the old behavior as "current behavior" (`tests/test_library.py:835`, `913`, `981`,
+`1015`, `1057`); those become the deviation cases.
 
 ### 3.2 Golden-file test plan
 
@@ -289,7 +289,7 @@ differently (open question 3).
 
 ### 4.1 On-disk layout
 
-Under the Tauri app data dir (`~/Library/Application Support/<bundle id>/`):
+Under the Tauri app data dir (`~/Library/Application Support/com.jhernandezinzunza.loadout/`):
 
 ```
 config.json          registry, pins, settings (schema below)
@@ -304,15 +304,11 @@ tmp/<op id>/         per-operation temp clones and staging; swept at launch (fix
 interface AppConfigV1 {
   version: 1;
   catalogs: Array<
-    | { id: string; kind: "local"; path: string; gitCommit?: boolean; writable?: boolean }
+    | { id: string; kind: "local"; path: string; writable?: boolean }
     | { id: string; kind: "remote"; repo: string; yamlPath: string; branch: string;
         protected: boolean; writable?: boolean }>;
   pins: Record<string, string>;
-  settings: {
-    autopush: boolean;
-    defaultAddCatalog?: string;
-    installDirs?: Partial<Record<"skills" | "agents" | "prompts", string>>;   // global scope only
-  };
+  settings: Record<string, never>;   // reserved; autopush, default_add_catalog, default_dirs dropped (Q10, Q11)
   imported?: { from: string; at: string; configSha256: string };
 }
 ```
@@ -328,12 +324,10 @@ in `localStorage` (UI preference, not domain state).
    creates, `library.py:5694-5728`); otherwise ask the user to pick the folder.
 2. Parse `config.local.yaml` with YAML 1.1 semantics; validate with the port of `Config.problems`
    (golden-tested); refuse to import an invalid file and show the problems.
-3. Normalize: legacy `catalog:` → one remote `shared` catalog, `protected: true` (MIG-01); when the
-   config has no `default_dirs`, lift the shared catalog's from `.catalog-repo/<yaml_path>` if that
-   clone exists (MIG-03); `default` scope key → `project` (MIG-04).
-4. Map: catalogs in order (defaults made explicit), pins, `autopush`, `default_add_catalog`, and the
-   `global` value of each `default_dirs` section. Report, without importing: `project` dirs, unknown
-   top-level keys, quoted booleans the CLI coerced with `bool()`.
+3. Normalize: legacy `catalog:` → one remote `shared` catalog, `protected: true` (MIG-01).
+4. Map: catalogs in order (defaults made explicit, `writable` kept), and pins. Report, without
+   importing: `autopush`, `default_add_catalog`, `default_dirs` and `git_commit` (dropped, Q10/Q11),
+   unknown top-level keys, quoted booleans the CLI coerced with `bool()` (A22, read strictly).
 5. Show the plan, write `config.json` on confirmation, record `imported`. Never modify the old file.
    Clones are not copied; the first refresh re-clones into `clones/`.
 6. Receipts are **not** imported (the decision: Python-installed content is unmanaged). The importer
@@ -420,7 +414,9 @@ What Anthropic documents (checked 2026-10-28):
   directory name. In user, project and local settings, entries match skill names only (no aliases).
 - Plugin skills are not affected.
 - Custom commands in `.claude/commands/` "still work and are merged into skills", so a prompt
-  installed as `~/.claude/commands/<name>.md` should be toggleable the same way (to verify).
+  installed as `~/.claude/commands/<name>.md` should be toggleable the same way (to verify). Decided:
+  v1 toggles skills and prompts, agents later (Q15 A); the UI offers on/off only and shows
+  `name-only`/`user-invocable-only` read-only when set elsewhere (Q14 A).
 - Agents are not covered. The documented way to stop Claude using a subagent is
   `permissions.deny: ["Agent(<frontmatter name>)"]`, which blocks it rather than hiding it, and
   `permissions` lists merge across files, so a user-level deny can't be undone per project.
@@ -451,12 +447,13 @@ Design rules:
    project, not just the installed copy. Personal skills already shadow project skills of the same
    name, so this rarely changes anything, but the UI copy should say "turned off on this machine".
 6. **Toggles are independent of installs.** An off skill updates in place on install and sync and
-   stays off; its dependencies install normally; uninstall removes the files (what happens to the
-   override is open question Q17). The UI may toggle unmanaged skills too, since the setting doesn't
+   stays off; its dependencies install normally; uninstall removes the files and deletes the
+   override, saying so in the confirmation (Q17 A). The UI may toggle unmanaged skills too, since the setting doesn't
    care who installed the files.
-7. **Migrate what the Python CLI parked.** A copy in `~/.claude/skills-disabled/<name>` shows as "off
-   (parked by the Python CLI)" with one action: move it back to `~/.claude/skills/<name>` (EXDEV-safe
-   copy-verify-delete, DIS-03) and write the override. The app never writes into `-disabled` folders.
+7. **Migrate what the Python CLI parked** (Q16 B). On first launch, the app lists every copy in
+   `~/.claude/skills-disabled/<name>` and, after the user has seen the list, moves each back to
+   `~/.claude/skills/<name>` (EXDEV-safe copy-verify-delete, DIS-03) and writes the override. A copy
+   whose destination is occupied is left in place and reported. The app never writes into `-disabled` folders.
    The Python CLI keeps working on the same machine but sees app-disabled skills as installed.
 
 What this removes from the CLI design: the archive folders, `move_tree` for toggles, the "copy in
@@ -500,8 +497,9 @@ Keep as-is (all `free`, all proven): ssh-then-https ordering and non-interactive
 (`GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS=/usr/bin/true`, `GIT_SSH_COMMAND` defaulting to
 `ssh -oBatchMode=yes`) (FETCH-02/03); per-operation clone cache keyed by repo+branch (FETCH-04);
 `ls-remote` memo + blobless probe + oid comparison + receipt commit advance (UPD-01..05); persistent
-shallow catalog clones with `pull --ff-only`; PR flow (temp clone, branch, commit, push, `gh pr
-create` only when `autopush`) (WRITE-07..11).
+shallow catalog clones with `pull --ff-only`; PR flow (temp clone, branch, commit, push)
+(WRITE-07..10). Changed: no `autopush`; `gh pr create` runs whenever `gh` is installed and signed in for
+a github.com catalog, and its failure is a warning with the compare URL (Q10, WRITE-11).
 
 Change (same round trips, more correct or more predictable):
 
@@ -541,7 +539,7 @@ staleness shows "couldn't check" rather than "up to date" when `ls-remote` fails
 
 ## 6. Testing
 
-- **Gate** (`pnpm check`, target < 60 s, hermetic): typecheck, ESLint with an import-boundary rule
+- **Gate** (`npm run check`, target < 60 s, hermetic): typecheck, ESLint with an import-boundary rule
   (core may not import `vue` or `@tauri-apps/*`), Vitest for core and UI, `cargo check`. No network,
   no Python, no real `~/.claude`.
 - **Core tests on the Node host** with a per-test temp `HOME` and app-data dir (the Python suite's
@@ -573,18 +571,18 @@ staleness shows "couldn't check" rather than "up to date" when `ls-remote` fails
 ## 7. Distribution
 
 - **CI** (GitHub Actions, `macos-latest`): on tag `v*`, run the gate, then `tauri-apps/tauri-action`
-  building `universal-apple-darwin`, ad-hoc signed (`bundle.macOS.signingIdentity: "-"`), producing a
+  building `aarch64-apple-darwin` (Apple Silicon only, F6), ad-hoc signed (`bundle.macOS.signingIdentity: "-"`), producing a
   `.dmg` and a zipped `.app`, attached to a GitHub Release with SHA-256 sums.
-- **Homebrew cask** in a personal tap (`<user>/homebrew-tap`, `Casks/the-library.rb`): `url` to the
-  release asset, `sha256`, `app "The Library.app"`, `depends_on macos: ">= :catalina"` (matches
-  `minimumSystemVersion 10.15` today). A release job bumps `version`/`sha256` in the tap.
+- **Homebrew cask** in a personal tap (`<user>/homebrew-tap`, `Casks/loadout.rb`): `url` to the
+  release asset, `sha256`, `app "Loadout.app"`, `depends_on macos: ">= :sonoma"`, `depends_on arch: :arm64`
+  (`minimumSystemVersion` 14.0, R18). A release job bumps `version`/`sha256` in the tap.
 - **Quarantine (top risk, §10.1):** Homebrew 5.0 deprecated `--no-quarantine` and code-unsigned casks
   ("Homebrew does not wish to easily provide circumvention to macOS security features"), and later
   releases removed the flag; disabling of Gatekeeper-failing casks was announced for the official
   `homebrew/cask` tap in September 2026. A personal tap still installs, but the downloaded app carries
   `com.apple.quarantine`, and an ad-hoc signature does not pass Gatekeeper, so first launch is blocked.
-  Interim options, ranked: (1) cask `caveats` telling the user to run `xattr -dr com.apple.quarantine
-  "/Applications/The Library.app"` once (works, honest, one manual step); (2) a cask `postflight` that
+  Decided for v1 (Q2 B): option 1. Interim options, ranked: (1) cask `caveats` telling the user to run `xattr -dr com.apple.quarantine
+  "/Applications/Loadout.app"` once (works, honest, one manual step); (2) a cask `postflight` that
   runs the same `xattr` (removes the step; whether Homebrew audits or blocks this in third-party taps
   is unverified); (3) System Settings → Privacy & Security → "Open Anyway" (works on recent macOS, more
   clicks). Real fix: Developer ID signing + notarization (`APPLE_SIGNING_IDENTITY`, `APPLE_ID`/API key
@@ -592,8 +590,9 @@ staleness shows "couldn't check" rather than "up to date" when `ls-remote` fails
 - **Auto-update:** v1 relies on `brew upgrade --cask`. After notarization, add `tauri-plugin-updater`
   with a signed `latest.json` on GitHub Releases and mark the cask `auto_updates true`. Ranked the
   other way round, an updater on an ad-hoc-signed app would be shipping self-replacing unsigned code.
-- **Bundle identifier:** today `com.josehernandezinzunza.desktop`. The app data dir derives from it,
-  so pick the final one before the first release (open question 6).
+- **Name and bundle identifier** (decided, Q6): product name "Loadout", identifier
+  `com.jhernandezinzunza.loadout`. The app data dir derives from it. Repo:
+  `github.com/J-HernandezInzunza/loadout`, public (Q1).
 
 ## 8. Agent-SDK readiness (constraints only)
 
@@ -642,29 +641,30 @@ staleness shows "couldn't check" rather than "up to date" when `ls-remote` fails
 
 1. **Distribution may not launch for users.** Ad-hoc signing + Homebrew quarantine (§7). Question:
    is a Developer ID ($99/year) acceptable before the first teammate install, or is a `caveats`
-   `xattr` step acceptable for v1?
+   `xattr` step acceptable for v1? **Decided:** `caveats` step for v1 (Q2 B).
 2. **Catalog byte compatibility.** PyYAML's scalar quoting and the splice quirks must match exactly
    (§3). Mitigation: golden + differential corpus, plus a pre-release diff against real catalogs.
 3. **Replicate or fix the splice quirks?** EDIT-10 (blank line), EDIT-12 (drops unknown keys and
    comments). Replicating keeps bytes identical to what a Python user would produce; fixing improves
-   data safety but diverges. Recommendation: replicate in v1.
+   data safety but diverges. **Decided:** fix (Q4 C; behaviors.md §0.1 D1–D4).
 4. **Remote catalog writes from the app.** Today's UI only edits local catalogs (UI-40); the MVP lists
    add/update/remove including PR mode. Question: enable `direct`/`pr` catalog edits from the UI in v1,
-   or keep "local catalogs edited here, shared ones via push/PR"?
+   or keep "local catalogs edited here, shared ones via push/PR"? **Decided:** full parity (Q3 A).
 5. **File-level preview needs the network.** Accept that `planInstall` fetches (with offline
-   degradation), or show destination-level only when offline?
-6. **Bundle identifier and data location.** Choose the final identifier now; changing it later is a
-   migration.
+   degradation), or show destination-level only when offline? **Decided:** fetch, destination-only
+   when offline (Q5 A).
+6. **Bundle identifier and data location.** **Decided:** `com.jhernandezinzunza.loadout` (Q6).
 7. **Coexistence with the Python CLI on one machine.** A Python `sync` overwrites app-managed copies it
    sees as untracked (SYNC-03); the app then reports them `drifted`. Question: document "don't run both"
-   or detect a newer `.installs.json` receipt and say so?
+   or detect a newer `.installs.json` receipt and say so? **Decided:** document "one tool per
+   machine" (Q7 A).
 8. **Webview-hosted core performance and fs semantics** (plugin-fs symlink handling, many small IPC
    calls for tree copies). Mitigation: measure on the largest real skill tree early; fall back to a
    Rust `copy_tree` command only if numbers demand it.
 9. **`git` availability.** The `/usr/bin/git` shim prompts to install Command Line Tools; doctor
    and first run must detect and explain it.
 10. **Unmanaged adoption UX.** Report-only (decision) versus an explicit per-item "adopt" (install over
-    it with consent). Recommendation: report, plus adopt only as an explicit action.
+    it with consent). **Decided:** report, plus an explicit per-item replace that asks first (Q8 A).
 11. **`skillOverrides` across settings files is undocumented.** If a project's `.claude/settings.local.json`
     (where `/skills` saves) replaces the whole user-level object, global toggles silently stop applying
     in that project. Verify first; if so, doctor and the UI must say so (§4.5 rule 4).

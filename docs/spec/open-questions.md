@@ -1,5 +1,8 @@
 # Open questions for the rebuild
 
+Answered 2026-10-28. The answers are applied to the spec in `behaviors.md` §0.1 and inline in
+`architecture.md`.
+
 Fill this in and hand it to the first session of the new repo. References like `EDIT-10`, `UI-40`
 or `A8` point at rule ids in `behaviors.md`; `arch §4` points at `architecture.md`.
 
@@ -138,7 +141,7 @@ so changing it later means migrating everyone's config. Today: name "The Library
 
 
 - [ ] A. Keep both
-- [x] B. Name: "Loadout", identifier "loadout" 
+- [x] B. Name: "Loadout", identifier "loadout" (settled 2026-10-28 as `com.jhernandezinzunza.loadout`: bundle ids are reverse-DNS)
 
 ### Q7. What happens if a teammate runs the app and the Python CLI on the same machine? (Blocks: M2)
 
@@ -406,7 +409,7 @@ From `behaviors.md` §7.1, minus the ones that disappear with the CLI. **Keep** 
 | A4  | A failed direct push leaves the catalog clone permanently diverged                                   | Fix: doctor detects it and offers a re-clone                | fix                    |
 | A5  | Update detection can read the wrong branch (`feature/main` matches `main`)                           | Fix: match `refs/heads/<branch>` exactly                    | fix                    |
 | A6  | "Behind upstream" warning goes quiet when offline                                                    | Fix: say "couldn't check"                                   | fix                    |
-| A7  | The "main file verified" check can never fail                                                        | Fix or drop it                                              | unsure, need more info |
+| A7  | The "main file verified" check can never fail                                                        | Fix or drop it                                              | fix (2026-10-28: a skill needs `SKILL.md`, an agent/prompt its `.md` file, checked before the copy lands) |
 | A8  | Root-level skill source copies the whole repo, `.git` included                                       | See Q13d                                                    | see Q13 answer         |
 | A9  | A skill source pointing at a folder installs that folder's parent                                    | Keep for existing entries; refuse on add                    | sounds good            |
 | A10 | Splice quirks (blank lines, dropped keys and comments)                                               | See Q4                                                      | see Q4 answer          |
