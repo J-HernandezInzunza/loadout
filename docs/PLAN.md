@@ -413,7 +413,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M1.22
   - Done when: each rule has a test.
 
-- [ ] **M3.03 Edit pipeline.** `applyCatalogEdit` core shared by all modes: compute the edit
+- [x] **M3.03 Edit pipeline.** `applyCatalogEdit` core shared by all modes: compute the edit
   against the exact bytes being written (WRITE-15), field-level no-op detection, re-parse and verify
   (WRITE-16), plan fingerprint (`STALE_PLAN`), dry-run unified diff (WRITE-17), result shape
   (WRITE-18), atomic write of the catalog file (A32).
