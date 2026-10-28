@@ -179,7 +179,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.19
   - Done when: each rule has a test (install fields are stubbed until M2.20).
 
-- [ ] **M1.21 Dependencies.** `deps/`: `resolveDeps` (post-order, own catalog only), `dependents`,
+- [x] **M1.21 Dependencies.** `deps/`: `resolveDeps` (post-order, own catalog only), `dependents`,
   `findCycles`; a cycle records the parent that re-entered it (A29); `not_found` and `malformed`
   share one wording (A25).
   - Rules: DEP-01, DEP-02, DEP-03, DEP-04, DEP-05, DEP-06, DEP-08

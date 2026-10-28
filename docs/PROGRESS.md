@@ -22,3 +22,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M1.18 6bfacc8 loadRegistry: skip reasons (not cloned yet / not found / can't parse), RCAT-08 single and all-unreadable errors (new NO_READABLE_CATALOG), winners keyed by name
 2026-10-28 M1.19 5db5e2d resolve/resolveAll/candidates: pins applied to the merged list (slots only, inert when absent), catalog-scoped lookup with UNKNOWN_CATALOG (new code)
 2026-10-28 M1.20 64cbccb overrideSplit/copies/records: provenance relative to each copy (overriddenBy = winner, overrides = later copies), pinned; install fields stubbed
+2026-10-28 M1.21 322ec72 resolveDeps (post-order, own catalog, cycle recorded on the parent per A29), mergeOrders, dependents, findCycles; unknown-type refs are not_found everywhere (A25)
