@@ -51,7 +51,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: schemas round-trip a sample of each type; the enum is exported and exhaustive
     (a `switch` over it type-checks with `never`).
 
-- [ ] **M1.03 Test sandbox.** `packages/core/test/sandbox.ts`: a Node `Host` (`@loadout/host-node`)
+- [x] **M1.03 Test sandbox.** `packages/core/test/sandbox.ts`: a Node `Host` (`@loadout/host-node`)
   rooted in a per-test temp dir with its own `home` and `appData`, which fails the test if any fs
   call or process `cwd` escapes the sandbox (the Python suite's `TempTool`, arch §6).
   - Rules: none (arch §6)
