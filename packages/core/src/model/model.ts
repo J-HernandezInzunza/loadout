@@ -68,6 +68,9 @@ export const ErrorCode = z.enum([
   "CONFIG_INVALID",
   "NO_READABLE_CATALOG",
   "UNKNOWN_CATALOG",
+  "NOT_CONNECTED",
+  "AUTH_FAILED",
+  "API_FAILED",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
