@@ -11,7 +11,7 @@ import type { Host } from "../host.ts";
 import { ok, type Entry, type Result, type Warning } from "../model/model.ts";
 import { fileManifest } from "../receipts/hash.ts";
 import type { ReceiptStore } from "../receipts/receipts.ts";
-import { loadRegistry, type Provenance, type ResolveErr } from "../registry/registry.ts";
+import { loadRegistry, type CatalogState, type Provenance, type ResolveErr } from "../registry/registry.ts";
 import { destFor, destState, readLegacyInstalls, type DestState, type Origin } from "../scan/scan.ts";
 
 export interface InstallCtx {
@@ -31,6 +31,10 @@ export interface PlanItem {
   type: Entry["type"];
   name: string;
   catalog: string;
+  /** the catalog's identity (behaviors.md §1.2 catalog_key), for the receipt */
+  catalogKey: string;
+  /** the entry's source string, verbatim */
+  source: string;
   dest: string;
   /** the names asked for that brought this item in; empty for a requested item itself */
   requiredBy: string[];
@@ -82,6 +86,13 @@ async function preview(host: Host, dest: string, state: DestState, fetched: Fetc
   return { kind: "files", newInstall: false, added, removed, modified, editedLocally };
 }
 
+/** §1.2 catalog_key: `<repo>#<yaml path>@<branch>` for a remote catalog, the real path of the file for a local one. */
+async function catalogKey(host: Host, state: CatalogState): Promise<string> {
+  const { ref, file } = state;
+  if (ref.kind === "remote") return `${ref.repo}#${ref.yamlPath}@${ref.branch}`;
+  return host.fs.realPath(file).catch(() => file);
+}
+
 export async function planInstall(
   ctx: InstallCtx,
   req: { names: string[]; catalog?: string },
@@ -113,6 +124,7 @@ export async function planInstall(
   warnings.push(...receipts.warnings);
   const byDest = new Map(receipts.value.map((r) => [r.dest, r]));
   const legacy = await readLegacyInstalls(host, loaded.value.config.imported?.installs);
+  const keys = new Map(await Promise.all(registry.active().map(async (c) => [c.ref.id, await catalogKey(host, c)] as const)));
 
   const op = await createOperation(host, ctx.git);
   const planned: PlanItem[] = [];
@@ -125,6 +137,8 @@ export async function planInstall(
       type: entry.type,
       name: entry.name,
       catalog: entry.catalog,
+      catalogKey: keys.get(entry.catalog)!,
+      source: entry.source,
       dest,
       requiredBy: requested.has(entry) ? [] : [...(requiredBy.get(entry) ?? [])],
       provenance: registry.overrideSplit(entry),
