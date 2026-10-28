@@ -128,11 +128,11 @@ read + hash + copy. **Result:** plugin-fs is about 10× slower than a native cop
 
 Both scope rules are pinned by `test/capabilities.test.ts`.
 
-**Recommendation (not applied):** with dot-directories now inside the scope, the deny list (R3:
+**Decided (QUESTIONS.md Q3 A), applied:** with dot-directories now inside the scope, the deny list (R3:
 `.ssh`, `Keychains`, `.gnupg`) leaves other credential stores readable by the webview:
 `~/.config/gh/hosts.yml` (gh's token), `~/.aws`, `~/.netrc`, `~/.docker/config.json`,
 `~/.kube`. The webview loads only bundled code with a strict CSP, so this is defence in depth, but
-it is cheap: add those to `deny`. Decide in PLAN.md's open questions.
+it is cheap: those five are now in `deny`.
 
 ## S4. Direct push from a shallow clone
 
@@ -160,9 +160,9 @@ WRITE-11's argv plus `--draft`, base `spike/catalog` (PR #2, closed and its bran
 | Same head again | 1 | empty | `a pull request for branch "<head>" into branch "<base>" already exists:` + newline + the existing PR's URL |
 
 **Result:** "PR URL = stdout stripped" holds when gh is not attached to a terminal.
-**Recommendation (not applied):** WRITE-11 reports gh's *last stderr line* on failure, which for
+**Decided (QUESTIONS.md Q2 A):** WRITE-11 reports gh's *last stderr line* on failure, which for
 a duplicate is a bare URL with no explanation. Treat "already exists" as success and return the
-existing URL; it makes a retried write idempotent. Decide in PLAN.md's open questions.
+existing URL; it makes a retried write idempotent. Applied in behaviors.md §0.1 and PLAN.md M3.06.
 
 ## S6. Quarantine removal from a personal-tap cask
 

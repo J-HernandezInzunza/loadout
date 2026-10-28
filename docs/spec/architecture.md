@@ -197,7 +197,8 @@ Rust contains no domain logic and, in the recommended shape, **no `#[tauri::comm
 FS scope options, ranked:
 
 1. **`$HOME/**` read/write with explicit denies** (`$HOME/.ssh/**`, `$HOME/Library/Keychains/**`,
-   `$HOME/.gnupg/**`) plus `$APPDATA` and `$APPDATA/**` (recommended). Requires
+   `$HOME/.gnupg/**`, and, decided with the dot-directory change, `$HOME/.config/gh/**`,
+   `$HOME/.aws/**`, `$HOME/.netrc`, `$HOME/.docker/**`, `$HOME/.kube/**`) plus `$APPDATA` and `$APPDATA/**` (recommended). Requires
    `plugins.fs.requireLiteralLeadingDot: false`: by default `**` skips dot-components, which excluded
    `~/.claude` and dotfiles inside skills; and `$APPDATA/**` alone does not cover the folder itself
    (spikes.md S3a). Local catalogs and local sources can live
@@ -538,8 +539,8 @@ Options, ranked: (1) keep today's widening in Rust `main` before plugins start: 
 plus fallbacks (W3), ~40 lines; the same probe also captures `CLAUDE_CONFIG_DIR` (§4.5). Two changes
 from the old app, both from spikes.md S2: the shell's PATH goes **first** (appending left launchd's
 `/usr/bin/git`, the Xcode shim, ahead of Homebrew's git), and the probe gets a 10 s timeout (heavy but
-ordinary profiles take 2–3 s; the old code had none). M4 should cache the probed PATH so launches
-don't wait on the shell; (2) resolve absolute program paths at startup and
+ordinary profiles take 2–3 s; the old code had none). Decided for M4: cache the probed PATH in app
+data, use it at once on launch, and refresh it in the background for the next launch; (2) resolve absolute program paths at startup and
 put them in shell-plugin scopes, but the static capability file cannot know them; (3) let users configure
 paths, a setting that only matters when (1) fails. Doctor gains a check: `git --version` runs, `xcode-
 select -p` succeeds, `gh auth status` when any catalog is `pr` mode.

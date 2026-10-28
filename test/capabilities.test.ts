@@ -35,7 +35,19 @@ describe("capabilities", () => {
     const deny = fsScope.flatMap((p) => p.deny ?? []).map((e) => e.path);
     // A `/**` glob does not match the folder itself, and the app must create $APPDATA on first launch.
     expect(allow).toEqual(expect.arrayContaining(["$HOME/**", "$APPDATA", "$APPDATA/**"]));
-    expect(deny).toEqual(expect.arrayContaining(["$HOME/.ssh/**", "$HOME/Library/Keychains/**", "$HOME/.gnupg/**"]));
+    expect(deny).toEqual(
+      expect.arrayContaining([
+        "$HOME/.ssh/**",
+        "$HOME/Library/Keychains/**",
+        "$HOME/.gnupg/**",
+        // Credential stores reachable once dot-directories are in scope (QUESTIONS.md Q3).
+        "$HOME/.config/gh/**",
+        "$HOME/.aws/**",
+        "$HOME/.netrc",
+        "$HOME/.docker/**",
+        "$HOME/.kube/**",
+      ]),
+    );
   });
 
   it("lets globs match dot-components, or $HOME/** would exclude ~/.claude", () => {

@@ -77,7 +77,7 @@ real catalog uses the layouts EDIT-04..09 trip on (F2).
 | FETCH-12 | A7 fix | Part 4 | Verification is real: a skill needs `SKILL.md` at the destination (checked in staging, before the rename); an agent/prompt needs its `.md` file. Failure → `VERIFY_FAILED`, nothing lands |
 | WRITE-02, doctor #6 | Q11 | Q11 | `default_add_catalog` dropped: 0 writable → `NO_WRITABLE_CATALOG`; 1 → it; more → `AMBIGUOUS_CATALOG` |
 | WRITE-08 | A15 fix | Part 4 | PR branch timestamp is `%Y%m%dT%H%M%S`; if that branch already exists on the remote, append `-2`, `-3`, … |
-| WRITE-11 | Q10 A | Q10 | `autopush` dropped: after the push, github.com + `gh` installed + `gh auth status` ok → `gh pr create`; a `gh` failure is a **warning** and the result falls back to `manual` with the compare URL; anything else (incl. Bitbucket, Q13e) → `manual` |
+| WRITE-11 | Q10 A | Q10 | `autopush` dropped: after the push, github.com + `gh` installed + `gh auth status` ok → `gh pr create`; a `gh` failure is a **warning** and the result falls back to `manual` with the compare URL, except gh's "a pull request … already exists", which is success with the existing PR's URL (Q2 A, spikes.md S5); anything else (incl. Bitbucket, Q13e) → `manual` |
 | WRITE-14 | Q11 | Q11 | `git_commit` dropped: `local` mode writes the file (atomically) and never runs git |
 | INST-01, MIG-03, MIG-04 | Q11 | Q11 | `default_dirs` dropped: install dirs are fixed; import reports a `default_dirs` override, never imports or lifts it |
 | UNIN-02 | Q17 A | Q17 | Uninstalling a skill or prompt that is off also deletes its `skillOverrides` entry; the confirmation says so |
@@ -761,7 +761,7 @@ and github.com → `gh pr create --repo <owner>/<repo> --base <base> --head <bra
 `autopush is on but gh pr create failed: <last stderr line>` + the compare URL; `gh` missing → die
 `autopush is on but the gh CLI is not installed …`. Bitbucket with autopush → warn `autopush has no CLI
 path for Bitbucket; open the PR via the printed URL` and return manual. The branch is pushed in every
-case. Source: `library.py:2962-2996`. Tags: cli/mvp/free (rebuild, §0.1: no `autopush`; `gh pr create` whenever it is installed and signed in for a github.com catalog; `gh` failure is a warning with the compare URL, Q10)
+case. Source: `library.py:2962-2996`. Tags: cli/mvp/free (rebuild, §0.1: no `autopush`; `gh pr create` whenever it is installed and signed in for a github.com catalog; `gh` failure is a warning with the compare URL, except "already exists", which returns the existing PR's URL, Q10, QUESTIONS.md Q2)
 
 **WRITE-12** PR/commit copy: add (one) commit `library: added <type> <name>`, title `library: add
 <type> <name>`, body `Adds \`<name>\` (<type>) to the catalog.\n\nSource: <source>`; add (batch) commit

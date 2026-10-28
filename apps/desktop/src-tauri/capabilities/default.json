@@ -26,7 +26,12 @@
       "deny": [
         { "path": "$HOME/.ssh/**" },
         { "path": "$HOME/Library/Keychains/**" },
-        { "path": "$HOME/.gnupg/**" }
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.config/gh/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.netrc" },
+        { "path": "$HOME/.docker/**" },
+        { "path": "$HOME/.kube/**" }
       ]
     },
     {

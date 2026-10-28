@@ -22,7 +22,7 @@ Conventions every task follows: code in `packages/core/src/<module>/`, tests nex
 prompts (arch §8.4); no module-level state (arch §8.7); every mutation is a plan/apply pair with a
 fingerprint (arch §2.3); error codes come from the one closed enum (M1.02).
 
-Open questions that block tasks are in `docs/QUESTIONS.md` (Q1, Q2).
+Questions for the owner live in `docs/QUESTIONS.md`; none blocks a task right now.
 
 ---
 
@@ -90,25 +90,21 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   with the 1-based line.
   - Rules: EDIT-09
   - Depends: M1.07
-  - Blocked: (Q1)
   - Done when: every case whose expectation is a `SPLICE_UNSUPPORTED` error passes (code and line).
 
 - [ ] **M1.09 Splice: create missing sections (D1).**
   - Rules: EDIT-05
   - Depends: M1.08
-  - Blocked: (Q1)
   - Done when: every case whose input lacks the target section passes.
 
 - [ ] **M1.10 Remove (D3).** `removeEntry(text, type, name)`.
   - Rules: EDIT-10, EDIT-11
   - Depends: M1.08
-  - Blocked: (Q1)
   - Done when: every case containing a `remove` op passes, round trips included.
 
 - [ ] **M1.11 Replace (D4).** `replaceEntry(text, type, name, entry)`.
   - Rules: EDIT-12
   - Depends: M1.08
-  - Blocked: (Q1)
   - Done when: every case containing a `replace` op passes; together with M1.07–M1.10, all 896
     splice cases pass.
 
@@ -408,12 +404,13 @@ the commit and `gh`'s argv.
 - [ ] **M3.06 PR mode.** Temp single-branch clone, branch `library/<op>-<name>-<%Y%m%dT%H%M%S>`
   with a `-2`… suffix on collision, commit, `push -u`, compare URL, then `gh pr create` when `gh`
   is installed and signed in for a github.com catalog, else a manual result; a `gh` failure is a
-  warning with the compare URL; commit and PR copy per WRITE-12.
+  warning with the compare URL, except "already exists", which is success with the existing PR's
+  URL (Q2 A); commit and PR copy per WRITE-12.
   - Rules: WRITE-07, WRITE-08, WRITE-09, WRITE-10, WRITE-11, WRITE-12
   - Depends: M3.03, M3.01
-  - Blocked: (Q2)
   - Done when: each rule has a test; one test asserts the exact branch name, commit message and
-    `gh` argv; Bitbucket returns the manual result with its compare URL.
+    `gh` argv; a repeated write returns the existing PR's URL; Bitbucket returns the manual result
+    with its compare URL.
 
 - [ ] **M3.07 Suggest source.** `suggestSource(path)`: a GitHub/Bitbucket browser URL for a local
   file inside a git repo with a matching origin (Q13 b).
