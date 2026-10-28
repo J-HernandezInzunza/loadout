@@ -1,0 +1,408 @@
+{
+ "meta": {
+  "corpus": "registry",
+  "generator": "tools/golden/gen.py",
+  "library": {
+   "repo": "the-library-skill",
+   "commit": "a29e816"
+  },
+  "python": "3.14.5",
+  "pyyaml": "6.0.3",
+  "functions": "Config.problems, _normalize_catalogs, _catalog_from_raw",
+  "note": "YAML parsed with yaml.safe_load (YAML 1.1), as load_config does"
+ },
+ "cases": [
+  {
+   "id": "valid-local-and-remote",
+   "yaml": "catalogs:\n  - id: personal\n    path: ~/dev/library.yaml\n  - id: shared\n    repo: git@github.com:acme/catalog.git\n    yaml_path: library.yaml\n    branch: main\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "personal",
+     "kind": "local",
+     "writable": true,
+     "path": "~/dev/library.yaml",
+     "gitCommit": false,
+     "repo": "",
+     "yamlPath": "",
+     "branch": "",
+     "protected": true
+    },
+    {
+     "id": "shared",
+     "kind": "remote",
+     "writable": true,
+     "path": "",
+     "gitCommit": false,
+     "repo": "git@github.com:acme/catalog.git",
+     "yamlPath": "library.yaml",
+     "branch": "main",
+     "protected": true
+    }
+   ]
+  },
+  {
+   "id": "valid-all-flags",
+   "yaml": "catalogs:\n  - id: personal\n    path: /abs/library.yaml\n    writable: false\n    git_commit: true\n  - id: team\n    repo: git@github.com:acme/catalog.git\n    yaml_path: library.yaml\n    branch: main\n    protected: false\n    writable: true\npins:\n  session-retro: personal\nautopush: true\ndefault_add_catalog: personal\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "personal",
+     "kind": "local",
+     "writable": false,
+     "path": "/abs/library.yaml",
+     "gitCommit": true,
+     "repo": "",
+     "yamlPath": "",
+     "branch": "",
+     "protected": true
+    },
+    {
+     "id": "team",
+     "kind": "remote",
+     "writable": true,
+     "path": "",
+     "gitCommit": false,
+     "repo": "git@github.com:acme/catalog.git",
+     "yamlPath": "library.yaml",
+     "branch": "main",
+     "protected": false
+    }
+   ]
+  },
+  {
+   "id": "valid-legacy",
+   "yaml": "catalog:\n  repo: git@github.com:acme/catalog.git\n  yaml_path: library.yaml\n  branch: main\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "shared",
+     "kind": "remote",
+     "writable": true,
+     "path": "",
+     "gitCommit": false,
+     "repo": "git@github.com:acme/catalog.git",
+     "yamlPath": "library.yaml",
+     "branch": "main",
+     "protected": true
+    }
+   ]
+  },
+  {
+   "id": "valid-legacy-with-extras",
+   "yaml": "catalog:\n  repo: https://bitbucket.org/ws/cat.git\n  yaml_path: cat/library.yaml\n  branch: develop\ndefault_dirs:\n  skills:\n    - global: ~/elsewhere/skills/\n    - default: .claude/skills/\nunknown_key: 1\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "shared",
+     "kind": "remote",
+     "writable": true,
+     "path": "",
+     "gitCommit": false,
+     "repo": "https://bitbucket.org/ws/cat.git",
+     "yamlPath": "cat/library.yaml",
+     "branch": "develop",
+     "protected": true
+    }
+   ]
+  },
+  {
+   "id": "quoted-false-flags",
+   "yaml": "catalogs:\n  - id: p\n    path: ~/x.yaml\n    writable: \"false\"\n    git_commit: \"false\"\n  - id: r\n    repo: git@github.com:acme/catalog.git\n    yaml_path: library.yaml\n    branch: main\n    protected: \"false\"\nautopush: \"false\"\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "p",
+     "kind": "local",
+     "writable": true,
+     "path": "~/x.yaml",
+     "gitCommit": true,
+     "repo": "",
+     "yamlPath": "",
+     "branch": "",
+     "protected": true
+    },
+    {
+     "id": "r",
+     "kind": "remote",
+     "writable": true,
+     "path": "",
+     "gitCommit": false,
+     "repo": "git@github.com:acme/catalog.git",
+     "yamlPath": "library.yaml",
+     "branch": "main",
+     "protected": true
+    }
+   ]
+  },
+  {
+   "id": "yaml11-booleans",
+   "yaml": "catalogs:\n  - id: p\n    path: ~/x.yaml\n    writable: no\n  - id: r\n    repo: git@github.com:acme/catalog.git\n    yaml_path: library.yaml\n    branch: main\n    protected: off\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "p",
+     "kind": "local",
+     "writable": false,
+     "path": "~/x.yaml",
+     "gitCommit": false,
+     "repo": "",
+     "yamlPath": "",
+     "branch": "",
+     "protected": true
+    },
+    {
+     "id": "r",
+     "kind": "remote",
+     "writable": true,
+     "path": "",
+     "gitCommit": false,
+     "repo": "git@github.com:acme/catalog.git",
+     "yamlPath": "library.yaml",
+     "branch": "main",
+     "protected": false
+    }
+   ]
+  },
+  {
+   "id": "non-string-id",
+   "yaml": "catalogs:\n  - id: 123\n    path: ~/x.yaml\n  - id: 2001-12-14\n    path: ~/y.yaml\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "123",
+     "kind": "local",
+     "writable": true,
+     "path": "~/x.yaml",
+     "gitCommit": false,
+     "repo": "",
+     "yamlPath": "",
+     "branch": "",
+     "protected": true
+    },
+    {
+     "id": "2001-12-14",
+     "kind": "local",
+     "writable": true,
+     "path": "~/y.yaml",
+     "gitCommit": false,
+     "repo": "",
+     "yamlPath": "",
+     "branch": "",
+     "protected": true
+    }
+   ]
+  },
+  {
+   "id": "both-forms",
+   "yaml": "catalog:\n  repo: r\n  yaml_path: y\n  branch: b\ncatalogs: []\n",
+   "problems": [
+    "both 'catalog:' and 'catalogs:' are present — keep one; they are ambiguous"
+   ]
+  },
+  {
+   "id": "neither-form",
+   "yaml": "pins: {}\n",
+   "problems": [
+    "neither 'catalog:' nor 'catalogs:' is present"
+   ]
+  },
+  {
+   "id": "empty-document",
+   "yaml": "",
+   "problems": [
+    "neither 'catalog:' nor 'catalogs:' is present"
+   ]
+  },
+  {
+   "id": "legacy-not-mapping",
+   "yaml": "catalog: just-a-string\n",
+   "problems": [
+    "'catalog:' is not a mapping"
+   ]
+  },
+  {
+   "id": "legacy-missing-keys",
+   "yaml": "catalog:\n  repo: git@github.com:acme/catalog.git\n",
+   "problems": [
+    "missing catalog.yaml_path, catalog.branch"
+   ]
+  },
+  {
+   "id": "catalogs-not-list",
+   "yaml": "catalogs:\n  personal: ~/x.yaml\n",
+   "problems": [
+    "'catalogs:' is not a list"
+   ]
+  },
+  {
+   "id": "catalogs-empty",
+   "yaml": "catalogs: []\n",
+   "problems": [
+    "'catalogs:' is empty"
+   ]
+  },
+  {
+   "id": "item-not-mapping",
+   "yaml": "catalogs:\n  - ~/x.yaml\n  - id: ok\n    path: ~/y.yaml\n",
+   "problems": [
+    "catalogs[0] is not a mapping"
+   ]
+  },
+  {
+   "id": "missing-id",
+   "yaml": "catalogs:\n  - path: ~/x.yaml\n",
+   "problems": [
+    "catalogs[0] has no 'id'"
+   ]
+  },
+  {
+   "id": "blank-id",
+   "yaml": "catalogs:\n  - id: \"  \"\n    path: ~/x.yaml\n",
+   "problems": [
+    "catalogs[0] has no 'id'"
+   ]
+  },
+  {
+   "id": "duplicate-id",
+   "yaml": "catalogs:\n  - id: a\n    path: ~/x.yaml\n  - id: a\n    path: ~/y.yaml\n",
+   "problems": [
+    "duplicate catalog id 'a'"
+   ]
+  },
+  {
+   "id": "path-and-repo",
+   "yaml": "catalogs:\n  - id: a\n    path: ~/x.yaml\n    repo: git@github.com:a/b.git\n",
+   "problems": [
+    "catalog 'a' declares both 'path' and 'repo' — pick one"
+   ]
+  },
+  {
+   "id": "neither-path-nor-repo",
+   "yaml": "catalogs:\n  - id: a\n    writable: true\n",
+   "problems": [
+    "catalog 'a' declares neither 'path' nor 'repo'"
+   ]
+  },
+  {
+   "id": "remote-missing-yaml-path-and-branch",
+   "yaml": "catalogs:\n  - id: a\n    repo: git@github.com:a/b.git\n",
+   "problems": [
+    "remote catalog 'a' has no 'yaml_path'",
+    "remote catalog 'a' has no 'branch'"
+   ]
+  },
+  {
+   "id": "yaml-path-absolute",
+   "yaml": "catalogs:\n  - id: a\n    repo: git@github.com:a/b.git\n    yaml_path: /library.yaml\n    branch: main\n",
+   "problems": [
+    "catalog 'a' has invalid yaml_path '/library.yaml': use a relative path inside the repo (no leading '/', no '..', no ':')"
+   ]
+  },
+  {
+   "id": "yaml-path-dotdot",
+   "yaml": "catalogs:\n  - id: a\n    repo: git@github.com:a/b.git\n    yaml_path: x/../../library.yaml\n    branch: main\n",
+   "problems": [
+    "catalog 'a' has invalid yaml_path 'x/../../library.yaml': use a relative path inside the repo (no leading '/', no '..', no ':')"
+   ]
+  },
+  {
+   "id": "yaml-path-colon",
+   "yaml": "catalogs:\n  - id: a\n    repo: git@github.com:a/b.git\n    yaml_path: \"c:library.yaml\"\n    branch: main\n",
+   "problems": [
+    "catalog 'a' has invalid yaml_path 'c:library.yaml': use a relative path inside the repo (no leading '/', no '..', no ':')"
+   ]
+  },
+  {
+   "id": "shared-repo-and-branch",
+   "yaml": "catalogs:\n  - id: a\n    repo: git@github.com:acme/catalog.git\n    yaml_path: library.yaml\n    branch: main\n  - id: b\n    repo: git@github.com:acme/catalog.git\n    yaml_path: library.yaml\n    branch: main\n",
+   "problems": [
+    "catalogs 'b' and 'a' share repo and branch; they would contend for one clone"
+   ]
+  },
+  {
+   "id": "same-repo-other-branch",
+   "yaml": "catalogs:\n  - id: a\n    repo: git@github.com:acme/catalog.git\n    yaml_path: library.yaml\n    branch: main\n  - id: b\n    repo: git@github.com:acme/catalog.git\n    yaml_path: library.yaml\n    branch: dev\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "a",
+     "kind": "remote",
+     "writable": true,
+     "path": "",
+     "gitCommit": false,
+     "repo": "git@github.com:acme/catalog.git",
+     "yamlPath": "library.yaml",
+     "branch": "main",
+     "protected": true
+    },
+    {
+     "id": "b",
+     "kind": "remote",
+     "writable": true,
+     "path": "",
+     "gitCommit": false,
+     "repo": "git@github.com:acme/catalog.git",
+     "yamlPath": "library.yaml",
+     "branch": "dev",
+     "protected": true
+    }
+   ]
+  },
+  {
+   "id": "relative-local-path",
+   "yaml": "catalogs:\n  - id: a\n    path: dev/library.yaml\n",
+   "problems": [
+    "catalog 'a' path 'dev/library.yaml' must be absolute or start with '~'"
+   ]
+  },
+  {
+   "id": "pins-not-mapping",
+   "yaml": "catalogs:\n  - id: a\n    path: ~/x.yaml\npins: [a]\n",
+   "problems": [
+    "'pins:' is not a mapping of entry name to catalog id"
+   ]
+  },
+  {
+   "id": "pin-bad-key-and-value",
+   "yaml": "catalogs:\n  - id: a\n    path: ~/x.yaml\npins:\n  \"\": a\n  x: \"\"\n  y: 3\n  4: a\n",
+   "problems": [
+    "pin key '' is not an entry name",
+    "pin 'x' does not name a catalog",
+    "pin 'y' does not name a catalog",
+    "pin key 4 is not an entry name"
+   ]
+  },
+  {
+   "id": "pin-unregistered-catalog-ok",
+   "yaml": "catalogs:\n  - id: a\n    path: ~/x.yaml\npins:\n  x: nowhere\n",
+   "problems": [],
+   "catalogs": [
+    {
+     "id": "a",
+     "kind": "local",
+     "writable": true,
+     "path": "~/x.yaml",
+     "gitCommit": false,
+     "repo": "",
+     "yamlPath": "",
+     "branch": "",
+     "protected": true
+    }
+   ]
+  },
+  {
+   "id": "many-problems",
+   "yaml": "catalogs:\n  - id: a\n  - id: a\n    path: rel\n  - 7\n  - id: c\n    repo: r\n    yaml_path: /abs\npins: 3\n",
+   "problems": [
+    "catalog 'a' declares neither 'path' nor 'repo'",
+    "duplicate catalog id 'a'",
+    "catalog 'a' path 'rel' must be absolute or start with '~'",
+    "catalogs[2] is not a mapping",
+    "remote catalog 'c' has no 'branch'",
+    "catalog 'c' has invalid yaml_path '/abs': use a relative path inside the repo (no leading '/', no '..', no ':')",
+    "'pins:' is not a mapping of entry name to catalog id"
+   ]
+  }
+ ]
+}

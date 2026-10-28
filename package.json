@@ -15,7 +15,10 @@
     "test": "vitest run",
     "cargo:check": "cargo check --locked --offline --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "check": "npm run typecheck && npm run lint && npm run test && npm run cargo:check",
-    "check:offline": "sandbox-exec -f tools/offline.sb npm run check"
+    "check:offline": "sandbox-exec -f tools/offline.sb npm run check",
+    "golden": "PYTHONDONTWRITEBYTECODE=1 \"${LIBRARY_SKILL_DIR:-$HOME/Projects/my-tools/the-library-skill}/.venv/bin/python\" -B tools/golden/gen.py",
+    "golden:check": "npm run golden -- --check",
+    "golden:test": "cd tools/golden && PYTHONDONTWRITEBYTECODE=1 \"${LIBRARY_SKILL_DIR:-$HOME/Projects/my-tools/the-library-skill}/.venv/bin/python\" -B -m unittest test_rebuild_ref"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
