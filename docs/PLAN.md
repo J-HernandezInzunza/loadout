@@ -80,7 +80,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.05
   - Done when: every `render/*` case in `splice.json` matches (`rebuild` for the three refused refs).
 
-- [ ] **M1.07 Splice: insert into existing sections.** Port `_locate_section`, `_item_starts`,
+- [x] **M1.07 Splice: insert into existing sections.** Port `_locate_section`, `_item_starts`,
   `spliceEntry` line for line (`text.split("\n")`, rejoin with `"\n"`); batch add applies it in order.
   - Rules: EDIT-04, EDIT-06, EDIT-07, EDIT-08, EDIT-13
   - Depends: M1.06
