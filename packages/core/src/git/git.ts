@@ -44,6 +44,8 @@ export interface GitClient {
   divergence(dir: string, branch: string, opts?: CallOpts): Promise<{ behind: number; ahead: number } | "unknown">;
   /** Local: `remote.origin.url` of the clone at `dir`, or "" when it has none. */
   originUrl(dir: string): Promise<string>;
+  /** Local: the work tree holding `dir`, its origin URL ("" for none) and checked-out branch; null outside a repo. */
+  repoOf(dir: string): Promise<{ root: string; origin: string; branch: string } | null>;
   /** Local: stages `paths` and commits them with `message`; the new commit's sha. */
   commit(dir: string, paths: string[], message: string): Promise<Result<string>>;
   /** Local: creates `name` at HEAD and checks it out. */
@@ -197,6 +199,15 @@ export function createGitClient(host: Host, opts: GitClientOptions = {}): GitCli
     },
 
     originUrl,
+
+    async repoOf(dir) {
+      const top = await local(dir, ["rev-parse", "--show-toplevel"]);
+      if (top.code !== 0) return null;
+      const root = top.stdout.trim();
+      // symbolic-ref names the branch even before its first commit; a detached HEAD falls back to main.
+      const branch = (await local(root, ["symbolic-ref", "--quiet", "--short", "HEAD"])).stdout.trim();
+      return { root, origin: await originUrl(root), branch: branch === "" ? "main" : branch };
+    },
 
     async commit(dir, paths, message) {
       const added = await local(dir, ["add", "--", ...paths]);
