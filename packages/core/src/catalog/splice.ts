@@ -1,6 +1,7 @@
 // Line-based catalog edits, ported from library.py's splice functions (behaviors.md §2.7) with the
 // rebuild's decisions applied (§0.1, tools/golden/rebuild_ref.py).
 import { LibraryError, type Entry, type EntryType } from "../model/model.ts";
+import { pyLess } from "./python.ts";
 import { pyyamlInline } from "./scalar.ts";
 
 const ENTRY_TYPES = ["skill", "agent", "prompt"];
@@ -67,17 +68,6 @@ export function renderEntry(entry: Omit<Entry, "catalog">): string[] {
   ];
   if (entry.requires.length > 0) lines.push(`      requires: [${entry.requires.map((r) => `"${r}"`).join(", ")}]`);
   return lines;
-}
-
-/** Python's `a < b` on strings: by code point, not by UTF-16 unit. */
-function pyLess(a: string, b: string): boolean {
-  const x = Array.from(a);
-  const y = Array.from(b);
-  for (let i = 0; i < Math.min(x.length, y.length); i++) {
-    const d = x[i]!.codePointAt(0)! - y[i]!.codePointAt(0)!;
-    if (d !== 0) return d < 0;
-  }
-  return x.length < y.length;
 }
 
 interface Section {
