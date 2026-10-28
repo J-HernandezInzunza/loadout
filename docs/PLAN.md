@@ -351,7 +351,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.14, M2.16
   - Done when: each rule has a test.
 
-- [ ] **M2.19 Sync.** `planSync` / `applySync`: winning copies of managed installs, dependency
+- [x] **M2.19 Sync.** `planSync` / `applySync`: winning copies of managed installs, dependency
   closures, skip when `sourceUnchanged` (unless `force`), unmanaged items skipped and reported
   (A2), per-item failures, missing receipts reported, off skills refreshed in place.
   - Rules: SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05, SYNC-06
