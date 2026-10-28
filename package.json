@@ -1,0 +1,30 @@
+{
+  "name": "loadout",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc -b && vue-tsc -p apps/desktop --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "cargo:check": "cargo check --locked --offline --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run cargo:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.19.0",
+    "eslint": "10.13.0",
+    "eslint-plugin-vue": "10.12.0",
+    "globals": "17.13.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}
