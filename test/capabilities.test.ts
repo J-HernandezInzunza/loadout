@@ -33,8 +33,14 @@ describe("capabilities", () => {
     const fsScope = scoped("fs:scope");
     const allow = fsScope.flatMap((p) => p.allow ?? []).map((e) => e.path);
     const deny = fsScope.flatMap((p) => p.deny ?? []).map((e) => e.path);
-    expect(allow).toEqual(expect.arrayContaining(["$HOME/**", "$APPDATA/**"]));
+    // A `/**` glob does not match the folder itself, and the app must create $APPDATA on first launch.
+    expect(allow).toEqual(expect.arrayContaining(["$HOME/**", "$APPDATA", "$APPDATA/**"]));
     expect(deny).toEqual(expect.arrayContaining(["$HOME/.ssh/**", "$HOME/Library/Keychains/**", "$HOME/.gnupg/**"]));
+  });
+
+  it("lets globs match dot-components, or $HOME/** would exclude ~/.claude", () => {
+    const conf = JSON.parse(readFileSync(dir + "../tauri.conf.json", "utf8"));
+    expect(conf.plugins?.fs?.requireLiteralLeadingDot).toBe(false);
   });
 
   it("never grants fs permissions with their own wider scope", () => {

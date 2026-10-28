@@ -22,7 +22,7 @@
     "fs:allow-remove",
     {
       "identifier": "fs:scope",
-      "allow": [{ "path": "$HOME/**" }, { "path": "$APPDATA/**" }],
+      "allow": [{ "path": "$HOME/**" }, { "path": "$APPDATA" }, { "path": "$APPDATA/**" }],
       "deny": [
         { "path": "$HOME/.ssh/**" },
         { "path": "$HOME/Library/Keychains/**" },
