@@ -599,8 +599,10 @@ Users connect a GitHub and/or Bitbucket account from an Accounts screen with a b
   APIs before release). No connected account → the compare URL, as today's manual mode.
 - **OAuth flows (M4).** GitHub: an OAuth app (or GitHub App) with device flow or browser redirect;
   device flow needs no client secret. Bitbucket Cloud: an OAuth consumer registered in a workspace;
-  its token exchange requires the consumer secret and Atlassian documents no PKCE, so the secret
-  ships in the app (acceptable for an internal tool; extractable, see §10 risk 13). Bitbucket access
+  its token exchange requires the consumer secret and Atlassian documents no PKCE. The user still
+  signs in and grants access in the browser; the secret only identifies the app. It is never
+  committed (the repo is public): it is a GitHub Actions secret that the release build injects, so
+  it ends up inside the built app, where it can be extracted (§10 risk 13). Bitbucket access
   tokens last two hours; the core refreshes them with the refresh token before git or API calls.
   Redirect: a custom scheme through `tauri-plugin-deep-link` if both hosts accept it as a callback,
   otherwise a one-shot loopback listener; verify in the M4 spike.
@@ -747,9 +749,15 @@ Users connect a GitHub and/or Bitbucket account from an Accounts screen with a b
     (S10), so both are worth re-checking on Claude Code upgrades.
 12. **Writing a file Claude Code also writes.** `~/.claude/settings.json` is shared with `/config` and
     `/model`. Mitigation: minimal edits, compare-before-write, never overwrite unparseable JSON (§4.5).
-13. **Bitbucket's OAuth secret ships in the app** (§5.5). Anyone can extract it and impersonate
-    Loadout's consumer to phish a token from a teammate. Mitigations: register the consumer in the
-    Workstand workspace with the narrowest scopes (repository read/write, pull requests write);
-    rotate it if leaked (a new build ships the new secret). Needs a workspace admin (QUESTIONS.md Q5).
+13. **Bitbucket's OAuth secret is inside the built app** (§5.5). It is never in the repo (a CI
+    secret injected at build time), but anyone with the installed app can extract it. On its own it
+    opens no repository: it lets someone build a fake app that shows up as "Loadout" on Bitbucket's
+    consent screen, so a teammate who signs in and grants access to that fake hands it a token.
+    Mitigations: register the consumer in the Workstand workspace with the narrowest scopes
+    (repository read/write, pull requests write); rotate it if leaked (the next build carries the new
+    one). Alternatives if that is not acceptable: a small token-exchange service that holds the secret
+    (the app sends it the one-time code; adds hosting), or Bitbucket's implicit grant (no secret, but no
+    refresh token, so users sign in again every two hours). Either changes only the M4 sign-in work.
+    Needs a workspace admin (QUESTIONS.md Q5).
 14. **OAuth apps need owners.** Registering the GitHub OAuth app and the Bitbucket consumer (and
     their callback URLs) is outside the code. Not needed until M4; M2/M3 test with injected tokens.
