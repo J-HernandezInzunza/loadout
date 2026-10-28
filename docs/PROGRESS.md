@@ -25,3 +25,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M1.21 322ec72 resolveDeps (post-order, own catalog, cycle recorded on the parent per A29), mergeOrders, dependents, findCycles; unknown-type refs are not_found everywhere (A25)
 2026-10-28 M1.22 d3ca107 createLibrary: list/search/show/catalogs with zod input/output schemas per op; offline, no shared state; install fields stubbed until M2.20
 2026-10-28 M2.01 2e40917 git harness: bare repos as file:// remotes, https github/bitbucket mapped via sandbox gitconfig, ssh unmapped and refused, blobless filter allowed
+2026-10-28 M2.02 f4def17 Host.secrets (Node: in memory per instance) and Host.http (fetch, TimeoutError/AbortError); Tauri stub rejects both; sandbox treats non-loopback HTTP as an escape; offline profile allows loopback

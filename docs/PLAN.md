@@ -209,7 +209,7 @@ cover arch §4.5 rules 1–7.
   - Done when: `git clone --depth 1` of `https://github.com/o/r.git` clones the local repo, and a
     clone of any unmapped URL fails without network access.
 
-- [ ] **M2.02 Host secrets and HTTP ports.** Add `HostSecrets` (`get`/`set`/`delete`) and
+- [x] **M2.02 Host secrets and HTTP ports.** Add `HostSecrets` (`get`/`set`/`delete`) and
   `HostHttp` (`request`) to the `Host` interface as in arch §2.2; the Node host implements secrets in
   memory (one store per host instance) and HTTP with `fetch` (timeouts and `AbortSignal`); the Tauri
   stub rejects both until M4.
