@@ -167,7 +167,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: one unreadable catalog of several is skipped with its reason while the others serve;
     a single unreadable catalog and an all-unreadable registry report as RCAT-08 describes.
 
-- [ ] **M1.19 Name resolution.** `resolve(name, catalog?)`, precedence, pins, `winners()`,
+- [x] **M1.19 Name resolution.** `resolve(name, catalog?)`, precedence, pins, `winners()`,
   `candidates(query)`, and resolve-all-before-effect for multi-name requests.
   - Rules: RES-01, RES-02, RES-03, RES-04, RES-05, RES-06, RES-10, RES-11
   - Depends: M1.18
