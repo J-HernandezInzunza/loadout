@@ -268,7 +268,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.07, M1.15
   - Done when: 50 concurrent `put`s all survive; a crash mid-write (simulated) leaves the old file.
 
-- [ ] **M2.09 Persistent catalog clones.** `catalogs/`: `refreshCatalogs()` (absent → shallow
+- [x] **M2.09 Persistent catalog clones.** `catalogs/`: `refreshCatalogs()` (absent → shallow
   single-branch clone into `clones/<id>`; present → `pull --ff-only`), per-catalog warnings instead
   of failing (A3), origin check before reusing a clone dir (A20), `catalogStatus` with behind
   count or "couldn't check", diverged-clone detection (A4); reads never pull (R12).

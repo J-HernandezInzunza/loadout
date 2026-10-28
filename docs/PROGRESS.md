@@ -32,3 +32,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M2.06 0a45438 createOperation (tmp/op-*, CloneCache + ProbeCache keyed by repoKey, promise-memoized incl. failures, dispose) and sweepTemp at launch
 2026-10-28 M2.07 413109a contentHashV1 (all 20 hash.json digests) and fileManifest (relpath -> sha256 hex) over one walk; code-point path order
 2026-10-28 M2.08 28227de createReceiptStore: get/all/put/delete, sorted v2 file, queued read-modify-write (50 concurrent puts survive), crash mid-write keeps the old file; unreadable file reads empty + warning, writes refused (new RECEIPTS_INVALID)
+2026-10-28 M2.09 8d1af8b refreshCatalogs (clone/pull per catalog, warnings not failures, A20 origin check) and catalogStatus (behind/ahead/diverged, unknown offline); git behindCount -> divergence + originUrl; GitHub/Bitbucket catalog repos get FETCH-02 URL order
