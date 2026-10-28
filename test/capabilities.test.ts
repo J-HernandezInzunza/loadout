@@ -1,5 +1,6 @@
 // The Tauri capability file is the app's permission surface (architecture.md §2.4, §6): the shell may
-// spawn only git and gh, and the fs scope must keep its denies for secrets under $HOME.
+// spawn only git (gh was dropped for the host APIs, §5.5), and the fs scope must keep its denies for
+// secrets under $HOME.
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -15,12 +16,12 @@ const scoped = (prefix: string) =>
   permissions.filter((p): p is Exclude<Permission, string> => typeof p !== "string" && p.identifier.startsWith(prefix));
 
 describe("capabilities", () => {
-  it("lets the shell run only git and gh, with no sidecars", () => {
+  it("lets the shell run only git, with no sidecars", () => {
     const shell = scoped("shell:");
     expect(shell.length).toBeGreaterThan(0);
     for (const p of shell) {
       for (const entry of p.allow ?? []) {
-        expect(["git", "gh"]).toContain(entry.cmd);
+        expect(entry.cmd).toBe("git");
         expect(entry.name).toBe(entry.cmd);
         expect(entry.sidecar ?? false).toBe(false);
       }

@@ -107,7 +107,8 @@ export async function applyCatalogEdit(host: Host, plan: EditPlan): Promise<Resu
 /** WRITE-18: what every write reports; the keys present depend on the mode. */
 export type WriteResult =
   | { mode: "local" | "direct"; catalog: string; changed: boolean; path: string; committed: boolean; pushed: boolean; branch: string | null; diff?: string }
-  | { mode: "pr"; catalog: string; changed: boolean; method: "api" | "manual"; branch: string; prUrl?: string; compareUrl?: string; diff?: string };
+  /** branch is null when the edit was a no-op and nothing was committed */
+  | { mode: "pr"; catalog: string; changed: boolean; method: "api" | "manual"; branch: string | null; prUrl?: string; compareUrl?: string | null; diff?: string };
 
 /** WRITE-18 for the in-place modes: the file's path, whether git committed and pushed it, and the diff of a dry run. */
 export function inPlaceResult(

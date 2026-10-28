@@ -46,6 +46,10 @@ export interface GitClient {
   originUrl(dir: string): Promise<string>;
   /** Local: stages `paths` and commits them with `message`; the new commit's sha. */
   commit(dir: string, paths: string[], message: string): Promise<Result<string>>;
+  /** Local: creates `name` at HEAD and checks it out. */
+  checkoutBranch(dir: string, name: string): Promise<Result<void>>;
+  /** Local: `git show HEAD`, the last commit with its patch. */
+  showHead(dir: string): Promise<string>;
   /** `git push origin <refspec>` (extra args before it, e.g. `-u`); a refusal is classified as WRITE-09 says. */
   push(dir: string, refspec: string, opts?: CallOpts & { args?: string[] }): Promise<Result<void>>;
 }
@@ -201,6 +205,15 @@ export function createGitClient(host: Host, opts: GitClientOptions = {}): GitCli
       if (committed.code !== 0) return err({ code: "GIT_FAILED", message: `git commit failed: ${gitErrorSummary(committed.stderr || committed.stdout)}` });
       const sha = await revParse(dir, "HEAD");
       return sha === null ? err({ code: "GIT_FAILED", message: "git commit left no HEAD" }) : ok(sha);
+    },
+
+    async checkoutBranch(dir, name) {
+      const res = await local(dir, ["checkout", "--quiet", "-b", name]);
+      return res.code === 0 ? ok(undefined) : err({ code: "GIT_FAILED", message: `git checkout -b ${name} failed: ${gitErrorSummary(res.stderr)}` });
+    },
+
+    async showHead(dir) {
+      return (await local(dir, ["show", "--no-color", "HEAD"])).stdout;
     },
 
     async push(dir, refspec, o = {}) {

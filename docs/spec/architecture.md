@@ -71,7 +71,7 @@ export interface HostFs {
 
 export interface ProcResult { code: number; stdout: string; stderr: string; durationMs: number }
 export interface HostProc {
-  run(program: "git" | "gh", args: string[], opts: {
+  run(program: "git", args: string[], opts: {
     cwd?: string; env?: Record<string, string>; timeoutMs?: number; signal?: AbortSignal;
   }): Promise<ProcResult>;
 }
@@ -641,7 +641,7 @@ Users connect a GitHub and/or Bitbucket account from an Accounts screen with a b
   confirmations, toasts, contrast and token guards) port almost unchanged.
 - **Tauri boundary:** the host-tauri adapter is tested with `@tauri-apps/api/mocks` (`mockIPC`)
   asserting the plugin calls it makes; a test parses `capabilities/*.json` and fails if the shell scope
-  allows anything but `git`/`gh` or the fs scope loses its denies; `cargo test` covers PATH widening;
+  allows anything but `git` (`gh` was dropped for the host APIs, §5.5) or the fs scope loses its denies; `cargo test` covers PATH widening;
   a release checklist covers one manual smoke run of the signed `.app` on a clean user account
   (WKWebView has no WebDriver, so there is no automated end-to-end on macOS).
 
