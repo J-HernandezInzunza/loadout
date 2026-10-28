@@ -52,3 +52,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M3.04 3ee09be planLocalWrite/applyLocalWrite: atomic in-place write, no git even in a work tree, committed/pushed false, dry-run diff by basename
 2026-10-28 M3.05 2958669 planDirectWrite/applyDirectWrite (refresh, edit, commit, push HEAD:<branch>; commit/push failures are warnings; stale push leaves a diverged clone); git commit/push + pushError (WRITE-09); editCopy (WRITE-12)
 2026-10-28 M3.06 85c64a0 planPrWrite/applyPrWrite (temp clone, branch with seconds and -N suffix, commit, push -u, API PR or manual compare URL, warnings on API failure, existing PR = success, dry run = git show HEAD); gh removed from HostProc, shell scope and capabilities test
+2026-10-28 M3.07 c10e76c suggestSource (GitHub blob / Bitbucket src URL on the checked-out branch, folders -> main file, a reason for each miss); git repoOf via symbolic-ref

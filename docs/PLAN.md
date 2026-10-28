@@ -444,7 +444,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
     recorded PR request; a repeated write returns the existing PR's URL; with no account connected
     the result is manual with the compare URL; `capabilities.test.ts` allows only `git`.
 
-- [ ] **M3.07 Suggest source.** `suggestSource(path)`: a GitHub/Bitbucket browser URL for a local
+- [x] **M3.07 Suggest source.** `suggestSource(path)`: a GitHub/Bitbucket browser URL for a local
   file inside a git repo with a matching origin (Q13 b).
   - Rules: WRITE-05
   - Depends: M2.05, M1.14
