@@ -40,6 +40,7 @@ function describe(s: Stats) {
 export function createNodeHost(opts: NodeHostOptions): Host {
   const audit = opts.onAudit ?? (() => {});
   let nextProcId = 1;
+  const secrets = new Map<string, string>();
 
   return {
     paths: { home: opts.home, appData: opts.appData },
@@ -48,6 +49,32 @@ export function createNodeHost(opts: NodeHostOptions): Host {
 
     async sha256(data) {
       return createHash("sha256").update(data).digest("hex");
+    },
+
+    secrets: {
+      get: async (key) => secrets.get(key) ?? null,
+      set: async (key, value) => {
+        secrets.set(key, value);
+      },
+      delete: async (key) => {
+        secrets.delete(key);
+      },
+    },
+
+    http: {
+      async request(req) {
+        const signals = [
+          ...(req.signal ? [req.signal] : []),
+          ...(req.timeoutMs !== undefined ? [AbortSignal.timeout(req.timeoutMs)] : []),
+        ];
+        const res = await fetch(req.url, {
+          method: req.method,
+          ...(req.headers && { headers: req.headers }),
+          ...(req.body !== undefined && { body: req.body }),
+          ...(signals.length > 0 && { signal: AbortSignal.any(signals) }),
+        });
+        return { status: res.status, headers: Object.fromEntries(res.headers), body: await res.text() };
+      },
     },
 
     fs: {

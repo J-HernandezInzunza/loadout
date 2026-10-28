@@ -40,6 +40,14 @@ describe("sandbox", () => {
     expect(sb.audit[0]).toMatchObject({ kind: "proc:start", argv: ["git", "--version"], cwd: sb.root });
   });
 
+  it("rejects and records HTTP requests off loopback", async () => {
+    const sb = await createSandbox();
+    await expect(sb.host.http.request({ method: "GET", url: "https://api.github.com/user" })).rejects.toThrow(
+      /leaves loopback/,
+    );
+    expect(() => sb.verify()).toThrow(/1 call escaped the sandbox:\nhttp.request: https:\/\/api.github.com\/user/);
+  });
+
   it.fails("fails the test when an escape was never verified", async () => {
     const sb = await createSandbox();
     await sb.host.fs.readText("/etc/hosts").catch(() => {});

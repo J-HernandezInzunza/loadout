@@ -1,3 +1,5 @@
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -153,6 +155,94 @@ describe("proc", () => {
     const p = host.proc.run("git", SLEEP, { cwd: root, signal: ac.signal });
     ac.abort();
     await expect(p).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
+describe("secrets", () => {
+  it("stores, reads and deletes values; a missing key reads as null", async () => {
+    expect(await host.secrets.get("github.com")).toBeNull();
+    await host.secrets.set("github.com", "tok-1");
+    await host.secrets.set("github.com", "tok-2");
+    expect(await host.secrets.get("github.com")).toBe("tok-2");
+    await host.secrets.delete("github.com");
+    await host.secrets.delete("github.com");
+    expect(await host.secrets.get("github.com")).toBeNull();
+  });
+
+  it("keeps one store per host instance", async () => {
+    const other = createNodeHost({ home: join(root, "home"), appData: join(root, "appdata") });
+    await host.secrets.set("bitbucket.org", "tok");
+    expect(await other.secrets.get("bitbucket.org")).toBeNull();
+  });
+});
+
+describe("http", () => {
+  let server: Server;
+  let base: string;
+  let received: { method: string; url: string; headers: Record<string, unknown>; body: string }[];
+
+  beforeEach(async () => {
+    received = [];
+    server = createServer((req, res) => {
+      let body = "";
+      req.setEncoding("utf8").on("data", (d: string) => (body += d));
+      req.on("end", () => {
+        received.push({ method: req.method!, url: req.url!, headers: req.headers, body });
+        // /slow never answers; the client has to give up.
+        if (req.url === "/slow") return;
+        res.writeHead(201, { "Content-Type": "application/json", "X-Request-Id": "r1" });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  afterEach(async () => {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  it("sends method, headers and body, and returns status, lowercased headers and body", async () => {
+    const res = await host.http.request({
+      method: "POST",
+      url: `${base}/repos/o/r/pulls`,
+      headers: { Authorization: "Bearer t", "Content-Type": "application/json" },
+      body: '{"title":"x"}',
+    });
+    expect(res.status).toBe(201);
+    expect(res.headers).toMatchObject({ "content-type": "application/json", "x-request-id": "r1" });
+    expect(JSON.parse(res.body)).toEqual({ ok: true });
+    expect(received).toEqual([
+      expect.objectContaining({
+        method: "POST",
+        url: "/repos/o/r/pulls",
+        headers: expect.objectContaining({ authorization: "Bearer t" }),
+        body: '{"title":"x"}',
+      }),
+    ]);
+  });
+
+  it("rejects with TimeoutError when the timeout elapses", async () => {
+    const started = Date.now();
+    await expect(host.http.request({ method: "GET", url: `${base}/slow`, timeoutMs: 100 })).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it("rejects with AbortError when the signal aborts", async () => {
+    const ac = new AbortController();
+    const p = host.http.request({ method: "GET", url: `${base}/slow`, signal: ac.signal, timeoutMs: 10_000 });
+    setTimeout(() => ac.abort(), 50);
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("rejects at once when the signal is already aborted", async () => {
+    await expect(
+      host.http.request({ method: "GET", url: `${base}/`, signal: AbortSignal.abort() }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(received).toEqual([]);
   });
 });
 
