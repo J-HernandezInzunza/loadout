@@ -37,64 +37,88 @@ export interface AddPlan {
 type NewEntry = Omit<Entry, "catalog">;
 const dirname = (p: string) => p.slice(0, p.lastIndexOf("/"));
 
+/**
+ * A source's checks for a write to `dest` (shared with update's setSource): it parses; a local one
+ * exists (unless `mustExist` is false, as for update), isn't a folder (A9), isn't a repo-root skill
+ * (Q13 d), isn't a path headed for a remote catalog (WRITE-05) and isn't inside an install dir (WRITE-06).
+ */
+export async function checkSource(
+  ctx: WriteCtx,
+  source: string,
+  type: EntryType,
+  dest: CatalogState,
+  opts: { multi: boolean; allowLocal: boolean; mustExist: boolean },
+): Promise<Result<void>> {
+  const { host } = ctx;
+  let src;
+  try {
+    src = parseSource(source, host.paths.home);
+  } catch (e) {
+    if (e instanceof LibraryError) return err({ code: e.code, message: e.message });
+    throw e;
+  }
+
+  if (src.kind !== "local") {
+    // Q13 d, for a remote source.
+    if (type === "skill" && src.parentPath === "") {
+      return err({ code: "INVALID_SOURCE", message: `${source} sits at the root of ${src.org}/${src.repo}, so installing it would copy the whole repository; move the skill into its own folder` });
+    }
+    return ok(undefined);
+  }
+
+  const kind = await host.fs.stat(src.path).then((s) => s.kind, () => null);
+  if (kind === null && opts.mustExist) return err({ code: "SOURCE_MISSING", message: `local source not found: ${source}` });
+  // A9: a folder source installs its parent folder, which is never what was meant.
+  if (kind === "dir") {
+    return err({ code: "INVALID_SOURCE", message: `${source} is a folder; point the source at the file itself (a skill's SKILL.md), since a folder source installs the folder above it` });
+  }
+  // Q13 d: a skill at a repo's root would copy the whole repository.
+  if (type === "skill" && (await host.fs.exists(`${dirname(src.path)}/.git`))) {
+    return err({ code: "INVALID_SOURCE", message: `${source} sits at the root of a git repository, so installing it would copy the whole repository; move the skill into its own folder` });
+  }
+  // WRITE-05: a path only resolves on this machine.
+  if (dest.ref.kind === "remote" && !opts.allowLocal) {
+    const hint = (await suggestSource(host, ctx.git, src.path)).url;
+    const why = opts.multi
+      ? `local-path sources don't resolve for anyone else pulling catalog '${dest.ref.id}'. Provide a GitHub/Bitbucket URL, allow local paths, or add it to a local catalog, which accepts paths.`
+      : "local-path sources don't resolve for teammates pulling the shared catalog. Provide a GitHub/Bitbucket URL, or allow local paths for a personal catalog.";
+    return err({ code: "LOCAL_SOURCE_REFUSED", message: hint ? `${why} This file is in a git repo — did you mean: ${hint}` : why });
+  }
+  // WRITE-06: an entry sourced from where it installs overwrites its own source.
+  const dir = Object.entries(installDirs(host.paths.home)).find(([, d]) => src.path === d || src.path.startsWith(d + "/"));
+  if (dir) {
+    const hint = kind === null ? null : (await suggestSource(host, ctx.git, src.path)).url;
+    return err({
+      code: "SOURCE_IN_INSTALL_DIR",
+      message:
+        `${src.path} is inside ${dir[1]}, which is where ${dir[0]}s install: an entry sourced from there overwrites its own source the first time it is installed. ` +
+        `Keep the content in a repository you own and point the source at it there.${hint ? ` This file is in a git repo — use its URL instead: ${hint}` : ""}`,
+    });
+  }
+  return ok(undefined);
+}
+
+/** DEP-11 for a list of refs, trimmed. */
+export function checkRefs(refs: string[]): Result<string[]> {
+  try {
+    refs.forEach(validateRef);
+  } catch (e) {
+    if (e instanceof LibraryError) return err({ code: e.code, message: e.message });
+    throw e;
+  }
+  return ok(refs.map((r) => r.trim()));
+}
+
 /** The checks one entry must pass whatever else is in the batch. */
 async function prepare(ctx: WriteCtx, input: NewEntryInput, dest: CatalogState, multi: boolean, allowLocal: boolean): Promise<Result<NewEntry>> {
-  const { host } = ctx;
   if (!input.name || !input.description || !input.source) return err({ code: "REFUSED", message: "each entry needs a name, description, and source" });
   const lower = input.source.toLowerCase();
   const type: EntryType = input.type ?? (lower.includes("skill.md") ? "skill" : lower.includes("agent.md") ? "agent" : "prompt");
-
-  let src;
-  try {
-    src = parseSource(input.source, host.paths.home);
-  } catch (e) {
-    if (e instanceof LibraryError) return err({ code: e.code, message: e.message });
-    throw e;
-  }
-
-  if (src.kind === "local") {
-    const kind = await host.fs.stat(src.path).then((s) => s.kind, () => null);
-    if (kind === null) return err({ code: "SOURCE_MISSING", message: `local source not found: ${input.source}` });
-    // A9: a folder source installs its parent folder, which is never what was meant.
-    if (kind === "dir") {
-      return err({ code: "INVALID_SOURCE", message: `${input.source} is a folder; point the source at the file itself (a skill's SKILL.md), since a folder source installs the folder above it` });
-    }
-    // Q13 d: a skill at a repo's root would copy the whole repository.
-    if (type === "skill" && (await host.fs.exists(`${dirname(src.path)}/.git`))) {
-      return err({ code: "INVALID_SOURCE", message: `${input.source} sits at the root of a git repository, so installing it would copy the whole repository; move the skill into its own folder` });
-    }
-    // WRITE-05: a path only resolves on this machine.
-    if (dest.ref.kind === "remote" && !allowLocal) {
-      const hint = (await suggestSource(host, ctx.git, src.path)).url;
-      const why = multi
-        ? `local-path sources don't resolve for anyone else pulling catalog '${dest.ref.id}'. Provide a GitHub/Bitbucket URL, allow local paths, or add it to a local catalog, which accepts paths.`
-        : "local-path sources don't resolve for teammates pulling the shared catalog. Provide a GitHub/Bitbucket URL, or allow local paths for a personal catalog.";
-      return err({ code: "LOCAL_SOURCE_REFUSED", message: hint ? `${why} This file is in a git repo — did you mean: ${hint}` : why });
-    }
-    // WRITE-06: an entry sourced from where it installs overwrites its own source.
-    const dir = Object.entries(installDirs(host.paths.home)).find(([, d]) => src.path === d || src.path.startsWith(d + "/"));
-    if (dir) {
-      const hint = (await suggestSource(host, ctx.git, src.path)).url;
-      return err({
-        code: "SOURCE_IN_INSTALL_DIR",
-        message:
-          `${src.path} is inside ${dir[1]}, which is where ${dir[0]}s install: an entry sourced from there overwrites its own source the first time it is installed. ` +
-          `Keep the content in a repository you own and point the source at it there.${hint ? ` This file is in a git repo — use its URL instead: ${hint}` : ""}`,
-      });
-    }
-  } else if (type === "skill" && src.parentPath === "") {
-    // Q13 d, for a remote source.
-    return err({ code: "INVALID_SOURCE", message: `${input.source} sits at the root of ${src.org}/${src.repo}, so installing it would copy the whole repository; move the skill into its own folder` });
-  }
-
-  const requires = input.requires ?? [];
-  try {
-    requires.forEach(validateRef); // DEP-11
-  } catch (e) {
-    if (e instanceof LibraryError) return err({ code: e.code, message: e.message });
-    throw e;
-  }
-  return ok({ type, name: input.name, description: input.description, source: input.source, requires: requires.map((r) => r.trim()) });
+  const source = await checkSource(ctx, input.source, type, dest, { multi, allowLocal, mustExist: true });
+  if (!source.ok) return source;
+  const requires = checkRefs(input.requires ?? []);
+  if (!requires.ok) return requires;
+  return ok({ type, name: input.name, description: input.description, source: input.source, requires: requires.value });
 }
 
 /** The CLI's new_entry_override_warnings: which copy of a shared name wins, and why. */

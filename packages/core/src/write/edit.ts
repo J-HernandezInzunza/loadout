@@ -14,8 +14,8 @@ export type EntryFields = Partial<Pick<Entry, "description" | "source" | "requir
 export type CatalogEdit =
   /** EDIT-13: a batch lands as one write, inserted in order */
   | { op: "add"; entries: NewEntry[] }
-  /** name and type are fixed; only the given fields change */
-  | { op: "update"; type: EntryType; name: string; fields: EntryFields }
+  /** name and type are fixed; only the given fields change; the requires deltas apply to the requires the text holds */
+  | { op: "update"; type: EntryType; name: string; fields: EntryFields; addRequires?: string[]; removeRequires?: string[] }
   | { op: "remove"; type: EntryType; name: string };
 
 const sameFields = (a: EntryFields, b: EntryFields) =>
@@ -33,7 +33,10 @@ export function computeEdit(text: string, edit: CatalogEdit): Result<{ text: str
     // The entry as this very text has it, not as a registry loaded earlier saw it.
     const parsed = parseCatalog(text);
     const current = parsed.ok ? catalogEntries(parsed.data, "").entries.find((e) => e.type === edit.type && e.name === edit.name) : undefined;
-    if (!current) return err({ code: "NOT_FOUND", message: `${edit.type} '${edit.name}' is not in the catalog` });
+    if (!current) {
+      const message = edit.op === "update" ? `'${edit.name}' was removed from the catalog upstream; nothing to update` : `${edit.type} '${edit.name}' is not in the catalog`;
+      return err({ code: "NOT_FOUND", message });
+    }
     if (edit.op === "remove") {
       const next = removeEntry(text, edit.type, edit.name);
       verifyEdit(next, edit, false);
@@ -44,7 +47,10 @@ export function computeEdit(text: string, edit: CatalogEdit): Result<{ text: str
       name: current.name,
       description: edit.fields.description ?? current.description,
       source: edit.fields.source ?? current.source,
-      requires: edit.fields.requires ?? current.requires,
+      requires: [
+        ...(edit.fields.requires ?? current.requires).filter((r) => !(edit.removeRequires ?? []).includes(r)),
+        ...(edit.addRequires ?? []).filter((r) => !(edit.fields.requires ?? current.requires).includes(r)),
+      ],
     };
     if (sameFields(merged, current)) return ok({ text, changed: false });
     const next = replaceEntry(text, edit.type, edit.name, merged);
