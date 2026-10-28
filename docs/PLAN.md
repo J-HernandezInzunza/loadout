@@ -234,7 +234,7 @@ cover arch §4.5 rules 1–7.
   - Done when: connect, refresh, disconnect and an invalid token have tests against the stub; no token
     appears in `config.json` or in any audit event.
 
-- [ ] **M2.05 Git client.** `git/`: `GitClient` over `HostProc`: non-interactive env, timeouts and
+- [x] **M2.05 Git client.** `git/`: `GitClient` over `HostProc`: non-interactive env, timeouts and
   `AbortSignal` on every network call, clone (ssh then https, fresh dir per attempt, A30),
   `lsRemoteHead` on `refs/heads/<branch>` exactly (A5), `probeOid` (blobless no-checkout clone +
   `rev-parse`), `revParse`, `pullFfOnly`, `behindCount` returning "unknown" when it could not
