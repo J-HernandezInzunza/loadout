@@ -23,6 +23,22 @@ export type NameErr = CoreError & { code: "NOT_FOUND" | "AMBIGUOUS_NAME"; query:
 
 export type ResolveErr = NameErr | CoreError;
 
+/** Where a copy stands among the copies of its name (RES-07..09, RES-12): relative to that copy. */
+export interface Provenance {
+  /** catalogs whose copies of the name come after this one */
+  overrides: string[];
+  /** the winning copy's catalog, when this copy is not it */
+  overriddenBy: string | null;
+  /** this copy wins because of a pin */
+  pinned: boolean;
+}
+
+export type Copy = Provenance & { catalog: string; wins: boolean; subject: boolean };
+
+/** A listed entry; the install fields stay stubbed until install state exists (M2.20). */
+export type EntryRecord = Entry &
+  Provenance & { installed: boolean; state: "not_installed"; receipt: null; locations: string[] };
+
 export interface Registry {
   /** every registered catalog, highest precedence first, skipped ones included */
   catalogs(): CatalogState[];
@@ -39,6 +55,11 @@ export interface Registry {
   resolveAll(names: string[], catalog?: string): Result<Entry[], ResolveErr>;
   /** Entries whose name or description contains the query, case-insensitively (RES-04). */
   candidates(query: string, catalog?: string): Candidate[];
+  overrideSplit(entry: Entry): Provenance;
+  /** Every copy of `name` in precedence order; `subject` (default: the winner) is the one reported on. */
+  copies(name: string, subject?: string): Copy[];
+  /** Every active entry with its provenance, the losing copies included (RES-07). */
+  records(): EntryRecord[];
 }
 
 /**
@@ -131,6 +152,16 @@ export async function loadRegistry(host: Host, config: AppConfigV1): Promise<Reg
     return err(error, searched.warnings);
   };
 
+  const overrideSplit = (entry: Entry): Provenance => {
+    const copies = merged.filter((e) => e.name === entry.name);
+    const at = copies.findIndex((e) => e === entry || (e.catalog === entry.catalog && e.type === entry.type));
+    return {
+      overrides: copies.slice(at + 1).map((e) => e.catalog),
+      overriddenBy: at > 0 ? copies[0]!.catalog : null,
+      pinned: at === 0 && config.pins[entry.name] === entry.catalog,
+    };
+  };
+
   return {
     catalogs: () => all,
     active: () => active,
@@ -152,6 +183,14 @@ export async function loadRegistry(host: Host, config: AppConfigV1): Promise<Reg
       }
       return ok(found, scope(catalog).warnings);
     },
+    overrideSplit,
+    copies(name, subject) {
+      const copies = merged.filter((e) => e.name === name);
+      const about = subject ?? copies[0]?.catalog;
+      return copies.map((e, i) => ({ catalog: e.catalog, wins: i === 0, subject: e.catalog === about, ...overrideSplit(e) }));
+    },
+    records: () =>
+      merged.map((e) => ({ ...e, ...overrideSplit(e), installed: false, state: "not_installed", receipt: null, locations: [] })),
     candidates(query, catalog) {
       const searched = scope(catalog);
       return searched.ok ? candidatesIn(searched.value, query) : [];

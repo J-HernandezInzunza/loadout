@@ -226,3 +226,52 @@ describe("resolve", () => {
     expect(r.resolve("x")).toMatchObject({ ok: false, error: { code: "NO_READABLE_CATALOG" } });
   });
 });
+
+describe("override provenance", () => {
+  const ab = () => registryOf([["A", catalog({ skills: ["x"] })], ["B", catalog({ skills: ["x", "y"] })]]);
+
+  it("RES-07: the losing copy's record is overridden and never claims the install", async () => {
+    const r = await ab();
+    const records = r.records().filter((e) => e.name === "x");
+    expect(records).toEqual([
+      expect.objectContaining({ catalog: "A", overrides: ["B"], overriddenBy: null, pinned: false }),
+      expect.objectContaining({
+        catalog: "B",
+        overrides: [],
+        overriddenBy: "A",
+        installed: false,
+        state: "not_installed",
+        receipt: null,
+        locations: [],
+      }),
+    ]);
+  });
+
+  it("RES-08: copies lists every catalog holding the name, marking the winner and the subject", async () => {
+    const r = await ab();
+    expect(r.copies("x", "B")).toEqual([
+      { catalog: "A", wins: true, subject: false, pinned: false, overrides: ["B"], overriddenBy: null },
+      { catalog: "B", wins: false, subject: true, pinned: false, overrides: [], overriddenBy: "A" },
+    ]);
+  });
+
+  it("RES-09: provenance is relative to the copy asked for, not the winner", async () => {
+    const r = await ab();
+    const b = r.resolve("x", "B");
+    expect(b.ok && r.overrideSplit(b.value)).toEqual({ overrides: [], overriddenBy: "A", pinned: false });
+  });
+
+  it("RES-12: a winning pin marks its copy pinned and the other overridden by it", async () => {
+    const r = await registryOf([["A", catalog({ skills: ["x"] })], ["B", catalog({ skills: ["x"] })]], { x: "B" });
+    expect(r.records().map((e) => [e.catalog, e.pinned, e.overriddenBy, e.overrides])).toEqual([
+      ["B", true, null, ["A"]],
+      ["A", false, "B", []],
+    ]);
+  });
+
+  it("RES-09: a multi-name request carries provenance per item (A27)", async () => {
+    const r = await ab();
+    const both = r.resolveAll(["x", "y"]);
+    expect(both.ok && both.value.map((e) => r.overrideSplit(e).overrides)).toEqual([["B"], []]);
+  });
+});
