@@ -277,7 +277,7 @@ cover arch §4.5 rules 1–7.
   - Done when: each rule has a test (RCAT-05 tests the fix: an unclonable catalog is skipped and the
     others still serve).
 
-- [ ] **M2.10 Scan.** `scan/`: `destState(dest)` and `scanInstallDirs()` over the fixed install
+- [x] **M2.10 Scan.** `scan/`: `destState(dest)` and `scanInstallDirs()` over the fixed install
   dirs (top level only, R9): managed (`installed`/`drifted` with per-file edits), unmanaged with
   origin (`python-cli`, `python-cli-edited`, `parked-by-python-cli`, `symlink`, `foreign`),
   missing; skips dot names and `synced`.
