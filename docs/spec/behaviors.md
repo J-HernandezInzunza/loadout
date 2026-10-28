@@ -58,7 +58,8 @@ The answers in `open-questions.md` change some rules below. Each affected rule k
 of what the CLI does (that is still what the golden fixtures record) and gains a `(rebuild, §0.1: …)`
 note. **Where a note and the rule disagree, the note wins for the new app.** Rules retagged
 `contract` → `free` are deliberate deviations: their goldens are recorded from `library.py` as usual,
-and the fixture also carries a hand-written `rebuild` expectation that the core is tested against.
+and wherever the rebuild's result differs the fixture also carries a `rebuild` expectation, which
+the core is tested against (`tools/golden/rebuild_ref.py` computes it from D1–D4 below).
 
 Context: the Python CLI is being retired (F3), so byte compatibility protects shared catalogs during
 the transition, not long-term coexistence. Only github.com and bitbucket.org hosts exist (F1), and no
@@ -90,8 +91,8 @@ real catalog uses the layouts EDIT-04..09 trip on (F2).
 insert adds `  <section>:` followed by the rendered block. Position: sections keep canonical order
 `skills`, `agents`, `prompts`. The new section goes right after the nearest existing section that
 precedes it in that order, placed by the append rule (back up over that section's trailing blank
-lines); with no preceding section it goes directly after the `library:` line. A missing `library:`
-line is still an error (EDIT-04).
+lines); with no preceding section it goes directly after the `library:` line. The section it follows
+must itself pass D2, or the insert is refused. A missing `library:` line is still an error (EDIT-04).
 
 **D2. Layouts refused up front (A12).** Before splicing, the section must satisfy all of: inline value
 empty or exactly `[]`; every non-blank, non-comment line inside it starts with four spaces; every item
@@ -105,8 +106,8 @@ anything else. Removing a **non-last** item deletes its own lines plus the blank
 them. Removing the **last** item deletes its own lines plus the blank lines directly **above** it (back to
 the previous item's content), so the separator before the next section stays. Comment lines indented
 fewer than six spaces are never deleted. If the section becomes empty, the header becomes
-`  <section>: []`, blank lines directly under the header are removed, any remaining comments stay, and
-the file's trailing newline is kept.
+`  <section>: []` and nothing else changes: remaining comments, the blank separator below and the
+file's trailing newline all stay.
 
 **D4. Update (Q4).** Within the target item's own lines (D3): `name` is untouched; the `description` and
 `source` values are rewritten in place (a multi-line value collapses to one line); `requires` is
@@ -114,8 +115,8 @@ rewritten in flow style in place, inserted after `source` when absent, removed w
 `description`/`source` key is inserted in canonical order. Every other key, comment and blank line
 stays byte-for-byte.
 
-D1–D4 outputs are hand-written expectations, not generated, and get reviewed with the golden fixtures
-in M0.
+D1–D4 are pinned by hand-written expected outputs (`tools/golden/test_rebuild_ref.py`); the
+reference implementation then computes the `rebuild` expectation of every golden splice case.
 
 ## 1. Domain model
 
