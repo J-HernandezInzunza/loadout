@@ -70,6 +70,17 @@ export type ErrorCode = z.infer<typeof ErrorCode>;
 export const CoreError = z.object({ code: ErrorCode, message: z.string() });
 export type CoreError = z.infer<typeof CoreError>;
 
+/** Thrown by the pure catalog functions; ops turn it into an `err()` result. */
+export class LibraryError extends Error {
+  constructor(
+    readonly code: ErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "LibraryError";
+  }
+}
+
 export const Warning = z.object({ message: z.string() });
 export type Warning = z.infer<typeof Warning>;
 
