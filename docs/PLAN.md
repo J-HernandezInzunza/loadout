@@ -65,7 +65,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.02
   - Done when: each fixture loads through its zod schema.
 
-- [ ] **M1.05 PyYAML scalar quoting.** `catalog/scalar.ts`: `pyyamlInline(value)` reproducing
+- [x] **M1.05 PyYAML scalar quoting.** `catalog/scalar.ts`: `pyyamlInline(value)` reproducing
   `_yaml_inline` (PyYAML's YAML 1.1 implicit resolvers + emitter scalar analysis, single- and
   double-quoted writers for one line); throws `MULTILINE_VALUE`.
   - Rules: EDIT-02, EDIT-03
