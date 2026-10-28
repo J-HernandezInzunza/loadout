@@ -112,6 +112,7 @@ function codeName(code: ErrorCode): string {
     case "SETTINGS":
     case "CONFIG_INVALID":
     case "NO_READABLE_CATALOG":
+    case "UNKNOWN_CATALOG":
       return code;
     default: {
       const unreachable: never = code;
@@ -123,6 +124,6 @@ function codeName(code: ErrorCode): string {
 describe("ErrorCode", () => {
   it("is a closed enum every switch can exhaust", () => {
     expect(ErrorCode.options.map(codeName)).toEqual(ErrorCode.options);
-    expect(ErrorCode.options).toHaveLength(18);
+    expect(ErrorCode.options).toHaveLength(19);
   });
 });

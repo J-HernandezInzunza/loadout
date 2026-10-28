@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { loadGolden } from "../../test/golden.ts";
 import { createSandbox, type Sandbox } from "../../test/sandbox.ts";
 import type { AppConfigV1 } from "../config/config.ts";
 import type { CatalogRef } from "../model/model.ts";
@@ -10,7 +11,7 @@ const item = (name: string, extra = "") => `    - name: ${name}\n      descripti
 const catalog = (sections: Partial<Record<"skills" | "agents" | "prompts", string[]>>) =>
   "library:\n" + Object.entries(sections).map(([s, names]) => `  ${s}:\n${names.map((n) => item(n)).join("")}`).join("");
 
-const config = (catalogs: CatalogRef[]): AppConfigV1 => ({ version: 1, catalogs, pins: {}, settings: {} });
+const config = (catalogs: CatalogRef[], pins: Record<string, string> = {}): AppConfigV1 => ({ version: 1, catalogs, pins, settings: {} });
 
 async function file(sb: Sandbox, rel: string, text: string) {
   const path = join(sb.root, rel);
@@ -122,5 +123,106 @@ describe("loadRegistry", () => {
       ]),
     );
     expect(registry.writable().map((c) => c.ref.id)).toEqual(["a"]);
+  });
+});
+
+/** A registry over local catalogs `id → text`, in the given order; `null` text means a missing file. */
+async function registryOf(catalogs: [string, string | null][], pins: Record<string, string> = {}) {
+  const sb = await createSandbox();
+  const refs: CatalogRef[] = [];
+  for (const [id, text] of catalogs) {
+    const path = text === null ? join(sb.root, `${id}-missing.yaml`) : await file(sb, `${id}.yaml`, text);
+    refs.push({ id, kind: "local", path });
+  }
+  return loadRegistry(sb.host, config(refs, pins));
+}
+
+const winner = (r: Awaited<ReturnType<typeof registryOf>>, name: string, catalog?: string) => {
+  const result = r.resolve(name, catalog);
+  return result.ok ? `${result.value.type}@${result.value.catalog}` : result.error.code;
+};
+
+describe("resolve", () => {
+  it("RES-01: the first catalog in registry order wins", async () => {
+    const r = await registryOf([["A", catalog({ skills: ["x"] })], ["B", catalog({ skills: ["x"] })]]);
+    expect(winner(r, "x")).toBe("skill@A");
+  });
+
+  it("RES-02: a skill beats a prompt of the same name in one catalog (golden anchor-alias)", async () => {
+    const text = loadGolden("read").cases.find((c) => c.id === "anchor-alias")!.text;
+    const r = await registryOf([["A", text]]);
+    expect(winner(r, "a")).toBe("skill@A");
+  });
+
+  it("RES-03: names match exactly, case included", async () => {
+    const r = await registryOf([["A", catalog({ skills: ["Commit"] })]]);
+    expect(winner(r, "commit")).not.toMatch(/@/);
+    expect(winner(r, "Commit")).toBe("skill@A");
+  });
+
+  it("RES-04: no exact match returns candidates by name or description, AMBIGUOUS_NAME or NOT_FOUND", async () => {
+    const r = await registryOf([
+      ["A", "library:\n  skills:\n" + item("commit-and-push") + "    - name: lint\n      description: Runs the COMMIT hooks\n      source: ./l\n"],
+    ]);
+    expect(r.resolve("commit")).toEqual({
+      ok: false,
+      error: expect.objectContaining({
+        code: "AMBIGUOUS_NAME",
+        query: "commit",
+        candidates: [
+          { type: "skill", name: "commit-and-push", description: "commit-and-push", catalog: "A" },
+          { type: "skill", name: "lint", description: "Runs the COMMIT hooks", catalog: "A" },
+        ],
+      }),
+      warnings: [],
+    });
+    expect(r.resolve("zzz")).toMatchObject({ ok: false, error: { code: "NOT_FOUND", query: "zzz", candidates: [] } });
+  });
+
+  it("RES-05: resolves every name before returning any, failing on the first that does not resolve", async () => {
+    const r = await registryOf([["A", catalog({ skills: ["a", "b"] })]]);
+    expect(r.resolveAll(["a", "b"])).toMatchObject({ ok: true, value: [{ name: "a" }, { name: "b" }] });
+    expect(r.resolveAll(["a", "c", "b"])).toMatchObject({ ok: false, error: { code: "NOT_FOUND", query: "c" } });
+  });
+
+  it("RES-06: a catalog searches only that catalog, ignoring pins and precedence", async () => {
+    const r = await registryOf([["A", catalog({ skills: ["x"] })], ["B", catalog({ prompts: ["x"] })], ["C", catalog({ agents: ["x"] })]], { x: "C" });
+    expect(winner(r, "x", "B")).toBe("prompt@B");
+    expect(winner(r, "x")).toBe("agent@C");
+  });
+
+  it("RES-06: an unknown or skipped catalog is an error naming the active ones, never a fallback", async () => {
+    const r = await registryOf([["A", catalog({ skills: ["x"] })], ["gone", null]]);
+    for (const id of ["nope", "gone"]) {
+      expect(r.resolve("x", id)).toMatchObject({
+        ok: false,
+        error: { code: "UNKNOWN_CATALOG", message: `unknown catalog '${id}' (available: A)` },
+      });
+    }
+    const none = await registryOf([["gone", null]]);
+    expect(none.resolve("x", "gone")).toMatchObject({ error: { message: "unknown catalog 'gone' (available: none)" } });
+  });
+
+  it("RES-10: a pin moves its catalog's copy to the front of that name's slots only", async () => {
+    const r = await registryOf([["A", catalog({ skills: ["x", "y"] })], ["B", catalog({ skills: ["x", "y"] })]], { x: "B" });
+    expect(winner(r, "x")).toBe("skill@B");
+    expect(winner(r, "y")).toBe("skill@A");
+    const entries = r.entries();
+    expect(entries.ok && entries.value.map((e) => `${e.name}@${e.catalog}`)).toEqual(["x@B", "y@A", "x@A", "y@B"]);
+    expect(r.winners().get("x")?.catalog).toBe("B");
+  });
+
+  it.each([
+    ["unregistered", { x: "Z" }],
+    ["skipped", { x: "gone" }],
+    ["without the name", { x: "C" }],
+  ])("RES-11: a pin to a catalog %s is inert", async (_, pins) => {
+    const r = await registryOf([["A", catalog({ skills: ["x"] })], ["B", catalog({ skills: ["x"] })], ["C", catalog({})], ["gone", null]], pins);
+    expect(winner(r, "x")).toBe("skill@A");
+  });
+
+  it("returns the registry's error when no catalog can be read", async () => {
+    const r = await registryOf([["gone", null]]);
+    expect(r.resolve("x")).toMatchObject({ ok: false, error: { code: "NO_READABLE_CATALOG" } });
   });
 });

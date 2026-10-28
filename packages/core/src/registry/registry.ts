@@ -3,7 +3,7 @@
 import { catalogEntries, parseCatalog, type EntryProblem } from "../catalog/read.ts";
 import type { AppConfigV1 } from "../config/config.ts";
 import type { Host } from "../host.ts";
-import { err, ok, type CatalogRef, type Entry, type Result } from "../model/model.ts";
+import { err, ok, type CatalogRef, type CoreError, type Entry, type Result } from "../model/model.ts";
 import { expandHome } from "../source/source.ts";
 
 export interface CatalogState {
@@ -16,6 +16,13 @@ export interface CatalogState {
   problems: EntryProblem[];
 }
 
+export type Candidate = Pick<Entry, "type" | "name" | "description" | "catalog">;
+
+/** No exact match: AMBIGUOUS_NAME when there are candidates to choose from (RES-04). */
+export type NameErr = CoreError & { code: "NOT_FOUND" | "AMBIGUOUS_NAME"; query: string; candidates: Candidate[] };
+
+export type ResolveErr = NameErr | CoreError;
+
 export interface Registry {
   /** every registered catalog, highest precedence first, skipped ones included */
   catalogs(): CatalogState[];
@@ -26,6 +33,27 @@ export interface Registry {
   entriesOf(id: string): Entry[];
   /** name → the first entry of that name in precedence order, whatever its type (RES-18) */
   winners(): Map<string, Entry>;
+  /** The first entry named exactly `name`; with `catalog`, only that active catalog is searched (RES-06). */
+  resolve(name: string, catalog?: string): Result<Entry, ResolveErr>;
+  /** Every name resolved before anything is returned, so a caller acts on all or none (RES-05). */
+  resolveAll(names: string[], catalog?: string): Result<Entry[], ResolveErr>;
+  /** Entries whose name or description contains the query, case-insensitively (RES-04). */
+  candidates(query: string, catalog?: string): Candidate[];
+}
+
+/**
+ * §1.6, RES-10, RES-11: a pin moves its catalog's copies of the name to the front of the slots that
+ * name occupies; nothing else moves. A pin to a catalog that is absent, skipped or lacks the name is inert.
+ */
+function applyPins(entries: Entry[], pins: Record<string, string>): Entry[] {
+  const out = [...entries];
+  for (const [name, catalog] of Object.entries(pins)) {
+    const slots = out.flatMap((e, i) => (e.name === name ? [i] : []));
+    const named = slots.map((i) => out[i]!);
+    const reordered = [...named.filter((e) => e.catalog === catalog), ...named.filter((e) => e.catalog !== catalog)];
+    slots.forEach((slot, k) => (out[slot] = reordered[k]!));
+  }
+  return out;
 }
 
 async function catalogFile(host: Host, ref: CatalogRef): Promise<{ file: string; missing?: string }> {
@@ -61,6 +89,7 @@ async function readCatalog(host: Host, ref: CatalogRef): Promise<CatalogState> {
 export async function loadRegistry(host: Host, config: AppConfigV1): Promise<Registry> {
   const all = await Promise.all(config.catalogs.map((ref) => readCatalog(host, ref)));
   const active = all.filter((c) => c.skipped === undefined);
+  const merged = applyPins(active.flatMap((c) => c.entries), config.pins);
 
   const entries = (): Result<Entry[]> => {
     const skipped = all.filter((c) => c.skipped !== undefined);
@@ -71,10 +100,35 @@ export async function loadRegistry(host: Host, config: AppConfigV1): Promise<Reg
     }
     // Per-catalog warnings only when several are registered, so one catalog's reason is not said twice.
     const warnings = all.length > 1 ? skipped.map((c) => ({ message: `catalog '${c.ref.id}' skipped: ${c.skipped}` })) : [];
-    return ok(
-      active.flatMap((c) => c.entries),
-      warnings,
-    );
+    return ok(merged, warnings);
+  };
+
+  /** The entries a lookup searches: one active catalog's, or the pinned merge of all. */
+  const scope = (catalog?: string): Result<Entry[]> => {
+    if (catalog === undefined) return entries();
+    const found = active.find((c) => c.ref.id === catalog);
+    if (found) return ok(found.entries);
+    const available = active.map((c) => c.ref.id).join(", ") || "none";
+    return err({ code: "UNKNOWN_CATALOG", message: `unknown catalog '${catalog}' (available: ${available})` });
+  };
+
+  const candidatesIn = (searched: Entry[], query: string): Candidate[] => {
+    const q = query.toLowerCase();
+    return searched
+      .filter((e) => e.name.toLowerCase().includes(q) || e.description.toLowerCase().includes(q))
+      .map(({ type, name, description, catalog }) => ({ type, name, description, catalog }));
+  };
+
+  const resolve = (name: string, catalog?: string): Result<Entry, ResolveErr> => {
+    const searched = scope(catalog);
+    if (!searched.ok) return searched;
+    const found = searched.value.find((e) => e.name === name);
+    if (found) return ok(found, searched.warnings);
+    const candidates = candidatesIn(searched.value, name);
+    const error: NameErr = candidates.length
+      ? { code: "AMBIGUOUS_NAME", message: `no entry is named exactly '${name}'; did you mean one of these?`, query: name, candidates }
+      : { code: "NOT_FOUND", message: `no entry named '${name}'`, query: name, candidates };
+    return err(error, searched.warnings);
   };
 
   return {
@@ -85,8 +139,22 @@ export async function loadRegistry(host: Host, config: AppConfigV1): Promise<Reg
     entriesOf: (id) => all.find((c) => c.ref.id === id)?.entries ?? [],
     winners() {
       const winners = new Map<string, Entry>();
-      for (const e of active.flatMap((c) => c.entries)) if (!winners.has(e.name)) winners.set(e.name, e);
+      for (const e of merged) if (!winners.has(e.name)) winners.set(e.name, e);
       return winners;
+    },
+    resolve,
+    resolveAll(names, catalog) {
+      const found: Entry[] = [];
+      for (const name of names) {
+        const result = resolve(name, catalog);
+        if (!result.ok) return result;
+        found.push(result.value);
+      }
+      return ok(found, scope(catalog).warnings);
+    },
+    candidates(query, catalog) {
+      const searched = scope(catalog);
+      return searched.ok ? candidatesIn(searched.value, query) : [];
     },
   };
 }

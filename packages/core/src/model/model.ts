@@ -67,6 +67,7 @@ export const ErrorCode = z.enum([
   "SETTINGS",
   "CONFIG_INVALID",
   "NO_READABLE_CATALOG",
+  "UNKNOWN_CATALOG",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
