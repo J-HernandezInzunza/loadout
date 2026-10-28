@@ -40,7 +40,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: the test passes with no task checked, and fails when a task with an uncovered rule
     id is checked (proved with a fixture copy of this file in the test).
 
-- [ ] **M1.02 Model, errors and results.** `model/`: `EntryType`, `Entry`, `Source`, `CatalogRef`,
+- [x] **M1.02 Model, errors and results.** `model/`: `EntryType`, `Entry`, `Source`, `CatalogRef`,
   `Warning`, `Result<T, E>` with `ok()`/`err()` helpers, and the closed `ErrorCode` enum from arch
   §2.3 (`NOT_FOUND`, `AMBIGUOUS_NAME`, `AMBIGUOUS_CATALOG`, `READ_ONLY`, `LOCAL_SOURCE_REFUSED`,
   `SOURCE_IN_INSTALL_DIR`, `DUPLICATE`, `SPLICE_UNSUPPORTED`, `MULTILINE_VALUE`,
