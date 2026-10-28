@@ -1,25 +1,21 @@
 // Line-based catalog edits, ported from library.py's splice functions (behaviors.md §2.7) with the
 // rebuild's decisions applied (§0.1, tools/golden/rebuild_ref.py).
 import { LibraryError, type Entry, type EntryType } from "../model/model.ts";
-import { pyLess } from "./python.ts";
+import { pyLess, strip, WS } from "./python.ts";
 import { pyyamlInline } from "./scalar.ts";
 
 const ENTRY_TYPES = ["skill", "agent", "prompt"];
 const PLURAL: Record<EntryType, string> = { skill: "skills", agent: "agents", prompt: "prompts" };
 const SECTIONS = ["skills", "agents", "prompts"];
 
-// Python's str.isspace() set, which its regex `\s` and str.strip() use; JS's `\s` and trim() differ.
-const WS = "\\t\\n\\x0b\\x0c\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
 const LIBRARY_RE = new RegExp(`^library:[${WS}]*$`);
 const TOP_LEVEL_RE = new RegExp(`^[^${WS}]`);
 const SIBLING_RE = new RegExp(`^  [^${WS}]`);
 // `s`: Python's `.` matches `\r`, which CRLF files leave at the end of every line.
 const ITEM_NAME_RE = new RegExp(`^    - name:[${WS}]*(.+?)[${WS}]*$`, "s");
 const KEY_RE = /^ {6}([A-Za-z_][A-Za-z0-9_-]*):/;
-const STRIP_RE = new RegExp(`^[${WS}]+|[${WS}]+$`, "g");
 const LSTRIP_RE = new RegExp(`^[${WS}]+`);
 
-const strip = (s: string) => s.replace(STRIP_RE, "");
 const isBlank = (line: string) => strip(line) === "";
 
 // A11: refs are written inside `"` without escaping, so these would break the YAML.

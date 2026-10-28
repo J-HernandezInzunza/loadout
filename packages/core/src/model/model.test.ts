@@ -105,6 +105,7 @@ function codeName(code: ErrorCode): string {
     case "MULTILINE_VALUE":
     case "NO_WRITABLE_CATALOG":
     case "INVALID_REF":
+    case "INVALID_SOURCE":
     case "STALE_PLAN":
     case "REFUSED":
     case "VERIFY_FAILED":
@@ -120,6 +121,6 @@ function codeName(code: ErrorCode): string {
 describe("ErrorCode", () => {
   it("is a closed enum every switch can exhaust", () => {
     expect(ErrorCode.options.map(codeName)).toEqual(ErrorCode.options);
-    expect(ErrorCode.options).toHaveLength(15);
+    expect(ErrorCode.options).toHaveLength(16);
   });
 });

@@ -60,6 +60,7 @@ export const ErrorCode = z.enum([
   "MULTILINE_VALUE",
   "NO_WRITABLE_CATALOG",
   "INVALID_REF",
+  "INVALID_SOURCE",
   "STALE_PLAN",
   "REFUSED",
   "VERIFY_FAILED",
