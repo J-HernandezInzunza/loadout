@@ -158,6 +158,12 @@ export function expected(c: SpliceCase) {
   return c.rebuild ?? c.python;
 }
 
+/** `expected(c)` in replaySplice's shape: `yamlValid` describes the text, it is not an output. */
+export function expectedReplay(c: SpliceCase): Replayed {
+  const e = expected(c);
+  return "text" in e ? { text: e.text } : e;
+}
+
 export interface SpliceImpl {
   renderEntry(e: FixtureEntry): string[];
   spliceEntry(text: string, e: FixtureEntry): string;

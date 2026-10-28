@@ -1,9 +1,22 @@
 // Line-based catalog edits, ported from library.py's splice functions (behaviors.md §2.7) with the
 // rebuild's decisions applied (§0.1, tools/golden/rebuild_ref.py).
-import { LibraryError, type Entry } from "../model/model.ts";
+import { LibraryError, type Entry, type EntryType } from "../model/model.ts";
 import { pyyamlInline } from "./scalar.ts";
 
 const ENTRY_TYPES = ["skill", "agent", "prompt"];
+const PLURAL: Record<EntryType, string> = { skill: "skills", agent: "agents", prompt: "prompts" };
+
+// Python's str.isspace() set, which its regex `\s` and str.strip() use; JS's `\s` and trim() differ.
+const WS = "\\t\\n\\x0b\\x0c\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
+const LIBRARY_RE = new RegExp(`^library:[${WS}]*$`);
+const TOP_LEVEL_RE = new RegExp(`^[^${WS}]`);
+const SIBLING_RE = new RegExp(`^  [^${WS}]`);
+// `s`: Python's `.` matches `\r`, which CRLF files leave at the end of every line.
+const ITEM_NAME_RE = new RegExp(`^    - name:[${WS}]*(.+?)[${WS}]*$`, "s");
+const STRIP_RE = new RegExp(`^[${WS}]+|[${WS}]+$`, "g");
+
+const strip = (s: string) => s.replace(STRIP_RE, "");
+const isBlank = (line: string) => strip(line) === "";
 
 // A11: refs are written inside `"` without escaping, so these would break the YAML.
 // eslint-disable-next-line no-control-regex -- control characters are exactly what this refuses
@@ -51,4 +64,91 @@ export function renderEntry(entry: Omit<Entry, "catalog">): string[] {
   ];
   if (entry.requires.length > 0) lines.push(`      requires: [${entry.requires.map((r) => `"${r}"`).join(", ")}]`);
   return lines;
+}
+
+/** Python's `a < b` on strings: by code point, not by UTF-16 unit. */
+function pyLess(a: string, b: string): boolean {
+  const x = Array.from(a);
+  const y = Array.from(b);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const d = x[i]!.codePointAt(0)! - y[i]!.codePointAt(0)!;
+    if (d !== 0) return d < 0;
+  }
+  return x.length < y.length;
+}
+
+interface Section {
+  /** the header line */
+  idx: number;
+  /** what follows `<section>:` on the header, stripped */
+  inline: string;
+  /** first line after the section (exclusive) */
+  end: number;
+}
+
+function libraryIdx(lines: string[]): number {
+  const idx = lines.findIndex((l) => LIBRARY_RE.test(l));
+  if (idx < 0) throw new LibraryError("SPLICE_UNSUPPORTED", "no 'library:' key in catalog");
+  return idx;
+}
+
+/** EDIT-04, EDIT-06: the header is `  <section>:` inside the library block; it ends at the next key. */
+function findSection(lines: string[], section: string): Section | undefined {
+  const header = new RegExp(`^  ${section}:[${WS}]*(.*)$`, "s");
+  for (let i = libraryIdx(lines) + 1; i < lines.length; i++) {
+    if (TOP_LEVEL_RE.test(lines[i]!)) break;
+    const m = header.exec(lines[i]!);
+    if (!m) continue;
+    let end = lines.length;
+    for (let j = i + 1; j < lines.length; j++) {
+      const l = lines[j]!;
+      if (isBlank(l)) continue;
+      if (TOP_LEVEL_RE.test(l) || (SIBLING_RE.test(l) && !l.startsWith("    "))) {
+        end = j;
+        break;
+      }
+    }
+    return { idx: i, inline: strip(m[1]!), end };
+  }
+  return undefined;
+}
+
+function locateSection(lines: string[], section: string): Section {
+  const found = findSection(lines, section);
+  if (!found) throw new LibraryError("SPLICE_UNSUPPORTED", `section '${section}' not found under library`);
+  return found;
+}
+
+/** EDIT-07: items start with exactly four spaces and `- name:`; quotes around the name are dropped. */
+function itemsOf(lines: string[], { idx, end }: Section): { name: string; line: number }[] {
+  const items = [];
+  for (let i = idx + 1; i < end; i++) {
+    const m = lines[i]!.startsWith("    - ") ? ITEM_NAME_RE.exec(lines[i]!) : null;
+    if (m) items.push({ name: strip(m[1]!).replace(/^["']+|["']+$/g, ""), line: i });
+  }
+  return items;
+}
+
+/** EDIT-08: insert in case-insensitive name order without re-sorting; `[]` becomes a block list. */
+export function spliceEntry(text: string, entry: Omit<Entry, "catalog">): string {
+  const section = PLURAL[entry.type];
+  const lines = text.split("\n");
+  const block = renderEntry(entry);
+  const sec = locateSection(lines, section);
+  const items = itemsOf(lines, sec);
+  if (items.some((i) => i.name === entry.name)) {
+    throw new LibraryError("DUPLICATE", `'${entry.name}' already exists in ${section}`);
+  }
+  if (sec.inline === "[]") {
+    lines[sec.idx] = `  ${section}:`;
+    lines.splice(sec.idx + 1, 0, ...block);
+    return lines.join("\n");
+  }
+  let at = items.find((i) => pyLess(entry.name.toLowerCase(), i.name.toLowerCase()))?.line ?? sec.end;
+  if (at === sec.end) {
+    // Appending: stay above the blank lines that separate this section from the next.
+    while (at - 1 > sec.idx && isBlank(lines[at - 1]!)) at--;
+  }
+  lines.splice(at, 0, ...block);
+  return lines.join("\n");
 }
