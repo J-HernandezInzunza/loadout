@@ -17,3 +17,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M1.13 29e8d78 scaffoldCatalog: same YAML as the CLI's scaffold, Loadout comments; accepts an insert into each section
 2026-10-28 M1.14 3074272 parseSource/cloneUrls/remoteWeb: all 47 source.json cases (sandbox home); new INVALID_SOURCE error code
 2026-10-28 M1.15 0647edc config store: strict AppConfigV1, no-catalogs state, queued atomic saves, an invalid file is CONFIG_INVALID (new code) and never overwritten
+2026-10-28 M1.16 5abd1af validateRegistry: all 31 registry.json problem lists, in order; parseYamlMaps keeps YAML key types

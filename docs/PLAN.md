@@ -141,7 +141,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: round trip; an invalid file is a typed error and is never overwritten; two
     concurrent saves both land in order.
 
-- [ ] **M1.16 Registry validation.** `validateRegistry(raw)`, the port of `Config.problems`.
+- [x] **M1.16 Registry validation.** `validateRegistry(raw)`, the port of `Config.problems`.
   - Rules: MIG-01
   - Depends: M1.12
   - Done when: every `registry.json` case yields the same problem list, in the same order.
