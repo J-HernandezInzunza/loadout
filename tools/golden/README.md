@@ -9,6 +9,7 @@ replays them; CI never needs Python (architecture.md §3.2).
 | `npm run golden` | regenerate every fixture |
 | `npm run golden:check` | regenerate into a temp dir and diff against the committed fixtures (no diff = exit 0) |
 | `npm run golden:test` | run the hand-written tests that pin `rebuild_ref.py` |
+| `python3 tools/golden/report.py [out.html]` | render every Python-vs-rebuild deviation as one HTML page, grouped by rule |
 
 They use the old repo's venv at `$LIBRARY_SKILL_DIR/.venv` (default
 `~/Projects/my-tools/the-library-skill`). The generator refuses to run unless that repo is at
