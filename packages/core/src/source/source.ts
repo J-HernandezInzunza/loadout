@@ -14,7 +14,7 @@ const FORMS: [RegExp, RemoteSource["kind"]][] = [
 ];
 
 /** posixpath.expanduser for `~` and `~/…`; another user's `~name` is left as written. */
-function expandHome(path: string, home: string): string {
+export function expandHome(path: string, home: string): string {
   if (path !== "~" && !path.startsWith("~/")) return path;
   return home.replace(/\/+$/, "") + path.slice(1) || "/";
 }
