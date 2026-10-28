@@ -180,8 +180,9 @@ same bytes you write".
 
 Rust contains no domain logic and, in the recommended shape, **no `#[tauri::command]` at all**:
 
-- `main.rs`/`lib.rs`: widen `PATH` before the builder starts (port of `desktop/src-tauri/src/path.rs`:
-  login-shell probe + fallbacks, appended), then register plugins. ~60 lines.
+- `main.rs`/`lib.rs`: repair the environment before the builder starts (`src/path.rs`, ported from
+  `desktop/src-tauri/src/path.rs`: login-shell probe with a 10 s timeout, the shell's PATH **first**,
+  `CLAUDE_CONFIG_DIR` adopted; spikes.md S2), then register plugins. ~60 lines.
 - Plugins:
 
 | Plugin | Why | Capability |
@@ -196,7 +197,10 @@ Rust contains no domain logic and, in the recommended shape, **no `#[tauri::comm
 FS scope options, ranked:
 
 1. **`$HOME/**` read/write with explicit denies** (`$HOME/.ssh/**`, `$HOME/Library/Keychains/**`,
-   `$HOME/.gnupg/**`) plus `$APPDATA/**` (recommended). Local catalogs and local sources can live
+   `$HOME/.gnupg/**`) plus `$APPDATA` and `$APPDATA/**` (recommended). Requires
+   `plugins.fs.requireLiteralLeadingDot: false`: by default `**` skips dot-components, which excluded
+   `~/.claude` and dotfiles inside skills; and `$APPDATA/**` alone does not cover the folder itself
+   (spikes.md S3a). Local catalogs and local sources can live
    anywhere under home, and a local-source push writes there (FETCH-07, push). The webview loads only
    bundled code with a strict CSP (today `security.csp` is `null`, `desktop/src-tauri/tauri.conf.json`),
    so the scope is defence in depth, not the trust boundary.
@@ -410,24 +414,28 @@ What Anthropic documents (checked 2026-10-28):
   Claude, still typeable), `"off"` (hidden from Claude and from `/` autocomplete; invoking it by
   name returns a `skillOverrides` error). Any settings file may hold the key; the `/skills` menu writes
   it to the **project-local** `.claude/settings.local.json`.
-- Keys are skill names. A skill's name is its `SKILL.md` frontmatter `name` when set, otherwise its
-  directory name. In user, project and local settings, entries match skill names only (no aliases).
+- Keys are skill names. The docs say a skill's name is its `SKILL.md` frontmatter `name` when set,
+  otherwise its directory name. **Measured (spikes.md S10, Claude Code 2.1.312): overrides match the
+  directory name; a differing frontmatter `name` is ignored for this.** In user, project and local
+  settings, entries match skill names only (no aliases).
 - Plugin skills are not affected.
 - Custom commands in `.claude/commands/` "still work and are merged into skills", so a prompt
-  installed as `~/.claude/commands/<name>.md` should be toggleable the same way (to verify). Decided:
+  installed as `~/.claude/commands/<name>.md` is toggleable the same way (verified, spikes.md S9). Decided:
   v1 toggles skills and prompts, agents later (Q15 A); the UI offers on/off only and shows
   `name-only`/`user-invocable-only` read-only when set elsewhere (Q14 A).
 - Agents are not covered. The documented way to stop Claude using a subagent is
   `permissions.deny: ["Agent(<frontmatter name>)"]`, which blocks it rather than hiding it, and
   `permissions` lists merge across files, so a user-level deny can't be undone per project.
 - Claude Code watches settings files and reloads most keys without a restart; `skillOverrides` is
-  not in the documented list of keys read only at session start.
+  not in the documented list of keys read only at session start. Verified (spikes.md S8): an open
+  session refuses a skill turned off after it started.
 
 Design rules:
 
-1. **Name the right key.** Read the installed copy's `SKILL.md` frontmatter `name`; fall back to the
-   directory (= catalog entry) name. A catalog entry whose skill declares a different name is toggled
-   under the declared one, and the UI shows that name.
+1. **Name the right key: the entry name.** Overrides match a skill's directory name (spikes.md S10),
+   and Loadout installs every skill to `~/.claude/skills/<entry name>/`, so the key is always the
+   catalog entry name; a prompt's key is its file name without `.md`, also the entry name. A
+   frontmatter `name` is never used as the key. Re-check this on Claude Code upgrades.
 2. **Edit `settings.json` without damaging it.** It is strict JSON, owned by you and written by
    Claude Code itself (`/config`, `/model`). Parse first; if it doesn't parse, refuse and say so,
    never overwrite. Apply a minimal text edit (`jsonc-parser`'s `modify` + `applyEdits` keeps your
@@ -440,9 +448,11 @@ Design rules:
    (§5.3) captures this variable along with `PATH`.
 4. **Report what the app can't control.** Managed settings and each project's `.claude/settings.json`
    / `.local.json` sit above user settings. Doctor reads the managed settings file and warns when it
-   sets an override for a catalog skill. Whether a project file's `skillOverrides` replaces the user
-   object or merges per skill is **not documented** (verify in the first session); if it replaces,
-   one `/skills` change in a project silently cancels every global toggle there.
+   sets an override for a catalog skill. Project and local `skillOverrides` **merge per key** with the
+   user's (spikes.md S7): a global toggle keeps applying in every project, except where that project
+   sets the same skill to another value (the `/skills` menu writes such values to
+   `.claude/settings.local.json`). Doctor can't see every project, so the UI copy says "on this
+   machine, unless a project overrides it".
 5. **One name, every copy.** A user-level override applies to every skill with that name in every
    project, not just the installed copy. Personal skills already shadow project skills of the same
    name, so this rarely changes anything, but the UI copy should say "turned off on this machine".
@@ -525,8 +535,11 @@ A bundle launched from Finder or Dock gets launchd's `/usr/bin:/bin:/usr/sbin:/s
 exists but is the Xcode Command Line Tools shim (it opens an install dialog when the tools are
 missing); Homebrew `git` and `gh` are not on that PATH (`desktop/src-tauri/src/path.rs:1-12`).
 Options, ranked: (1) keep today's widening in Rust `main` before plugins start: login-shell probe
-plus fallbacks, appended (W3), proven and ~40 lines; the same probe also captures `CLAUDE_CONFIG_DIR`
-(§4.5); (2) resolve absolute program paths at startup and
+plus fallbacks (W3), ~40 lines; the same probe also captures `CLAUDE_CONFIG_DIR` (§4.5). Two changes
+from the old app, both from spikes.md S2: the shell's PATH goes **first** (appending left launchd's
+`/usr/bin/git`, the Xcode shim, ahead of Homebrew's git), and the probe gets a 10 s timeout (heavy but
+ordinary profiles take 2–3 s; the old code had none). M4 should cache the probed PATH so launches
+don't wait on the shell; (2) resolve absolute program paths at startup and
 put them in shell-plugin scopes, but the static capability file cannot know them; (3) let users configure
 paths, a setting that only matters when (1) fails. Doctor gains a check: `git --version` runs, `xcode-
 select -p` succeeds, `gh auth status` when any catalog is `pr` mode.
@@ -659,14 +672,16 @@ staleness shows "couldn't check" rather than "up to date" when `ls-remote` fails
    or detect a newer `.installs.json` receipt and say so? **Decided:** document "one tool per
    machine" (Q7 A).
 8. **Webview-hosted core performance and fs semantics** (plugin-fs symlink handling, many small IPC
-   calls for tree copies). Mitigation: measure on the largest real skill tree early; fall back to a
-   Rust `copy_tree` command only if numbers demand it.
+   calls for tree copies). Measured (spikes.md S3): ~6 ms per file read + write, about 10× a native
+   copy; the largest real skill takes ~0.2 s. No Rust `copy_tree` needed unless `sync` measures slow.
 9. **`git` availability.** The `/usr/bin/git` shim prompts to install Command Line Tools; doctor
-   and first run must detect and explain it.
+   and first run must detect and explain it. With the shell's PATH first (§5.3), a Homebrew git wins
+   whenever the user's terminal would use it, so the shim is reached only when no other git exists.
 10. **Unmanaged adoption UX.** Report-only (decision) versus an explicit per-item "adopt" (install over
     it with consent). **Decided:** report, plus an explicit per-item replace that asks first (Q8 A).
-11. **`skillOverrides` across settings files is undocumented.** If a project's `.claude/settings.local.json`
-    (where `/skills` saves) replaces the whole user-level object, global toggles silently stop applying
-    in that project. Verify first; if so, doctor and the UI must say so (§4.5 rule 4).
+11. **`skillOverrides` across settings files is undocumented.** Resolved (spikes.md S7): files merge
+    per key, so global toggles keep applying in a project unless it overrides that skill. Still
+    undocumented, and the key is the directory name rather than the documented frontmatter name
+    (S10), so both are worth re-checking on Claude Code upgrades.
 12. **Writing a file Claude Code also writes.** `~/.claude/settings.json` is shared with `/config` and
     `/model`. Mitigation: minimal edits, compare-before-write, never overwrite unparseable JSON (§4.5).
