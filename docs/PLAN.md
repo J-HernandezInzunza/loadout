@@ -247,7 +247,7 @@ cover arch §4.5 rules 1–7.
     `main`; a clone with an injected token succeeds against a `file://` remote that requires the
     helper's credentials, and `.git/config` and the audit log never contain the token.
 
-- [ ] **M2.06 Per-operation caches and temp dirs.** `CloneCache` keyed `<kind>:<org>/<repo>@<branch>`,
+- [x] **M2.06 Per-operation caches and temp dirs.** `CloneCache` keyed `<kind>:<org>/<repo>@<branch>`,
   `ProbeCache` memoizing failures, `tmp/<op id>/` per operation, removed at the end and swept at
   launch.
   - Rules: FETCH-04, FETCH-09
