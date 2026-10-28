@@ -73,6 +73,7 @@ export const ErrorCode = z.enum([
   "API_FAILED",
   "GIT_FAILED",
   "RECEIPTS_INVALID",
+  "SOURCE_MISSING",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

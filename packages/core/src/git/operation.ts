@@ -25,6 +25,8 @@ export interface Operation {
   dir: string;
   clones: CloneCache;
   probes: ProbeCache;
+  /** A fresh path inside the operation's dir (not created), e.g. for staging. */
+  path(prefix: string): string;
   /** Removes the operation's dir and everything in it. */
   dispose(): Promise<void>;
 }
@@ -32,6 +34,7 @@ export interface Operation {
 export async function createOperation(host: Host, git: GitClient): Promise<Operation> {
   const dir = await host.fs.makeTempDir("op-");
   let next = 0;
+  const path = (prefix: string) => `${dir}/${prefix}-${next++}`;
   // Promises, not values: two entries asking at once still share one clone.
   const checkouts = new Map<string, Promise<Result<string>>>();
   const probes = new Map<string, Promise<{ dir: string; commit: string } | null>>();
@@ -43,24 +46,25 @@ export async function createOperation(host: Host, git: GitClient): Promise<Opera
 
   return {
     dir,
+    path,
     clones: {
       checkout(src, opts = {}) {
         return memo(checkouts, repoKey(src), async () => {
-          const dest = `${dir}/clone-${next++}`;
+          const dest = path("clone");
           const cloned = await git.clone(await git.urlsFor(src), dest, { ...opts, branch: src.branch });
           return cloned.ok ? { ...cloned, value: dest } : cloned;
         });
       },
     },
     probes: {
-      async oid(src, path, opts = {}) {
+      async oid(src, file, opts = {}) {
         const probed = await memo(probes, repoKey(src), async () => {
-          const dest = `${dir}/probe-${next++}`;
+          const dest = path("probe");
           const res = await git.probe(await git.urlsFor(src), src.branch, dest, opts);
           return res.ok ? { dir: dest, commit: res.value } : null;
         });
         if (probed === null) return null;
-        const oid = await git.revParse(probed.dir, `${probed.commit}:${path}`);
+        const oid = await git.revParse(probed.dir, `${probed.commit}:${file}`);
         return oid === null ? null : { commit: probed.commit, oid };
       },
     },
