@@ -255,7 +255,7 @@ cover arch §4.5 rules 1–7.
   - Done when: two entries from one repo+branch clone once; a killed operation's temp dir is gone
     after the next launch sweep.
 
-- [ ] **M2.07 Content hashing.** `contentHashV1(path)` (the CLI's algorithm, for classifying
+- [x] **M2.07 Content hashing.** `contentHashV1(path)` (the CLI's algorithm, for classifying
   Python-CLI installs) and `fileManifest(path)` (posix relpath → sha256, receipts v2).
   - Rules: none (arch §4.3, §4.4)
   - Depends: M1.04
