@@ -14,6 +14,7 @@ const SIBLING_RE = new RegExp(`^  [^${WS}]`);
 // `s`: Python's `.` matches `\r`, which CRLF files leave at the end of every line.
 const ITEM_NAME_RE = new RegExp(`^    - name:[${WS}]*(.+?)[${WS}]*$`, "s");
 const STRIP_RE = new RegExp(`^[${WS}]+|[${WS}]+$`, "g");
+const LSTRIP_RE = new RegExp(`^[${WS}]+`);
 
 const strip = (s: string) => s.replace(STRIP_RE, "");
 const isBlank = (line: string) => strip(line) === "";
@@ -119,6 +120,39 @@ function locateSection(lines: string[], section: string): Section {
   return found;
 }
 
+const indent = (line: string) => line.length - line.replace(/^ +/, "").length;
+const lstrip = (s: string) => s.replace(LSTRIP_RE, "");
+
+/** D2 (EDIT-09): refuse, before any edit, a section the line-based splice would turn into invalid YAML. */
+function checkLayout(lines: string[], { idx, inline, end }: Section): void {
+  const refuse = (i: number, why: string): never => {
+    throw new LibraryError("SPLICE_UNSUPPORTED", `line ${i + 1}: ${why}`, i + 1);
+  };
+  if (inline !== "" && inline !== "[]" && !inline.startsWith("#")) {
+    refuse(idx, `section value ${pyRepr(inline)} is not a block list or []`);
+  }
+  let seenItem = false;
+  for (let i = idx + 1; i < end; i++) {
+    const l = lines[i]!.replace(/\r+$/, "");
+    if (isBlank(l) || lstrip(l).startsWith("#")) continue;
+    if (l.startsWith("    - ")) {
+      if (!ITEM_NAME_RE.test(l)) refuse(i, "an entry must start with '- name:'");
+      seenItem = true;
+    } else if (!(indent(l) >= 6 && seenItem)) {
+      refuse(i, "entries must be indented four spaces with fields at six");
+    }
+  }
+  if (end < lines.length && lstrip(lines[end]!).startsWith("-")) {
+    refuse(end, "entries must be indented four spaces with fields at six");
+  }
+}
+
+/** Throws SPLICE_UNSUPPORTED unless the type's section can be edited line by line. */
+export function assertSpliceable(text: string, type: EntryType): void {
+  const lines = text.split("\n");
+  checkLayout(lines, locateSection(lines, PLURAL[type]));
+}
+
 /** EDIT-07: items start with exactly four spaces and `- name:`; quotes around the name are dropped. */
 function itemsOf(lines: string[], { idx, end }: Section): { name: string; line: number }[] {
   const items = [];
@@ -135,6 +169,7 @@ export function spliceEntry(text: string, entry: Omit<Entry, "catalog">): string
   const lines = text.split("\n");
   const block = renderEntry(entry);
   const sec = locateSection(lines, section);
+  checkLayout(lines, sec);
   const items = itemsOf(lines, sec);
   if (items.some((i) => i.name === entry.name)) {
     throw new LibraryError("DUPLICATE", `'${entry.name}' already exists in ${section}`);

@@ -75,6 +75,8 @@ export class LibraryError extends Error {
   constructor(
     readonly code: ErrorCode,
     message: string,
+    /** 1-based catalog line, for SPLICE_UNSUPPORTED */
+    readonly line?: number,
   ) {
     super(message);
     this.name = "LibraryError";

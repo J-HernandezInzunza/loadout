@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { expected, expectedReplay, loadGolden, replaySplice, type SpliceCase, type SpliceImpl } from "../../test/golden.ts";
-import { renderEntry, spliceEntry, validateRef } from "./splice.ts";
+import { assertSpliceable, renderEntry, spliceEntry, validateRef } from "./splice.ts";
 
 const fixture = loadGolden("splice");
 const notYet = () => {
@@ -44,6 +44,13 @@ describe("validateRef", () => {
 // Inserts into sections that exist, where the rebuild writes what library.py writes.
 const inserts = fixture.cases.filter((c) => c.text !== null && !c.rebuild && c.ops.every((o) => o.op === "splice"));
 const byCase = (cases: SpliceCase[]) => cases.map((c) => [c.id, c] as const);
+const PLURAL = { skill: "skills", agent: "agents", prompt: "prompts" } as const;
+/** Whether the section of the case's first op is already in its text. */
+const targetExists = (c: SpliceCase) => {
+  const op = c.ops[0]!;
+  const type = "type" in op ? op.type : op.entry.type;
+  return new RegExp(`^  ${PLURAL[type]}:`, "m").test(fixture.texts[c.text!]!.text);
+};
 const replays = (c: SpliceCase) => expect(replaySplice(fixture, c, impl)).toMatchObject(expectedReplay(c));
 
 describe("spliceEntry", () => {
@@ -76,5 +83,31 @@ describe("spliceEntry", () => {
   it("EDIT-08: refuses a duplicate with DUPLICATE", () => {
     const c = inserts.find((c) => c.id === "py-quoted/skills/0:yaml-lint/insert-duplicate")!;
     expect(replaySplice(fixture, c, impl)).toEqual({ error: { code: "DUPLICATE", message: "'yaml-lint' already exists in skills" } });
+  });
+});
+
+describe("assertSpliceable", () => {
+  // Inserts into a missing section that D1 refuses because the section before it fails D2 are M1.09's.
+  const unsupported = fixture.cases.filter((c) => {
+    const e = expected(c);
+    return "error" in e && e.error.code === "SPLICE_UNSUPPORTED" && targetExists(c);
+  });
+  // Remove and replace land in M1.10 and M1.11; until then their cases reach the layout check directly.
+  const checkOnly: SpliceImpl = {
+    ...impl,
+    removeEntry: (text, type) => (assertSpliceable(text, type), notYet()),
+    replaceEntry: (text, type) => (assertSpliceable(text, type), notYet()),
+  };
+
+  it("has the 28 cases the rebuild refuses up front in an existing section", () => {
+    expect(unsupported).toHaveLength(28);
+  });
+
+  it.each(byCase(unsupported))("EDIT-09: refuses %s with SPLICE_UNSUPPORTED and its line", (_, c) => {
+    expect(replaySplice(fixture, c, checkOnly)).toEqual(expectedReplay(c));
+  });
+
+  it("EDIT-09: accepts a comment after the section header", () => {
+    expect(() => assertSpliceable("library:\n  skills: # mine\n    - name: a\n", "skill")).not.toThrow();
   });
 });
