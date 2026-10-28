@@ -11,3 +11,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M1.07 832f990 spliceEntry: all 309 insert cases where library.py and the rebuild agree pass, batches included; Python whitespace, dot and string-order semantics kept
 2026-10-28 M1.08 850c298 D2 layout check (assertSpliceable) with code and 1-based line: 28 of 48 SPLICE_UNSUPPORTED cases; the other 20 are D1 refusals into missing sections, left to M1.09
 2026-10-28 M1.09 5cb0c1e D1: inserts create a missing section in canonical order; 132 missing-section cases pass, incl. M1.08's 20 deferred refusals; 36 create-then-remove round trips wait for M1.10
+2026-10-28 M1.10 edf838d removeEntry (D3): all 330 cases with a remove pass, incl. M1.09's 36 round trips

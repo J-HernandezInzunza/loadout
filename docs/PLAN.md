@@ -97,7 +97,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.08
   - Done when: every case whose input lacks the target section passes.
 
-- [ ] **M1.10 Remove (D3).** `removeEntry(text, type, name)`.
+- [x] **M1.10 Remove (D3).** `removeEntry(text, type, name)`.
   - Rules: EDIT-10, EDIT-11
   - Depends: M1.08
   - Done when: every case containing a `remove` op passes, round trips included.
