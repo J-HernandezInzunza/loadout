@@ -294,7 +294,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.06
   - Done when: each rule has a test.
 
-- [ ] **M2.12 Update detection.** `sourceUnchanged`, `contentUnmoved`, stale detection; advancing
+- [x] **M2.12 Update detection.** `sourceUnchanged`, `contentUnmoved`, stale detection; advancing
   a receipt's commit when the head moved but the content did not.
   - Rules: UPD-03, UPD-04, UPD-05, UPD-06, UPD-08
   - Depends: M2.11, M2.08
