@@ -4,6 +4,7 @@ import { catalogEntries, parseCatalog, type EntryProblem } from "../catalog/read
 import type { AppConfigV1 } from "../config/config.ts";
 import type { Host } from "../host.ts";
 import { err, ok, type CatalogRef, type CoreError, type Entry, type Result } from "../model/model.ts";
+import type { ReceiptV2 } from "../receipts/receipts.ts";
 import { expandHome } from "../source/source.ts";
 
 export interface CatalogState {
@@ -35,9 +36,12 @@ export interface Provenance {
 
 export type Copy = Provenance & { catalog: string; wins: boolean; subject: boolean };
 
-/** A listed entry; the install fields stay stubbed until install state exists (M2.20). */
+/** What sits at an entry's destination, as list and show report it; "stale" only when asked to check remotes (UPD-06). */
+export type InstallState = "not_installed" | "installed" | "drifted" | "unmanaged" | "stale";
+
+/** A listed entry. The registry knows nothing of installs: its records read not installed, and the facade fills them in. */
 export type EntryRecord = Entry &
-  Provenance & { installed: boolean; state: "not_installed"; receipt: null; locations: string[] };
+  Provenance & { installed: boolean; state: InstallState; receipt: ReceiptV2 | null; locations: string[]; disabled: boolean };
 
 export interface Registry {
   /** every registered catalog, highest precedence first, skipped ones included */
@@ -193,7 +197,7 @@ export async function loadRegistry(host: Host, config: AppConfigV1): Promise<Reg
       return copies.map((e, i) => ({ catalog: e.catalog, wins: i === 0, subject: e.catalog === about, ...overrideSplit(e) }));
     },
     records: () =>
-      merged.map((e) => ({ ...e, ...overrideSplit(e), installed: false, state: "not_installed", receipt: null, locations: [] })),
+      merged.map((e) => ({ ...e, ...overrideSplit(e), installed: false, state: "not_installed", receipt: null, locations: [], disabled: false })),
     candidates(query, catalog) {
       const searched = scope(catalog);
       return searched.ok ? candidatesIn(searched.value, query) : [];
