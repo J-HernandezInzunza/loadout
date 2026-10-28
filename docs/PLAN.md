@@ -373,7 +373,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.09, M1.13
   - Done when: each op has a test for its happy path and each listed fix.
 
-- [ ] **M2.22 Doctor.** `doctor({ deep })` with the §2.10 checks tagged `mvp` (3, 4, 7–11, 13–31),
+- [x] **M2.22 Doctor.** `doctor({ deep })` with the §2.10 checks tagged `mvp` (3, 4, 7–11, 13–31),
   plus: `git --version`, `xcode-select -p`, for each host with a protected catalog a connected
   account whose token still works (replaces check 11; arch §5.3, §5.5),
   managed-settings overrides of catalog skills (arch §4.5 rule 4), diverged clones with a re-clone
