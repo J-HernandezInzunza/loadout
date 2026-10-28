@@ -71,6 +71,7 @@ export const ErrorCode = z.enum([
   "NOT_CONNECTED",
   "AUTH_FAILED",
   "API_FAILED",
+  "GIT_FAILED",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

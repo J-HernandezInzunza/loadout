@@ -43,7 +43,7 @@ export function parseSource(input: string, home: string): Source {
 }
 
 /** ssh first, then https; raw.githubusercontent.com sources clone from github.com. */
-export function cloneUrls(src: RemoteSource): string[] {
+export function cloneUrls(src: Pick<RemoteSource, "kind" | "org" | "repo">): string[] {
   const host = src.kind === "bitbucket" ? "bitbucket.org" : "github.com";
   return [`git@${host}:${src.org}/${src.repo}.git`, `https://${host}/${src.org}/${src.repo}.git`];
 }
