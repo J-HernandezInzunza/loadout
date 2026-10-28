@@ -49,6 +49,8 @@ export interface Registry {
   entriesOf(id: string): Entry[];
   /** name → the first entry of that name in precedence order, whatever its type (RES-18) */
   winners(): Map<string, Entry>;
+  /** The entries a lookup searches: one active catalog's (UNKNOWN_CATALOG otherwise), or all of them. */
+  searchScope(catalog?: string): Result<Entry[]>;
   /** The first entry named exactly `name`; with `catalog`, only that active catalog is searched (RES-06). */
   resolve(name: string, catalog?: string): Result<Entry, ResolveErr>;
   /** Every name resolved before anything is returned, so a caller acts on all or none (RES-05). */
@@ -173,6 +175,7 @@ export async function loadRegistry(host: Host, config: AppConfigV1): Promise<Reg
       for (const e of merged) if (!winners.has(e.name)) winners.set(e.name, e);
       return winners;
     },
+    searchScope: scope,
     resolve,
     resolveAll(names, catalog) {
       const found: Entry[] = [];
