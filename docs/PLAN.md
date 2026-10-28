@@ -132,7 +132,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.04
   - Done when: every `source.json` case matches, with `/home/golden` substituted for the sandbox home.
 
-- [ ] **M1.15 Config store.** `config/`: `AppConfigV1` zod schema (arch §4.1 as amended: no
+- [x] **M1.15 Config store.** `config/`: `AppConfigV1` zod schema (arch §4.1 as amended: no
   `autopush`, `defaultAddCatalog`, `installDirs`, `gitCommit`), `loadConfig()` returning a typed
   "no catalogs registered" state, `saveConfig()` through `writeTextAtomic`, writes serialized
   through an in-process queue.
