@@ -285,7 +285,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.07, M2.08
   - Done when: each origin has a test; a symlink is reported and never followed.
 
-- [ ] **M2.11 Fetch sources.** Remote and local fetch into the op's cache: file must exist
+- [x] **M2.11 Fetch sources.** Remote and local fetch into the op's cache: file must exist
   (FETCH-05), skill = its folder (FETCH-06), local sources (FETCH-07), overlap refusal (FETCH-08),
   repo-root skills copied without `.git` (FETCH-10 rebuild), directory sources install the parent
   (FETCH-11), verification in staging (FETCH-12 rebuild: `SKILL.md` or the `.md` file must exist,
