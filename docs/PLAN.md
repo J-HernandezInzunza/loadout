@@ -32,7 +32,7 @@ Exit: every M1 task checked; every golden case in `scalar`, `splice`, `source`, 
 `read` passes; every rule listed under M1 has a test. (RES-13 to RES-17 and DEP-09/10 moved to M3,
 where pins and authoring live; RCAT-01/03 to M2 with the git client.)
 
-- [ ] **M1.01 Rule-coverage test.** `test/rule-coverage.test.ts` parses this file, collects the
+- [x] **M1.01 Rule-coverage test.** `test/rule-coverage.test.ts` parses this file, collects the
   rule ids of every **checked** task, and fails if any id is missing from all `*.test.ts` titles
   under `packages/` and `test/`.
   - Rules: none (tooling)
