@@ -65,6 +65,7 @@ export const ErrorCode = z.enum([
   "REFUSED",
   "VERIFY_FAILED",
   "SETTINGS",
+  "CONFIG_INVALID",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
