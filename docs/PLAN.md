@@ -451,7 +451,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Done when: GitHub and Bitbucket origins (ssh and https) produce the right URL; no origin gives
     none.
 
-- [ ] **M3.08 Add.** `planAdd` (one entry or a batch, EDIT-13) following behaviors.md §3.12: type
+- [x] **M3.08 Add.** `planAdd` (one entry or a batch, EDIT-13) following behaviors.md §3.12: type
   inferred from the source, source parsed, local source refused for remote catalogs with the
   suggestion (WRITE-05), local source inside an install dir refused (WRITE-06), refs validated
   (DEP-11), duplicates in the batch and the catalog refused, override warnings, unknown-dependency
