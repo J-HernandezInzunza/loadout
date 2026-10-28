@@ -15,3 +15,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M1.11 727a4e4 replaceEntry (D4): all 896 splice.json cases now replay as expected; test-only assertSpliceable removed
 2026-10-28 M1.12 d9cf9ad parseCatalog (yaml failsafe + PyYAML's exact resolvers), catalogEntries with typed field/structure problems, verifyEdit (VERIFY_FAILED), sortedProblems; all 66 read.json cases
 2026-10-28 M1.13 29e8d78 scaffoldCatalog: same YAML as the CLI's scaffold, Loadout comments; accepts an insert into each section
+2026-10-28 M1.14 3074272 parseSource/cloneUrls/remoteWeb: all 47 source.json cases (sandbox home); new INVALID_SOURCE error code

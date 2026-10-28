@@ -126,7 +126,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.07
   - Done when: the scaffold parses to three empty sections and accepts an insert into each.
 
-- [ ] **M1.14 Source parsing.** `source/`: `parseSource`, `cloneUrls`, `remoteWeb`; `~` expands
+- [x] **M1.14 Source parsing.** `source/`: `parseSource`, `cloneUrls`, `remoteWeb`; `~` expands
   against `host.paths.home`.
   - Rules: FETCH-01
   - Depends: M1.04
