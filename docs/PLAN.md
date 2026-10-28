@@ -32,7 +32,7 @@ Exit: every M1 task checked; every golden case in `scalar`, `splice`, `source`, 
 `read` passes; every rule listed under M1 has a test. (RES-13 to RES-17 and DEP-09/10 moved to M3,
 where pins and authoring live; RCAT-01/03 to M2 with the git client.)
 
-- [ ] **M1.01 Rule-coverage test.** `test/rule-coverage.test.ts` parses this file, collects the
+- [x] **M1.01 Rule-coverage test.** `test/rule-coverage.test.ts` parses this file, collects the
   rule ids of every **checked** task, and fails if any id is missing from all `*.test.ts` titles
   under `packages/` and `test/`.
   - Rules: none (tooling)
@@ -40,7 +40,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: the test passes with no task checked, and fails when a task with an uncovered rule
     id is checked (proved with a fixture copy of this file in the test).
 
-- [ ] **M1.02 Model, errors and results.** `model/`: `EntryType`, `Entry`, `Source`, `CatalogRef`,
+- [x] **M1.02 Model, errors and results.** `model/`: `EntryType`, `Entry`, `Source`, `CatalogRef`,
   `Warning`, `Result<T, E>` with `ok()`/`err()` helpers, and the closed `ErrorCode` enum from arch
   §2.3 (`NOT_FOUND`, `AMBIGUOUS_NAME`, `AMBIGUOUS_CATALOG`, `READ_ONLY`, `LOCAL_SOURCE_REFUSED`,
   `SOURCE_IN_INSTALL_DIR`, `DUPLICATE`, `SPLICE_UNSUPPORTED`, `MULTILINE_VALUE`,
@@ -51,21 +51,21 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: schemas round-trip a sample of each type; the enum is exported and exhaustive
     (a `switch` over it type-checks with `never`).
 
-- [ ] **M1.03 Test sandbox.** `packages/core/test/sandbox.ts`: a Node `Host` (`@loadout/host-node`)
+- [x] **M1.03 Test sandbox.** `packages/core/test/sandbox.ts`: a Node `Host` (`@loadout/host-node`)
   rooted in a per-test temp dir with its own `home` and `appData`, which fails the test if any fs
   call or process `cwd` escapes the sandbox (the Python suite's `TempTool`, arch §6).
   - Rules: none (arch §6)
   - Depends: M1.02
   - Done when: a test proves an escaping path fails, and temp dirs are removed after each test.
 
-- [ ] **M1.04 Golden fixture loader.** Typed readers for the six fixtures; `expected(case)` returns
+- [x] **M1.04 Golden fixture loader.** Typed readers for the six fixtures; `expected(case)` returns
   `rebuild ?? python`; helpers to replay splice `ops` and to materialize `hash.json` trees in the
   sandbox.
   - Rules: none (arch §3.2)
   - Depends: M1.02
   - Done when: each fixture loads through its zod schema.
 
-- [ ] **M1.05 PyYAML scalar quoting.** `catalog/scalar.ts`: `pyyamlInline(value)` reproducing
+- [x] **M1.05 PyYAML scalar quoting.** `catalog/scalar.ts`: `pyyamlInline(value)` reproducing
   `_yaml_inline` (PyYAML's YAML 1.1 implicit resolvers + emitter scalar analysis, single- and
   double-quoted writers for one line); throws `MULTILINE_VALUE`.
   - Rules: EDIT-02, EDIT-03
@@ -73,42 +73,42 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: all 4,693 cases in `scalar.json` match byte for byte, and every `multiline` case
     throws `MULTILINE_VALUE`.
 
-- [ ] **M1.06 Render entry and ref validation.** `catalog/splice.ts` `renderEntry(e)`;
+- [x] **M1.06 Render entry and ref validation.** `catalog/splice.ts` `renderEntry(e)`;
   `validateRef(ref)`: `type:name` with type in skill/agent/prompt, and no `"`, `\` or control
   characters (A11).
   - Rules: EDIT-01, DEP-11
   - Depends: M1.05
   - Done when: every `render/*` case in `splice.json` matches (`rebuild` for the three refused refs).
 
-- [ ] **M1.07 Splice: insert into existing sections.** Port `_locate_section`, `_item_starts`,
+- [x] **M1.07 Splice: insert into existing sections.** Port `_locate_section`, `_item_starts`,
   `spliceEntry` line for line (`text.split("\n")`, rejoin with `"\n"`); batch add applies it in order.
   - Rules: EDIT-04, EDIT-06, EDIT-07, EDIT-08, EDIT-13
   - Depends: M1.06
   - Done when: every splice-only case in `splice.json` whose expectation is `python` passes.
 
-- [ ] **M1.08 Splice: unsupported layouts (D2).** Layout check before any edit; `SPLICE_UNSUPPORTED`
+- [x] **M1.08 Splice: unsupported layouts (D2).** Layout check before any edit; `SPLICE_UNSUPPORTED`
   with the 1-based line.
   - Rules: EDIT-09
   - Depends: M1.07
   - Done when: every case whose expectation is a `SPLICE_UNSUPPORTED` error passes (code and line).
 
-- [ ] **M1.09 Splice: create missing sections (D1).**
+- [x] **M1.09 Splice: create missing sections (D1).**
   - Rules: EDIT-05
   - Depends: M1.08
   - Done when: every case whose input lacks the target section passes.
 
-- [ ] **M1.10 Remove (D3).** `removeEntry(text, type, name)`.
+- [x] **M1.10 Remove (D3).** `removeEntry(text, type, name)`.
   - Rules: EDIT-10, EDIT-11
   - Depends: M1.08
   - Done when: every case containing a `remove` op passes, round trips included.
 
-- [ ] **M1.11 Replace (D4).** `replaceEntry(text, type, name, entry)`.
+- [x] **M1.11 Replace (D4).** `replaceEntry(text, type, name, entry)`.
   - Rules: EDIT-12
   - Depends: M1.08
   - Done when: every case containing a `replace` op passes; together with M1.07–M1.10, all 896
     splice cases pass.
 
-- [ ] **M1.12 Catalog read.** `catalog/read.ts`: `parseCatalog(text)` with `yaml` (eemeli) in YAML
+- [x] **M1.12 Catalog read.** `catalog/read.ts`: `parseCatalog(text)` with `yaml` (eemeli) in YAML
   1.1 mode; `catalogEntries(data, catalogId)` in section order skills, agents, prompts; field
   validation the CLI lacks: a non-string `name`/`description`/`source`, or a `requires` that is not
   a list of strings, is a typed per-entry problem, not a crash (the CLI turns `requires: skill:b`
@@ -120,19 +120,19 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
     `{py, repr}` value maps to its declared TS form and is reported as a field problem), and every
     `read.json` error case is a typed parse problem.
 
-- [ ] **M1.13 Catalog scaffold.** `scaffoldCatalog(id)`: a text the splice accepts (EDIT-15's
+- [x] **M1.13 Catalog scaffold.** `scaffoldCatalog(id)`: a text the splice accepts (EDIT-15's
   comments may mention Loadout instead of the CLI).
   - Rules: EDIT-15
   - Depends: M1.07
   - Done when: the scaffold parses to three empty sections and accepts an insert into each.
 
-- [ ] **M1.14 Source parsing.** `source/`: `parseSource`, `cloneUrls`, `remoteWeb`; `~` expands
+- [x] **M1.14 Source parsing.** `source/`: `parseSource`, `cloneUrls`, `remoteWeb`; `~` expands
   against `host.paths.home`.
   - Rules: FETCH-01
   - Depends: M1.04
   - Done when: every `source.json` case matches, with `/home/golden` substituted for the sandbox home.
 
-- [ ] **M1.15 Config store.** `config/`: `AppConfigV1` zod schema (arch §4.1 as amended: no
+- [x] **M1.15 Config store.** `config/`: `AppConfigV1` zod schema (arch §4.1 as amended: no
   `autopush`, `defaultAddCatalog`, `installDirs`, `gitCommit`), `loadConfig()` returning a typed
   "no catalogs registered" state, `saveConfig()` through `writeTextAtomic`, writes serialized
   through an in-process queue.
@@ -141,12 +141,12 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: round trip; an invalid file is a typed error and is never overwritten; two
     concurrent saves both land in order.
 
-- [ ] **M1.16 Registry validation.** `validateRegistry(raw)`, the port of `Config.problems`.
+- [x] **M1.16 Registry validation.** `validateRegistry(raw)`, the port of `Config.problems`.
   - Rules: MIG-01
   - Depends: M1.12
   - Done when: every `registry.json` case yields the same problem list, in the same order.
 
-- [ ] **M1.17 One-time import.** `planImport(toolDir?)` / `applyImport(plan)`: find the tool dir
+- [x] **M1.17 One-time import.** `planImport(toolDir?)` / `applyImport(plan)`: find the tool dir
   through the `~/.claude/skills/library` symlink (or take one); parse `config.local.yaml` (YAML 1.1);
   refuse when `validateRegistry` reports problems; normalize the legacy `catalog:` form; map
   catalogs (with explicit `protected`, `writable`) and pins; report, without importing,
@@ -159,7 +159,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
     `quoted-false-flags` reports each coerced flag and imports `false`; the old file's bytes are
     unchanged after apply.
 
-- [ ] **M1.18 Registry.** `registry/`: `Registry` over config + catalog data: `active()`,
+- [x] **M1.18 Registry.** `registry/`: `Registry` over config + catalog data: `active()`,
   `writable()`, `entries()`, `entriesOf(id)`, skip reasons (local file unreadable; remote clone
   absent at `clones/<id>` → "not cloned yet"); loading never touches the network.
   - Rules: RCAT-02, RCAT-08, RCAT-09, RES-18
@@ -167,26 +167,26 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: one unreadable catalog of several is skipped with its reason while the others serve;
     a single unreadable catalog and an all-unreadable registry report as RCAT-08 describes.
 
-- [ ] **M1.19 Name resolution.** `resolve(name, catalog?)`, precedence, pins, `winners()`,
+- [x] **M1.19 Name resolution.** `resolve(name, catalog?)`, precedence, pins, `winners()`,
   `candidates(query)`, and resolve-all-before-effect for multi-name requests.
   - Rules: RES-01, RES-02, RES-03, RES-04, RES-05, RES-06, RES-10, RES-11
   - Depends: M1.18
   - Done when: each rule has a test; `NOT_FOUND`/`AMBIGUOUS_NAME` carry candidates.
 
-- [ ] **M1.20 Override provenance.** `overrideSplit(entry)`, `overrides`/`overriddenBy`/`pinned`
+- [x] **M1.20 Override provenance.** `overrideSplit(entry)`, `overrides`/`overriddenBy`/`pinned`
   on records, per item for multi-name requests (A27).
   - Rules: RES-07, RES-08, RES-09, RES-12
   - Depends: M1.19
   - Done when: each rule has a test (install fields are stubbed until M2.20).
 
-- [ ] **M1.21 Dependencies.** `deps/`: `resolveDeps` (post-order, own catalog only), `dependents`,
+- [x] **M1.21 Dependencies.** `deps/`: `resolveDeps` (post-order, own catalog only), `dependents`,
   `findCycles`; a cycle records the parent that re-entered it (A29); `not_found` and `malformed`
   share one wording (A25).
   - Rules: DEP-01, DEP-02, DEP-03, DEP-04, DEP-05, DEP-06, DEP-08
   - Depends: M1.19
   - Done when: each rule has a test.
 
-- [ ] **M1.22 Library facade and reads.** `ops/`: `createLibrary(host)`; `list`, `show`,
+- [x] **M1.22 Library facade and reads.** `ops/`: `createLibrary(host)`; `list`, `show`,
   `catalogs`, `search` (W18) with catalog-level fields; input/output zod schemas per op.
   - Rules: RES-04, UPD-07
   - Depends: M1.20, M1.21

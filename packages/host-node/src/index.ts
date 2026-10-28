@@ -11,6 +11,7 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rename,
   rm,
   stat,
@@ -74,6 +75,7 @@ export function createNodeHost(opts: NodeHostOptions): Host {
       exists: (path) => lstat(path).then(() => true, () => false),
       stat: async (path) => describe(await stat(path)),
       lstat: async (path) => describe(await lstat(path)),
+      realPath: (path) => realpath(path),
 
       async readDir(path) {
         const entries = await readdir(path, { withFileTypes: true });

@@ -7,5 +7,7 @@
     // AbortSignal and TextEncoder: present in both the webview and Node.
     "lib": ["ES2023", "DOM"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Tests compile in test/tsconfig.json, with Node types and the Node host.
+  "exclude": ["src/**/*.test.ts"]
 }
