@@ -300,7 +300,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.11, M2.08
   - Done when: each rule has a test; a repointed source never borrows an oid.
 
-- [ ] **M2.13 Plan install.** `planInstall({ names, catalog? })`: resolve all names first, merge
+- [x] **M2.13 Plan install.** `planInstall({ names, catalog? })`: resolve all names first, merge
   dependency closures, fetch into the cache, compute a per-destination file-level preview (added,
   removed, modified, and which modified files the user edited locally), mark unmanaged destinations
   as needing consent (Q8 A), mark unreachable items, fingerprint the plan; offline falls back to a
