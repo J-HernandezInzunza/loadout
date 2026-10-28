@@ -92,7 +92,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.07
   - Done when: every case whose expectation is a `SPLICE_UNSUPPORTED` error passes (code and line).
 
-- [ ] **M1.09 Splice: create missing sections (D1).**
+- [x] **M1.09 Splice: create missing sections (D1).**
   - Rules: EDIT-05
   - Depends: M1.08
   - Done when: every case whose input lacks the target section passes.
