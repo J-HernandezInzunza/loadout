@@ -317,7 +317,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.13
   - Done when: each rule has a test; an install interrupted mid-copy leaves the old copy intact.
 
-- [ ] **M2.15 Claude settings file.** `claudeSettings/`: `readSkillOverrides()`, and the minimal
+- [x] **M2.15 Claude settings file.** `claudeSettings/`: `readSkillOverrides()`, and the minimal
   JSON edit with `jsonc-parser` (`modify` + `applyEdits`): refuse unparseable JSON, preserve
   formatting byte for byte outside the key, keep the mode, write next to the **real** file so a
   symlink stays a symlink, re-read and retry once if the file changed, create
