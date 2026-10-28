@@ -21,3 +21,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M1.17 7eb7f0e planImport/applyImport: catalogs match every valid registry.json case; quoted flags read strictly and reported; dropped/unknown keys reported; STALE_PLAN and REFUSED guards; Host gains fs.realPath
 2026-10-28 M1.18 6bfacc8 loadRegistry: skip reasons (not cloned yet / not found / can't parse), RCAT-08 single and all-unreadable errors (new NO_READABLE_CATALOG), winners keyed by name
 2026-10-28 M1.19 5db5e2d resolve/resolveAll/candidates: pins applied to the merged list (slots only, inert when absent), catalog-scoped lookup with UNKNOWN_CATALOG (new code)
+2026-10-28 M1.20 64cbccb overrideSplit/copies/records: provenance relative to each copy (overriddenBy = winner, overrides = later copies), pinned; install fields stubbed

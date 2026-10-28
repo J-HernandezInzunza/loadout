@@ -173,7 +173,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.18
   - Done when: each rule has a test; `NOT_FOUND`/`AMBIGUOUS_NAME` carry candidates.
 
-- [ ] **M1.20 Override provenance.** `overrideSplit(entry)`, `overrides`/`overriddenBy`/`pinned`
+- [x] **M1.20 Override provenance.** `overrideSplit(entry)`, `overrides`/`overriddenBy`/`pinned`
   on records, per item for multi-name requests (A27).
   - Rules: RES-07, RES-08, RES-09, RES-12
   - Depends: M1.19
