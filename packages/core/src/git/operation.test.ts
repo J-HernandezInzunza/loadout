@@ -77,6 +77,21 @@ describe("operation caches", () => {
     expect(count("clone")).toBe(4);
   });
 
+  it("UPD-01: asks ls-remote once per repo+branch, and remembers a head it couldn't get", async () => {
+    const { h, host, git, count } = await setup();
+    const remote = h.createRepo("github.com", "o/r");
+    const tip = remote.commit({ "a.md": "a\n" });
+    const op = await createOperation(host, git);
+
+    expect(await op.heads.head(src("r"))).toBe(tip);
+    remote.commit({ "a.md": "moved\n" });
+    expect(await op.heads.head(src("r"))).toBe(tip);
+    expect(count("ls-remote")).toBe(2); // ssh refused, https once
+    expect(await op.heads.head(src("missing"))).toBeNull();
+    expect(await op.heads.head(src("missing"))).toBeNull();
+    expect(count("ls-remote")).toBe(4);
+  });
+
   it("FETCH-09: each operation gets its own tmp/<op id>/, removed when it ends", async () => {
     const { sb, h, host, git, tmp } = await setup();
     const remote = h.createRepo("github.com", "o/r");

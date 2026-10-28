@@ -16,6 +16,11 @@ export interface CloneCache {
   checkout(src: Repo, opts?: CallOpts): Promise<Result<string>>;
 }
 
+export interface HeadCache {
+  /** UPD-01: the branch's sha, asked once per repo+branch per operation; null (don't know) is remembered too. */
+  head(src: Repo, opts?: CallOpts): Promise<string | null>;
+}
+
 export interface ProbeCache {
   /** UPD-02: the tip commit and the oid of `path` there; null when unknown (no probe, or no such path). */
   oid(src: Repo, path: string, opts?: CallOpts): Promise<{ commit: string; oid: string } | null>;
@@ -24,6 +29,7 @@ export interface ProbeCache {
 export interface Operation {
   dir: string;
   clones: CloneCache;
+  heads: HeadCache;
   probes: ProbeCache;
   /** A fresh path inside the operation's dir (not created), e.g. for staging. */
   path(prefix: string): string;
@@ -37,6 +43,7 @@ export async function createOperation(host: Host, git: GitClient): Promise<Opera
   const path = (prefix: string) => `${dir}/${prefix}-${next++}`;
   // Promises, not values: two entries asking at once still share one clone.
   const checkouts = new Map<string, Promise<Result<string>>>();
+  const heads = new Map<string, Promise<string | null>>();
   const probes = new Map<string, Promise<{ dir: string; commit: string } | null>>();
 
   const memo = <T>(map: Map<string, Promise<T>>, key: string, make: () => Promise<T>) => {
@@ -54,6 +61,11 @@ export async function createOperation(host: Host, git: GitClient): Promise<Opera
           const cloned = await git.clone(await git.urlsFor(src), dest, { ...opts, branch: src.branch });
           return cloned.ok ? { ...cloned, value: dest } : cloned;
         });
+      },
+    },
+    heads: {
+      head(src, opts = {}) {
+        return memo(heads, repoKey(src), async () => git.lsRemoteHead(await git.urlsFor(src), src.branch, opts));
       },
     },
     probes: {
