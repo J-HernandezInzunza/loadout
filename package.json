@@ -7,7 +7,7 @@
     "apps/desktop"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.3"
   },
   "scripts": {
     "typecheck": "tsc -b && vue-tsc -p apps/desktop --noEmit",
@@ -23,7 +23,7 @@
     "eslint": "10.13.0",
     "eslint-plugin-vue": "10.12.0",
     "globals": "17.13.0",
-    "jsdom": "29.1.1",
+    "jsdom": "30.1.3",
     "typescript": "~6.0.3",
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",
