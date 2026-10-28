@@ -25,6 +25,7 @@ They use the old repo's venv at `$LIBRARY_SKILL_DIR/.venv` (default
 | `source.json` | `parse_source`, `Source.clone_urls`, `_remote_web` | every URL shape in behaviors.md §1.5 and the failure forms (`~` expands to `/home/golden`) |
 | `hash.json` | `content_hash` | small trees (nesting, empty files, unicode names, symlinks, `.git`, sort order) and their digests |
 | `registry.json` | `Config.problems`, `_normalize_catalogs`, `_catalog_from_raw` | valid and invalid `config.local.yaml` texts; the problems, or the normalized catalogs |
+| `read.json` | `yaml.safe_load` + `iter_entries` | every splice text plus YAML 1.1 edge texts (`yes`, `1:20`, dates, aliases, merge keys, scalar `requires`); the entries with each non-string value's Python type, or the error |
 
 ## Python vs rebuild expectations
 

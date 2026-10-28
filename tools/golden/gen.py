@@ -483,10 +483,75 @@ def registry_corpus(lib: Any) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------------------------
+# read corpus
+# --------------------------------------------------------------------------------------------
+
+def item(name: str, extra: str = "") -> str:
+    return f"library:\n  skills:\n    - name: {name}\n      description: d\n      source: ./s\n{extra}"
+
+
+READ_TEXTS: list[tuple[str, str]] = [
+    *[(f"yaml11-name-{label}", item(raw)) for label, raw in [
+        ("yes", "yes"), ("No", "No"), ("on", "on"), ("null", "null"), ("tilde", "~"), ("int", "123"),
+        ("octal", "012"), ("hex", "0x1F"), ("float", "1.5"), ("exp", "1e3"), ("sexagesimal", "1:20"),
+        ("date", "2001-12-14"), ("timestamp", "2001-12-14t21:59:43.10-05:00"), ("inf", ".inf"),
+        ("quoted-yes", "'yes'"), ("double-quoted-int", '"123"'), ("empty", "''"), ("missing", "")]],
+    ("requires-block", item("a", "      requires:\n        - skill:b\n        - prompt:c\n")),
+    ("requires-flow-unquoted", item("a", "      requires: [skill:b, prompt:c]\n")),
+    ("requires-scalar", item("a", "      requires: skill:b\n")),
+    ("requires-empty", item("a", "      requires: []\n")),
+    ("requires-null", item("a", "      requires:\n")),
+    ("unknown-key", item("a", "      tags: [x, y]\n")),
+    ("folded-description", "library:\n  skills:\n    - name: a\n      description: >\n        two\n        lines\n      source: ./s\n"),
+    ("duplicate-key", "library:\n  skills:\n    - name: a\n      name: b\n      source: ./s\n"),
+    ("anchor-alias", "library:\n  skills:\n    - &x {name: a, description: d, source: ./s}\n  prompts:\n    - *x\n"),
+    ("merge-key", "base: &b {description: shared, source: ./s}\nlibrary:\n  skills:\n    - <<: *b\n      name: a\n"),
+    ("section-null", "library:\n  skills:\n  agents: []\n"),
+    ("library-null", "library:\n"),
+    ("no-library", "default_dirs: {}\n"),
+    ("item-is-string", "library:\n  skills:\n    - just-a-string\n"),
+    ("section-is-mapping", "library:\n  skills:\n    a: {name: a}\n"),
+    ("tab-indent", "library:\n\tskills: []\n"),
+    ("bom", "﻿library:\n  skills: []\n"),
+    ("crlf", "library:\r\n  skills:\r\n    - name: a\r\n      source: ./s\r\n"),
+    ("empty-document", ""),
+    ("unicode", item("café", "      requires: [\"skill:日本\"]\n")),
+]
+
+
+def typed(value: Any) -> Any:
+    """A JSON value, or {py, repr} when the YAML 1.1 type is not a string (the TS reader must agree)."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return [typed(v) for v in value]
+    return {"py": type(value).__name__, "repr": repr(value)}
+
+
+def read_corpus(lib: Any) -> dict[str, Any]:
+    import yaml
+    cases = []
+    texts = [(f"splice:{k}", t) for k, (_, t) in TEXTS.items()] + READ_TEXTS
+    for case_id, text in texts:
+        case: dict[str, Any] = {"id": case_id, "text": text}
+        try:
+            data = yaml.safe_load(text)
+            entries = lib.iter_entries(data or {})
+            case["entries"] = [{"type": e.type, "name": typed(e.name), "description": typed(e.description),
+                                "source": typed(e.source), "requires": typed(e.requires)} for e in entries]
+        except Exception as ex:  # noqa: BLE001 - the error class is part of what we record
+            case["error"] = {"class": type(ex).__name__, "message": str(ex).split("\n")[0]}
+        cases.append(case)
+    return {"meta": meta(lib, "read", functions="yaml.safe_load + library.iter_entries (library.py:1520)",
+                         note="Non-string values are {py, repr}; an error records what library.py raised"),
+            "cases": cases}
+
+
+# --------------------------------------------------------------------------------------------
 
 CORPORA: dict[str, Callable[..., dict[str, Any]]] = {
     "splice": splice_corpus, "scalar": scalar_corpus, "source": source_corpus,
-    "hash": hash_corpus, "registry": registry_corpus,
+    "hash": hash_corpus, "registry": registry_corpus, "read": read_corpus,
 }
 
 

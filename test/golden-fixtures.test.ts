@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 const dir = fileURLToPath(new URL("../packages/core/test/golden/", import.meta.url));
 const load = (name: string) => JSON.parse(readFileSync(dir + name + ".json", "utf8"));
 
-describe.each(["splice", "scalar", "source", "hash", "registry"])("%s fixture", (name) => {
+describe.each(["splice", "scalar", "source", "hash", "registry", "read"])("%s fixture", (name) => {
   it("is pinned to library.py at a29e816", () => {
     const { meta } = load(name);
     expect(meta).toMatchObject({ corpus: name, library: { commit: "a29e816" }, pyyaml: "6.0.3" });
