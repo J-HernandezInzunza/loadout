@@ -6,12 +6,12 @@ import type { ConfigStore } from "../config/config.ts";
 import { mergeOrders, resolveDeps } from "../deps/deps.ts";
 import { fetchEntry, type Fetched } from "../fetch/fetch.ts";
 import type { CallOpts, GitClient } from "../git/git.ts";
-import { createOperation } from "../git/operation.ts";
+import { createOperation, type Operation } from "../git/operation.ts";
 import type { Host } from "../host.ts";
 import { ok, type Entry, type Result, type Warning } from "../model/model.ts";
 import { fileManifest } from "../receipts/hash.ts";
 import type { ReceiptStore } from "../receipts/receipts.ts";
-import { loadRegistry, type CatalogState, type Provenance, type ResolveErr } from "../registry/registry.ts";
+import { loadRegistry, type CatalogState, type Provenance, type Registry, type ResolveErr } from "../registry/registry.ts";
 import { destFor, destState, readLegacyInstalls, type DestState, type Origin } from "../scan/scan.ts";
 
 export interface InstallCtx {
@@ -124,41 +124,67 @@ export async function planInstall(
   warnings.push(...receipts.warnings);
   const byDest = new Map(receipts.value.map((r) => [r.dest, r]));
   const legacy = await readLegacyInstalls(host, loaded.value.config.imported?.installs);
-  const keys = new Map(await Promise.all(registry.active().map(async (c) => [c.ref.id, await catalogKey(host, c)] as const)));
+  const keys = await catalogKeys(host, registry);
 
   const op = await createOperation(host, ctx.git);
   const planned: PlanItem[] = [];
   for (const entry of items) {
     const dest = destFor(host.paths.home, entry.type, entry.name);
     const state = await destState(host, dest, byDest.get(dest) ?? null, legacy);
-    const fetched = await fetchEntry(host, ctx.git, op, entry, opts);
-    const status: PlanItem["status"] = fetched.ok ? "ready" : fetched.error.code === "GIT_FAILED" ? "unreachable" : "failed";
-    planned.push({
-      type: entry.type,
-      name: entry.name,
-      catalog: entry.catalog,
-      catalogKey: keys.get(entry.catalog)!,
-      source: entry.source,
-      dest,
-      requiredBy: requested.has(entry) ? [] : [...(requiredBy.get(entry) ?? [])],
-      provenance: registry.overrideSplit(entry),
-      state: state.state,
-      ...(state.state === "unmanaged" && { origin: state.origin }),
-      needsConsent: state.state === "unmanaged",
-      status,
-      ...(!fetched.ok && { reason: fetched.error.message }),
-      preview: fetched.ok ? await preview(host, dest, state, fetched.value) : { kind: "destination-only" },
-      ...(fetched.ok && { fetched: fetched.value }),
-      destFingerprint: await destFingerprint(host, dest, state),
-    });
+    planned.push(
+      await buildItem(ctx, op, entry, state, {
+        catalogKey: keys.get(entry.catalog)!,
+        requiredBy: requested.has(entry) ? [] : [...(requiredBy.get(entry) ?? [])],
+        provenance: registry.overrideSplit(entry),
+        opts,
+      }),
+    );
   }
+  return ok({ items: planned, opDir: op.dir, fingerprint: await planFingerprint(host, planned) }, warnings);
+}
 
-  const fingerprint = await sha(host, planned.map((p) => [p.dest, p.destFingerprint, p.fetched?.commit ?? null, p.fetched?.files ?? null]));
-  return ok({ items: planned, opDir: op.dir, fingerprint }, warnings);
+/** Each active catalog's identity key, by id. */
+export async function catalogKeys(host: Host, registry: Registry): Promise<Map<string, string>> {
+  return new Map(await Promise.all(registry.active().map(async (c) => [c.ref.id, await catalogKey(host, c)] as const)));
+}
+
+/** One item of a plan: fetch it into `op`, preview it against its destination, fingerprint that destination. */
+export async function buildItem(
+  ctx: InstallCtx,
+  op: Operation,
+  entry: Entry,
+  state: DestState,
+  extra: { catalogKey: string; requiredBy: string[]; provenance: Provenance; opts?: CallOpts },
+): Promise<PlanItem> {
+  const { host } = ctx;
+  const dest = destFor(host.paths.home, entry.type, entry.name);
+  const fetched = await fetchEntry(host, ctx.git, op, entry, extra.opts ?? {});
+  return {
+    type: entry.type,
+    name: entry.name,
+    catalog: entry.catalog,
+    catalogKey: extra.catalogKey,
+    source: entry.source,
+    dest,
+    requiredBy: extra.requiredBy,
+    provenance: extra.provenance,
+    state: state.state,
+    ...(state.state === "unmanaged" && { origin: state.origin }),
+    needsConsent: state.state === "unmanaged",
+    status: fetched.ok ? "ready" : fetched.error.code === "GIT_FAILED" ? "unreachable" : "failed",
+    ...(!fetched.ok && { reason: fetched.error.message }),
+    preview: fetched.ok ? await preview(host, dest, state, fetched.value) : { kind: "destination-only" },
+    ...(fetched.ok && { fetched: fetched.value }),
+    destFingerprint: await destFingerprint(host, dest, state),
+  };
+}
+
+export function planFingerprint(host: Host, items: PlanItem[]): Promise<string> {
+  return sha(host, items.map((p) => [p.dest, p.destFingerprint, p.fetched?.commit ?? null, p.fetched?.files ?? null]));
 }
 
 /** Removes a plan's staged copies when it won't be applied. */
-export async function discardPlan(host: Host, plan: InstallPlan): Promise<void> {
+export async function discardPlan(host: Host, plan: { opDir: string }): Promise<void> {
   if (!(await host.fs.exists(plan.opDir))) return;
   await host.fs.remove(plan.opDir, { recursive: true });
   host.audit({ kind: "fs", op: "delete", path: plan.opDir });

@@ -73,21 +73,19 @@ async function placeOne(host: Host, item: PlanItem): Promise<void> {
   }
 }
 
-export async function applyInstall(ctx: InstallCtx, plan: InstallPlan, opts: ApplyOpts = {}): Promise<Result<ApplyReport>> {
+/** Every check before the first effect: destinations as planned, staged copies present, unmanaged content consented to. */
+export async function checkItems(ctx: InstallCtx, items: PlanItem[], consented: Set<string>): Promise<Result<void>> {
   const { host } = ctx;
-  const consented = new Set(opts.overwrite?.unmanaged ?? []);
-
-  // Every check before the first effect.
   const loaded = await ctx.config.loadConfig();
   if (!loaded.ok) return loaded;
   const legacy = await readLegacyInstalls(host, loaded.value.config.imported?.installs);
   const receipts = await ctx.receipts.all();
   if (!receipts.ok) return receipts;
   const byDest = new Map(receipts.value.map((r) => [r.dest, r]));
-  for (const item of plan.items) {
+  for (const item of items) {
     const now = await destState(host, item.dest, byDest.get(item.dest) ?? null, legacy);
     if ((await destFingerprint(host, item.dest, now)) !== item.destFingerprint) {
-      return err({ code: "STALE_PLAN", message: `${item.dest} changed since the install was planned; plan it again` });
+      return err({ code: "STALE_PLAN", message: `${item.dest} changed since this was planned; plan it again` });
     }
     if (item.fetched && !(await host.fs.exists(item.fetched.staged))) {
       return err({ code: "STALE_PLAN", message: "the planned copies are gone (the plan was discarded); plan it again" });
@@ -96,6 +94,35 @@ export async function applyInstall(ctx: InstallCtx, plan: InstallPlan, opts: App
       return err({ code: "REFUSED", message: `${item.dest} holds content Loadout didn't install; name it in overwrite.unmanaged to replace it` });
     }
   }
+  return ok(undefined);
+}
+
+/** Moves one ready item into place and writes its receipt; null on success, else why it failed. */
+export async function installItem(ctx: InstallCtx, item: PlanItem): Promise<string | null> {
+  const { host } = ctx;
+  try {
+    await placeOne(host, item);
+  } catch (e) {
+    return (e as Error).message;
+  }
+  const receipt: ReceiptV2 = {
+    dest: item.dest,
+    type: item.type,
+    name: item.name,
+    catalog: { id: item.catalog, key: item.catalogKey },
+    source: item.source,
+    commit: item.fetched!.commit,
+    sourceOid: item.fetched!.sourceOid,
+    files: item.fetched!.files,
+    installedAt: utc(host.now()),
+  };
+  const saved = await ctx.receipts.put(receipt);
+  return saved.ok ? null : saved.error.message;
+}
+
+export async function applyInstall(ctx: InstallCtx, plan: InstallPlan, opts: ApplyOpts = {}): Promise<Result<ApplyReport>> {
+  const checked = await checkItems(ctx, plan.items, new Set(opts.overwrite?.unmanaged ?? []));
+  if (!checked.ok) return checked;
 
   const report: ApplyReport = { installed: [], stopped: null, aborted: false };
   try {
@@ -104,37 +131,16 @@ export async function applyInstall(ctx: InstallCtx, plan: InstallPlan, opts: App
         report.aborted = true;
         break;
       }
-      if (item.status !== "ready") {
-        report.stopped = { name: item.name, reason: item.reason ?? item.status };
-        break;
-      }
-      try {
-        await placeOne(host, item);
-      } catch (e) {
-        report.stopped = { name: item.name, reason: (e as Error).message };
-        break;
-      }
-      const receipt: ReceiptV2 = {
-        dest: item.dest,
-        type: item.type,
-        name: item.name,
-        catalog: { id: item.catalog, key: item.catalogKey },
-        source: item.source,
-        commit: item.fetched!.commit,
-        sourceOid: item.fetched!.sourceOid,
-        files: item.fetched!.files,
-        installedAt: utc(host.now()),
-      };
-      const saved = await ctx.receipts.put(receipt);
-      if (!saved.ok) {
-        report.stopped = { name: item.name, reason: saved.error.message };
+      const failed = item.status === "ready" ? await installItem(ctx, item) : (item.reason ?? item.status);
+      if (failed !== null) {
+        report.stopped = { name: item.name, reason: failed };
         break;
       }
       report.installed.push({ type: item.type, name: item.name, dest: item.dest, preview: item.preview });
       opts.onProgress?.({ done: i + 1, total: plan.items.length, item: { type: item.type, name: item.name, dest: item.dest } });
     }
   } finally {
-    await discardPlan(host, plan);
+    await discardPlan(ctx.host, plan);
   }
   return ok(report);
 }
