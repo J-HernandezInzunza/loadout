@@ -445,3 +445,14 @@ speed on the largest real skill folder; a direct push from a shallow clone again
 with them; whether a toggle reaches an already-open Claude Code session; whether
 `~/.claude/commands/*.md` prompts obey `skillOverrides`; that a skill whose frontmatter `name` differs
 from its folder name is matched by the frontmatter name.
+
+---
+
+## Part 6. Decided after the first session
+
+**Accounts (2026-10-28).** Loadout does not use the `gh` CLI. Users connect GitHub and Bitbucket
+accounts in the app with a browser sign-in (OAuth; no token-paste field); tokens live in the macOS
+Keychain, git receives them per command, and PRs go through the hosts' REST APIs. This supersedes
+the `gh` parts of Q10 A and F4, and Q13e: Bitbucket PRs are opened automatically in v1. Without a
+connected account the user's existing git credentials still work and PRs are links. See
+architecture.md §5.5.

@@ -27,6 +27,9 @@ the last stderr line, a bare URL, as an error.
 
 **Answer:**
 
+Follow-up (2026-10-28): Loadout no longer uses `gh` (architecture.md §5.5). The same answer applies
+to the REST APIs: when a PR for the branch already exists, return its URL as success.
+
 ## Q3. Deny more credential stores in the fs scope (resolved 2026-10-28: A, applied)
 
 With dot-directories now inside the fs scope (spikes.md S3a), the webview can read
@@ -44,3 +47,19 @@ A Finder launch waits 2–3 s on your shell before the window opens (spikes.md S
 M4: cache the probed PATH in app data, use it at once, refresh it in the background.
 
 **Answer: cache sounds good**
+
+## Q5. Who registers the OAuth apps? (not blocking; needed for M4)
+
+Browser sign-in (architecture.md §5.5) needs two registrations outside the code:
+
+1. **Bitbucket OAuth consumer**, in a Bitbucket workspace (the Workstand workspace, so teammates
+   recognise it), by a workspace admin. Scopes: account read, repository read/write, pull requests
+   write. Its secret ships inside the app because Bitbucket's token exchange requires it and
+   Atlassian documents no PKCE (risk 13: extractable, rotate if leaked). Is that acceptable to
+   whoever owns the workspace?
+2. **GitHub OAuth app** (or GitHub App): under your account or a Workstand org. Device flow needs no
+   secret.
+
+M2 and M3 test with injected tokens, so nothing waits on this until M4.
+
+**Answer:**

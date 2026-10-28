@@ -16,9 +16,11 @@ authoring through the three write modes, and doctor. The core runs in the webvie
 renders the core's results. Rust shrinks to plugin registration plus PATH widening. The app no longer
 depends on Python, PyYAML, a bootstrapped venv, the `./library` wrapper, a clone of the tool repo, a
 compile-time path baked into the binary, `LIBRARY_CWD` anchoring, or JSON parsing of CLI stdout. It
-still depends on the system `git` and, for PR creation, `gh`, because they carry the user's existing
-SSH and HTTPS credentials and nothing else supports the clone shapes the update detection needs
-(§5).
+still depends on the system `git`, because nothing else supports the clone shapes the update
+detection needs (§5). It no longer depends on `gh`: users connect their GitHub and Bitbucket
+accounts in the app (browser sign-in), and Loadout passes those tokens to `git` and opens PRs
+through the hosts' REST APIs (§5.5, decided 2026-10-28). Without a connected account, `git` still
+uses whatever SSH keys or keychain credentials the user already has.
 
 ## 2. Module boundaries
 
@@ -74,9 +76,25 @@ export interface HostProc {
   }): Promise<ProcResult>;
 }
 
+export interface HostSecrets {                               // macOS Keychain in the app (§5.5)
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+export interface HttpRequest {
+  method: "GET" | "POST" | "PUT" | "DELETE"; url: string;
+  headers?: Record<string, string>; body?: string; timeoutMs?: number; signal?: AbortSignal;
+}
+export interface HostHttp {                                   // host REST APIs and OAuth endpoints only
+  request(req: HttpRequest): Promise<{ status: number; headers: Record<string, string>; body: string }>;
+}
+
 export interface Host {
   fs: HostFs;
   proc: HostProc;
+  secrets: HostSecrets;
+  http: HostHttp;
   paths: { home: string; appData: string };
   now(): Date;
   sha256(data: Uint8Array): Promise<string>;                 // hex
@@ -178,7 +196,8 @@ same bytes you write".
 
 ### 2.4 Rust layer
 
-Rust contains no domain logic and, in the recommended shape, **no `#[tauri::command]` at all**:
+Rust contains no domain logic and, in the recommended shape, **no `#[tauri::command]`** except the three
+Keychain commands behind `HostSecrets` (§5.5):
 
 - `main.rs`/`lib.rs`: repair the environment before the builder starts (`src/path.rs`, ported from
   `desktop/src-tauri/src/path.rs`: login-shell probe with a 10 s timeout, the shell's PATH **first**,
@@ -188,7 +207,9 @@ Rust contains no domain logic and, in the recommended shape, **no `#[tauri::comm
 | Plugin | Why | Capability |
 |---|---|---|
 | `tauri-plugin-fs` | every read/write/move the core does | `fs:default` + scoped allow lists below |
-| `tauri-plugin-shell` | spawn `git` and `gh` | `shell:allow-spawn`, `shell:allow-execute`, `shell:allow-kill` with scope `[{name:"git", cmd:"git", args:true}, {name:"gh", cmd:"gh", args:true}]` |
+| `tauri-plugin-shell` | spawn `git` | `shell:allow-spawn`, `shell:allow-execute`, `shell:allow-kill` with scope `[{name:"git", cmd:"git", args:true}]` (`gh` dropped, §5.5) |
+| `tauri-plugin-http` | host REST APIs and OAuth token endpoints (§5.5) | `http:default` scoped to `https://api.github.com/*`, `https://github.com/login/*`, `https://api.bitbucket.org/*`, `https://bitbucket.org/site/oauth2/*` |
+| `tauri-plugin-deep-link` | receive the OAuth redirect (`loadout://oauth/…`) in M4, if the hosts accept a custom scheme; else a loopback listener (§5.5) | — |
 | `tauri-plugin-dialog` | pick catalog dirs, source files, import folder | `dialog:allow-open` |
 | `tauri-plugin-opener` | open PR/compare URLs, reveal in Finder | `opener:default` |
 | `tauri-plugin-single-instance` | one process mutating receipts and clones at a time (replaces the CLI's cross-process `flock`, LOCK-01) | — |
@@ -210,7 +231,7 @@ FS scope options, ranked:
    every new local path becomes a failure mode.
 3. Unscoped `fs:allow-*`. No.
 
-Shell args stay `true` (unvalidated) for `git`/`gh`: the arguments are URLs, paths and refs that no
+Shell args stay `true` (unvalidated) for `git`: the arguments are URLs, paths and refs that no
 regex validates usefully, and the core never passes user text through a shell (argv only).
 
 ### 2.5 Vue layer
@@ -491,11 +512,11 @@ missing file; empty object; invalid JSON refused; symlink preserved; concurrent 
 | `--filter=blob:none --no-checkout` probe (UPD-02) | yes | **no filter option** in `fetch` | partial | no |
 | `ls-remote` | yes | `getRemoteInfo` (HTTP only) | yes | yes |
 | `rev-parse <commit>:<path>` tree oid | yes | `readTree`/`resolveRef` | yes | yes |
-| push, PR creation | `git push`, `gh pr create` | push only | push only | push only |
+| push, PR creation | `git push`; PRs through the host REST APIs (§5.5) | push only | push only | push only |
 | Rust code required | none | none | substantial | substantial |
 
-Ranking: **(1) system git + gh (recommended)**: identical auth to today and to what users already
-configured, every needed operation exists, zero Rust; (2) gitoxide, which would need Rust commands and
+Ranking: **(1) system git (recommended)**, with tokens from connected accounts (§5.5) or the user's
+existing SSH/keychain credentials, every needed operation exists, zero Rust; (2) gitoxide, which would need Rust commands and
 still shells out to `ssh`; (3) libgit2; (4) isomorphic-git, where no SSH and no partial clone rules it out.
 
 Alternatives to cloning for source fetching: GitHub/Bitbucket REST or raw downloads would need API
@@ -509,8 +530,10 @@ Keep as-is (all `free`, all proven): ssh-then-https ordering and non-interactive
 `ssh -oBatchMode=yes`) (FETCH-02/03); per-operation clone cache keyed by repo+branch (FETCH-04);
 `ls-remote` memo + blobless probe + oid comparison + receipt commit advance (UPD-01..05); persistent
 shallow catalog clones with `pull --ff-only`; PR flow (temp clone, branch, commit, push)
-(WRITE-07..10). Changed: no `autopush`; `gh pr create` runs whenever `gh` is installed and signed in for
-a github.com catalog, and its failure is a warning with the compare URL (Q10, WRITE-11).
+(WRITE-07..10). Changed: no `autopush` and no `gh`. After the push, Loadout opens the PR through the
+host's REST API when an account for that host is connected (GitHub and Bitbucket alike), and
+otherwise returns the compare URL; an API failure is a warning with the compare URL, and "a PR for
+this branch already exists" is success with that PR's URL (§5.5, WRITE-11, Q2).
 
 Change (same round trips, more correct or more predictable):
 
@@ -543,13 +566,49 @@ ordinary profiles take 2–3 s; the old code had none). Decided for M4: cache th
 data, use it at once on launch, and refresh it in the background for the next launch; (2) resolve absolute program paths at startup and
 put them in shell-plugin scopes, but the static capability file cannot know them; (3) let users configure
 paths, a setting that only matters when (1) fails. Doctor gains a check: `git --version` runs, `xcode-
-select -p` succeeds, `gh auth status` when any catalog is `pr` mode.
+select -p` succeeds, and, for each host with a protected catalog, that an account is connected and its
+token still works (§5.5).
 
 ### 5.4 Offline behaviour
 
 Reads work from clones on disk with a freshness timestamp; refresh failures become warnings per
 catalog with the reason; `planInstall`/`sync` mark items `unreachable` rather than failing the batch;
 staleness shows "couldn't check" rather than "up to date" when `ls-remote` fails.
+
+### 5.5 Accounts (decided 2026-10-28)
+
+Users connect a GitHub and/or Bitbucket account from an Accounts screen with a browser sign-in
+(OAuth). There is no token-paste field. Options considered, ranked: (1) browser sign-in (chosen);
+(2) paste a personal token in Settings, same plumbing, less polish; (3) keep relying on the user's
+`gh` and git setup with guided onboarding.
+
+- **Tokens** live in the macOS Keychain through `Host.secrets` (service `com.jhernandezinzunza.loadout`,
+  account `<host>`). Non-secret account facts (login, scopes, connected-at) live in `config.json`
+  under `accounts`. Disconnect deletes both.
+- **git** gets the token per command, never on disk: for an https URL on a connected host, the core
+  runs `git -c credential.helper= -c 'credential.helper=!f() { test "$1" = get && printf
+  "username=%s\npassword=%s\n" "$LOADOUT_GIT_USER" "$LOADOUT_GIT_TOKEN"; }; f' …` with the two
+  variables in that child's environment only. Usernames: `x-token-auth` for Bitbucket OAuth tokens
+  (Atlassian docs); for GitHub, verify in M2 (`x-access-token` is the usual choice). The token never
+  appears in argv, in a remote URL (which git would save to `.git/config`), or in `Host.audit`.
+  Clone order (FETCH-02, rebuild): a connected host is tried over https first; otherwise ssh then
+  https, as before.
+- **PRs** go through the REST APIs: GitHub `POST /repos/{owner}/{repo}/pulls`; Bitbucket
+  `POST /2.0/repositories/{workspace}/{repo}/pullrequests`. A duplicate is resolved to the existing
+  PR (GitHub's 422 "already exists", Bitbucket's equivalent; exact shapes verified against the real
+  APIs before release). No connected account → the compare URL, as today's manual mode.
+- **OAuth flows (M4).** GitHub: an OAuth app (or GitHub App) with device flow or browser redirect;
+  device flow needs no client secret. Bitbucket Cloud: an OAuth consumer registered in a workspace;
+  its token exchange requires the consumer secret and Atlassian documents no PKCE, so the secret
+  ships in the app (acceptable for an internal tool; extractable, see §10 risk 13). Bitbucket access
+  tokens last two hours; the core refreshes them with the refresh token before git or API calls.
+  Redirect: a custom scheme through `tauri-plugin-deep-link` if both hosts accept it as a callback,
+  otherwise a one-shot loopback listener; verify in the M4 spike.
+- **Rust.** No official Tauri plugin reaches the Keychain, so the Rust layer gains three commands
+  (`secret_get`, `secret_set`, `secret_delete`, via the `keyring` crate) behind which
+  `host-tauri`'s `HostSecrets` sits. This is the one exception to §2.4's "no commands".
+- **Without an account,** everything still works with the user's existing SSH keys or keychain
+  credentials (spikes.md S1); PRs are then a compare link, and doctor says how to connect.
 
 ## 6. Testing
 
@@ -567,8 +626,10 @@ staleness shows "couldn't check" rather than "up to date" when `ls-remote` fails
   exercises the ssh→https fallback; `GIT_ALLOW_PROTOCOL=file` makes any leak to the network fail
   (one Python test leaks, `tests/test_library.py:4145-4150`); (2) a fake `HostProc` replaying recorded
   git transcripts: fast, but tests the transcript, not git; (3) mocking `git` per call: brittle and
-  blind to argv mistakes. `gh` is a stub script on a test `PATH` that records its argv and prints a PR
-  URL or fails.
+  blind to argv mistakes. The host APIs are a local HTTP stub (GitHub and Bitbucket endpoints for
+  user, token refresh and PR create/list) that records requests and returns canned responses; the
+  core's API base URLs are injectable for tests only. git's token injection is tested against a
+  `file://` remote by checking the credential helper's output, not a real host.
 - **Golden data** (§3.2) for everything tagged `contract`.
 - **Ported Python cases:** see the test-port table in behaviors.md Appendix D (from
   `tests/test_library.py`), prioritising splice, resolution, dependency, receipt-state, update
@@ -686,3 +747,9 @@ staleness shows "couldn't check" rather than "up to date" when `ls-remote` fails
     (S10), so both are worth re-checking on Claude Code upgrades.
 12. **Writing a file Claude Code also writes.** `~/.claude/settings.json` is shared with `/config` and
     `/model`. Mitigation: minimal edits, compare-before-write, never overwrite unparseable JSON (§4.5).
+13. **Bitbucket's OAuth secret ships in the app** (§5.5). Anyone can extract it and impersonate
+    Loadout's consumer to phish a token from a teammate. Mitigations: register the consumer in the
+    Workstand workspace with the narrowest scopes (repository read/write, pull requests write);
+    rotate it if leaked (a new build ships the new secret). Needs a workspace admin (QUESTIONS.md Q5).
+14. **OAuth apps need owners.** Registering the GitHub OAuth app and the Bitbucket consumer (and
+    their callback URLs) is outside the code. Not needed until M4; M2/M3 test with injected tokens.

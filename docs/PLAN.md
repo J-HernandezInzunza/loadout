@@ -177,7 +177,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   on records, per item for multi-name requests (A27).
   - Rules: RES-07, RES-08, RES-09, RES-12
   - Depends: M1.19
-  - Done when: each rule has a test (install fields are stubbed until M2.17).
+  - Done when: each rule has a test (install fields are stubbed until M2.20).
 
 - [ ] **M1.21 Dependencies.** `deps/`: `resolveDeps` (post-order, own catalog only), `dependents`,
   `findCycles`; a cycle records the parent that re-entered it (A29); `not_found` and `malformed`
@@ -209,87 +209,115 @@ cover arch §4.5 rules 1–7.
   - Done when: `git clone --depth 1` of `https://github.com/o/r.git` clones the local repo, and a
     clone of any unmapped URL fails without network access.
 
-- [ ] **M2.02 Git client.** `git/`: `GitClient` over `HostProc`: non-interactive env, timeouts and
+- [ ] **M2.02 Host secrets and HTTP ports.** Add `HostSecrets` (`get`/`set`/`delete`) and
+  `HostHttp` (`request`) to the `Host` interface as in arch §2.2; the Node host implements secrets in
+  memory (one store per host instance) and HTTP with `fetch` (timeouts and `AbortSignal`); the Tauri
+  stub rejects both until M4.
+  - Rules: none (arch §2.2, §5.5)
+  - Depends: M1.03
+  - Done when: the Node host's tests cover both ports, including an aborted and a timed-out request.
+
+- [ ] **M2.03 Host API stub.** A local HTTP server for tests that fakes the GitHub and Bitbucket
+  endpoints Loadout uses (current user, Bitbucket token refresh, PR create and list, with a duplicate
+  answering as each host does), records every request, and can be told to fail; API base URLs are
+  injectable in the core for tests only.
+  - Rules: none (arch §6)
+  - Depends: M2.02
+  - Done when: a test drives each endpoint through `Host.http` and reads back the recorded requests.
+
+- [ ] **M2.04 Accounts.** `accounts/`: `connect(host, tokenSet)` (what the M4 sign-in flows call),
+  `disconnect(host)`, `accounts()`, and `tokenFor(host)`, which refreshes an expired Bitbucket token
+  with its refresh token first; tokens only in `Host.secrets`, non-secret facts (login, scopes,
+  connected-at) in `config.json`; `whoami` validates a token. No OAuth flow here (M4).
+  - Rules: none (arch §5.5)
+  - Depends: M2.03, M1.15
+  - Done when: connect, refresh, disconnect and an invalid token have tests against the stub; no token
+    appears in `config.json` or in any audit event.
+
+- [ ] **M2.05 Git client.** `git/`: `GitClient` over `HostProc`: non-interactive env, timeouts and
   `AbortSignal` on every network call, clone (ssh then https, fresh dir per attempt, A30),
   `lsRemoteHead` on `refs/heads/<branch>` exactly (A5), `probeOid` (blobless no-checkout clone +
   `rev-parse`), `revParse`, `pullFfOnly`, `behindCount` returning "unknown" when it could not
   fetch (A6), error summaries that keep the ssh reason (A31). Never writes to a child's stdin (S1).
+  For a host with a connected account: https first, with the token passed through a per-command
+  credential helper and environment variables (arch §5.5), never in argv, a remote URL or the audit log.
   - Rules: FETCH-02, FETCH-03, UPD-01, UPD-02
-  - Depends: M2.01
+  - Depends: M2.01, M2.04
   - Done when: each rule has a test against the harness; a branch `feature/main` never answers for
-    `main`.
+    `main`; a clone with an injected token succeeds against a `file://` remote that requires the
+    helper's credentials, and `.git/config` and the audit log never contain the token.
 
-- [ ] **M2.03 Per-operation caches and temp dirs.** `CloneCache` keyed `<kind>:<org>/<repo>@<branch>`,
+- [ ] **M2.06 Per-operation caches and temp dirs.** `CloneCache` keyed `<kind>:<org>/<repo>@<branch>`,
   `ProbeCache` memoizing failures, `tmp/<op id>/` per operation, removed at the end and swept at
   launch.
   - Rules: FETCH-04, FETCH-09
-  - Depends: M2.02
+  - Depends: M2.05
   - Done when: two entries from one repo+branch clone once; a killed operation's temp dir is gone
     after the next launch sweep.
 
-- [ ] **M2.04 Content hashing.** `contentHashV1(path)` (the CLI's algorithm, for classifying
+- [ ] **M2.07 Content hashing.** `contentHashV1(path)` (the CLI's algorithm, for classifying
   Python-CLI installs) and `fileManifest(path)` (posix relpath → sha256, receipts v2).
   - Rules: none (arch §4.3, §4.4)
   - Depends: M1.04
   - Done when: every `hash.json` tree, materialized in the sandbox, gives the recorded digest.
 
-- [ ] **M2.05 Receipts v2.** `receipts/`: `ReceiptStore` (`get`, `put`, `delete`, `all`), file
+- [ ] **M2.08 Receipts v2.** `receipts/`: `ReceiptStore` (`get`, `put`, `delete`, `all`), file
   sorted by dest, atomic writes behind an in-process queue (A32); an unknown version reads as empty
   and is never overwritten silently.
   - Rules: LOCK-02
-  - Depends: M2.04, M1.15
+  - Depends: M2.07, M1.15
   - Done when: 50 concurrent `put`s all survive; a crash mid-write (simulated) leaves the old file.
 
-- [ ] **M2.06 Persistent catalog clones.** `catalogs/`: `refreshCatalogs()` (absent → shallow
+- [ ] **M2.09 Persistent catalog clones.** `catalogs/`: `refreshCatalogs()` (absent → shallow
   single-branch clone into `clones/<id>`; present → `pull --ff-only`), per-catalog warnings instead
   of failing (A3), origin check before reusing a clone dir (A20), `catalogStatus` with behind
   count or "couldn't check", diverged-clone detection (A4); reads never pull (R12).
   - Rules: RCAT-01, RCAT-03, RCAT-04, RCAT-05, RCAT-06, RCAT-07, RCAT-10
-  - Depends: M2.02, M1.18
+  - Depends: M2.05, M1.18
   - Done when: each rule has a test (RCAT-05 tests the fix: an unclonable catalog is skipped and the
     others still serve).
 
-- [ ] **M2.07 Scan.** `scan/`: `destState(dest)` and `scanInstallDirs()` over the fixed install
+- [ ] **M2.10 Scan.** `scan/`: `destState(dest)` and `scanInstallDirs()` over the fixed install
   dirs (top level only, R9): managed (`installed`/`drifted` with per-file edits), unmanaged with
   origin (`python-cli`, `python-cli-edited`, `parked-by-python-cli`, `symlink`, `foreign`),
   missing; skips dot names and `synced`.
   - Rules: INST-01, SCAN-01, INST-08, SYNC-06
-  - Depends: M2.04, M2.05
+  - Depends: M2.07, M2.08
   - Done when: each origin has a test; a symlink is reported and never followed.
 
-- [ ] **M2.08 Fetch sources.** Remote and local fetch into the op's cache: file must exist
+- [ ] **M2.11 Fetch sources.** Remote and local fetch into the op's cache: file must exist
   (FETCH-05), skill = its folder (FETCH-06), local sources (FETCH-07), overlap refusal (FETCH-08),
   repo-root skills copied without `.git` (FETCH-10 rebuild), directory sources install the parent
   (FETCH-11), verification in staging (FETCH-12 rebuild: `SKILL.md` or the `.md` file must exist,
   else `VERIFY_FAILED`).
   - Rules: FETCH-05, FETCH-06, FETCH-07, FETCH-08, FETCH-10, FETCH-11, FETCH-12
-  - Depends: M2.03
+  - Depends: M2.06
   - Done when: each rule has a test.
 
-- [ ] **M2.09 Update detection.** `sourceUnchanged`, `contentUnmoved`, stale detection; advancing
+- [ ] **M2.12 Update detection.** `sourceUnchanged`, `contentUnmoved`, stale detection; advancing
   a receipt's commit when the head moved but the content did not.
   - Rules: UPD-03, UPD-04, UPD-05, UPD-06, UPD-08
-  - Depends: M2.08, M2.05
+  - Depends: M2.11, M2.08
   - Done when: each rule has a test; a repointed source never borrows an oid.
 
-- [ ] **M2.10 Plan install.** `planInstall({ names, catalog? })`: resolve all names first, merge
+- [ ] **M2.13 Plan install.** `planInstall({ names, catalog? })`: resolve all names first, merge
   dependency closures, fetch into the cache, compute a per-destination file-level preview (added,
   removed, modified, and which modified files the user edited locally), mark unmanaged destinations
   as needing consent (Q8 A), mark unreachable items, fingerprint the plan; offline falls back to a
   destination-only preview (Q5 A). An off skill installs normally (DEP-07 rebuild).
   - Rules: RES-05, DEP-06, DEP-07, INST-02, INST-03, INST-05
-  - Depends: M2.07, M2.09, M1.22
+  - Depends: M2.10, M2.12, M1.22
   - Done when: each rule has a test; per-item override provenance is present (A27).
 
-- [ ] **M2.11 Apply install.** `applyInstall(plan, { overwrite })`: re-check the fingerprint
+- [ ] **M2.14 Apply install.** `applyInstall(plan, { overwrite })`: re-check the fingerprint
   (`STALE_PLAN`), stage into `tmp/` and rename into place (R14), write a v2 receipt per dest, stop
   at the first failure keeping earlier items, report progress, honor abort, audit each destructive
   fs op. An off skill stays off.
   - Rules: INST-04, INST-06, INST-07
-  - Depends: M2.10
+  - Depends: M2.13
   - Done when: each rule has a test; an install interrupted mid-copy leaves the old copy intact.
 
-- [ ] **M2.12 Claude settings file.** `claudeSettings/`: `readSkillOverrides()`, and the minimal
+- [ ] **M2.15 Claude settings file.** `claudeSettings/`: `readSkillOverrides()`, and the minimal
   JSON edit with `jsonc-parser` (`modify` + `applyEdits`): refuse unparseable JSON, preserve
   formatting byte for byte outside the key, keep the mode, write next to the **real** file so a
   symlink stays a symlink, re-read and retry once if the file changed, create
@@ -300,64 +328,65 @@ cover arch §4.5 rules 1–7.
     object, invalid JSON refused, symlink preserved, concurrent change detected), plus
     `CLAUDE_CONFIG_DIR`.
 
-- [ ] **M2.13 Toggle skills and prompts.** `setSkillState(names, "on" | "off")`: key = entry name
+- [ ] **M2.16 Toggle skills and prompts.** `setSkillState(names, "on" | "off")`: key = entry name
   (rule 1, S10); `"on"` deletes the key; skills and prompts only, agents refused (Q15 A); works for
   unmanaged items (rule 6); `name-only`/`user-invocable-only` reported read-only (Q14 A); a
   report of managed-settings overrides for doctor (rule 4).
   - Rules: none (arch §4.5 rules 1, 4, 5, 6)
-  - Depends: M2.12, M2.07
+  - Depends: M2.15, M2.10
   - Done when: each listed rule of arch §4.5 has a named test.
 
-- [ ] **M2.14 Migrate parked copies.** `planMigrateParked()` lists every copy in
+- [ ] **M2.17 Migrate parked copies.** `planMigrateParked()` lists every copy in
   `~/.claude/skills-disabled/`; `applyMigrateParked(plan)` moves each back (rename, or on `EXDEV`
   copy-verify-delete) and writes `"off"`; an occupied destination is left alone and reported.
   The app never writes into `-disabled` folders otherwise.
   - Rules: none (arch §4.5 rule 7, Q16 B; DIS-03's copy-verify-delete)
-  - Depends: M2.13
+  - Depends: M2.16
   - Done when: rule 7 has a test, including a simulated `EXDEV` and an occupied destination.
 
-- [ ] **M2.15 Uninstall.** `uninstall({ names, forcePaths })`: global destinations only, refuse an
+- [ ] **M2.18 Uninstall.** `uninstall({ names, forcePaths })`: global destinations only, refuse an
   unmanaged destination unless its exact path is in `forcePaths`, prune receipts of absent dests,
   delete the skill's override and report it (Q17 A).
   - Rules: UNIN-01, UNIN-02
-  - Depends: M2.11, M2.13
+  - Depends: M2.14, M2.16
   - Done when: each rule has a test.
 
-- [ ] **M2.16 Sync.** `planSync` / `applySync`: winning copies of managed installs, dependency
+- [ ] **M2.19 Sync.** `planSync` / `applySync`: winning copies of managed installs, dependency
   closures, skip when `sourceUnchanged` (unless `force`), unmanaged items skipped and reported
   (A2), per-item failures, missing receipts reported, off skills refreshed in place.
   - Rules: SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05, SYNC-06
-  - Depends: M2.11
+  - Depends: M2.14
   - Done when: each rule has a test (SYNC-03 tests the fix).
 
-- [ ] **M2.17 Install state in reads.** `list`/`show` gain `installed`, `state`, `receipt`,
+- [ ] **M2.20 Install state in reads.** `list`/`show` gain `installed`, `state`, `receipt`,
   `locations`, `disabled` (from overrides); `list({ checkRemote })` computes `stale`; `show`
   installs are filtered by type (A26); `scan()` and `refresh()` on the facade.
   - Rules: RES-07, RES-08, UPD-06, UPD-07
-  - Depends: M2.10, M2.13, M2.06
+  - Depends: M2.13, M2.16, M2.09
   - Done when: each rule has a test.
 
-- [ ] **M2.18 Register and unregister catalogs.** `planAddCatalog`/`applyAddCatalog` (clone or
+- [ ] **M2.21 Register and unregister catalogs.** `planAddCatalog`/`applyAddCatalog` (clone or
   read to prove it works, `protected` stored explicitly, A21), `initCatalog` (scaffold; a path
   without `.yaml` gets `library.yaml` appended, A18), `removeCatalog` (purge clone; purge installs,
   global only, A19).
   - Rules: RCAT-01, EDIT-15
-  - Depends: M2.06, M1.13
+  - Depends: M2.09, M1.13
   - Done when: each op has a test for its happy path and each listed fix.
 
-- [ ] **M2.19 Doctor.** `doctor({ deep })` with the §2.10 checks tagged `mvp` (3, 4, 7–11, 13–31),
-  plus: `git --version`, `xcode-select -p`, `gh auth status` when a catalog is protected (arch §5.3),
+- [ ] **M2.22 Doctor.** `doctor({ deep })` with the §2.10 checks tagged `mvp` (3, 4, 7–11, 13–31),
+  plus: `git --version`, `xcode-select -p`, for each host with a protected catalog a connected
+  account whose token still works (replaces check 11; arch §5.3, §5.5),
   managed-settings overrides of catalog skills (arch §4.5 rule 4), diverged clones with a re-clone
   action (A4), unmanaged copies of catalog entries (replacing checks 30–31's wording).
   - Rules: EDIT-14, DEP-04, DEP-05, RCAT-07
-  - Depends: M2.17, M2.18
+  - Depends: M2.20, M2.21
   - Done when: each kept check has a test that triggers it.
 
-- [ ] **M2.20 Bitbucket and real-remote smoke (manual).** Run install, sync and doctor against the
+- [ ] **M2.23 Bitbucket and real-remote smoke (manual).** Run install, sync and doctor against the
   team catalog on Bitbucket from a Finder-launched dev build; record results in
   `docs/spec/spikes.md` as S11.
   - Rules: none (S1 gap)
-  - Depends: M2.19
+  - Depends: M2.22
   - Blocked: (manual; the owner runs it)
   - Done when: S11 is written.
 
@@ -366,13 +395,16 @@ cover arch §4.5 rules 1–7.
 ## M3. Authoring
 
 Exit: every M3 task checked; WRITE and EDIT rules covered; a PR-mode test checks the branch name,
-the commit and `gh`'s argv.
+the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was dropped, arch §5.5).
 
-- [ ] **M3.01 gh stub.** A `gh` script on the test `PATH` that records its argv and stdin to a file
-  and prints a PR URL, fails, or reports "already exists", per test.
-  - Rules: none (arch §6)
-  - Depends: M2.01
-  - Done when: a test runs `gh pr create` through `HostProc` and reads back the recorded argv.
+- [ ] **M3.01 PR API clients.** `git/pullRequests.ts`: `createPullRequest(host, repo, { base, head,
+  title, body })` for GitHub (`POST /repos/{owner}/{repo}/pulls`) and Bitbucket
+  (`POST /2.0/repositories/{workspace}/{repo}/pullrequests`) through `Host.http` with the account's
+  token; a duplicate resolves to the existing PR's URL (QUESTIONS.md Q2); other failures are typed.
+  - Rules: none (arch §5.5)
+  - Depends: M2.04
+  - Done when: create, duplicate, expired-token-then-refresh and server-error cases pass against the
+    stub, for both hosts.
 
 - [ ] **M3.02 Write target.** `writeTarget(req)`: explicit catalog (unknown, skipped,
   `writable: false`), no catalog (none writable, one, several → `AMBIGUOUS_CATALOG`), and for
@@ -398,24 +430,24 @@ the commit and `gh`'s argv.
   commit or push failure is a warning and the result says so; a rejected stale push leaves the
   clone for doctor's re-clone (A4, S4).
   - Rules: WRITE-13, WRITE-09
-  - Depends: M3.03, M2.06
+  - Depends: M3.03, M2.09
   - Done when: each rule has a test against the harness, including a stale push.
 
 - [ ] **M3.06 PR mode.** Temp single-branch clone, branch `library/<op>-<name>-<%Y%m%dT%H%M%S>`
-  with a `-2`… suffix on collision, commit, `push -u`, compare URL, then `gh pr create` when `gh`
-  is installed and signed in for a github.com catalog, else a manual result; a `gh` failure is a
-  warning with the compare URL, except "already exists", which is success with the existing PR's
-  URL (Q2 A); commit and PR copy per WRITE-12.
+  with a `-2`… suffix on collision, commit, `push -u`, compare URL; then, when an account for the
+  catalog's host is connected, open the PR through M3.01 (GitHub and Bitbucket alike), else return the
+  manual result with the compare URL; an API failure is a warning with the compare URL; commit and PR
+  copy per WRITE-12. Remove `gh` from the shell scope and from `HostProc`'s program type.
   - Rules: WRITE-07, WRITE-08, WRITE-09, WRITE-10, WRITE-11, WRITE-12
   - Depends: M3.03, M3.01
-  - Done when: each rule has a test; one test asserts the exact branch name, commit message and
-    `gh` argv; a repeated write returns the existing PR's URL; Bitbucket returns the manual result
-    with its compare URL.
+  - Done when: each rule has a test; one test asserts the exact branch name, commit message and the
+    recorded PR request; a repeated write returns the existing PR's URL; with no account connected
+    the result is manual with the compare URL; `capabilities.test.ts` allows only `git`.
 
 - [ ] **M3.07 Suggest source.** `suggestSource(path)`: a GitHub/Bitbucket browser URL for a local
   file inside a git repo with a matching origin (Q13 b).
   - Rules: WRITE-05
-  - Depends: M2.02, M1.14
+  - Depends: M2.05, M1.14
   - Done when: GitHub and Bitbucket origins (ssh and https) produce the right URL; no origin gives
     none.
 
@@ -439,20 +471,20 @@ the commit and `gh`'s argv.
 - [ ] **M3.10 Remove.** `planRemove` per §3.14, with the dependents warning and optional purge of
   installed copies.
   - Rules: DEP-09, EDIT-10
-  - Depends: M3.04, M2.15
+  - Depends: M3.04, M2.18
   - Done when: each rule has a test.
 
 - [ ] **M3.11 Push.** `planPush` / `applyPush` per §3.16: send an installed copy's edits back to
   its source (local file, or a PR/branch for a remote source); afterwards the receipt describes the
   pushed content, so the copy no longer reads as edited (A28).
   - Rules: none (§3.16; A28)
-  - Depends: M3.06, M2.11
+  - Depends: M3.06, M2.14
   - Done when: local and remote pushes have tests, and the copy reads `installed` after each.
 
 - [ ] **M3.12 Pin and unpin.** `planPin` / `applyPin({ switchInstalled })` with the switch
   assessment, and `unpin`.
   - Rules: RES-13, RES-14, RES-15, RES-16, RES-17
-  - Depends: M2.17
+  - Depends: M2.20
   - Done when: each rule has a test.
 
 - [ ] **M3.13 Milestone check.** Every WRITE and EDIT rule tagged `mvp` appears in a test title;
