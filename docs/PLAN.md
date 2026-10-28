@@ -225,7 +225,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.02
   - Done when: a test drives each endpoint through `Host.http` and reads back the recorded requests.
 
-- [ ] **M2.04 Accounts.** `accounts/`: `connect(host, tokenSet)` (what the M4 sign-in flows call),
+- [x] **M2.04 Accounts.** `accounts/`: `connect(host, tokenSet)` (what the M4 sign-in flows call),
   `disconnect(host)`, `accounts()`, and `tokenFor(host)`, which refreshes an expired Bitbucket token
   with its refresh token first; tokens only in `Host.secrets`, non-secret facts (login, scopes,
   connected-at) in `config.json`; `whoami` validates a token. No OAuth flow here (M4).
