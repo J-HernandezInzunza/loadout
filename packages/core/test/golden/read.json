@@ -1,0 +1,957 @@
+{
+ "meta": {
+  "corpus": "read",
+  "generator": "tools/golden/gen.py",
+  "library": {
+   "repo": "the-library-skill",
+   "commit": "a29e816"
+  },
+  "python": "3.14.5",
+  "pyyaml": "6.0.3",
+  "functions": "yaml.safe_load + library.iter_entries (library.py:1520)",
+  "note": "Non-string values are {py, repr}; an error records what library.py raised"
+ },
+ "cases": [
+  {
+   "id": "splice:py-catalog",
+   "text": "# Team catalog — hand-authored. The CLI splices text so this comment survives writes.\ndefault_dirs:\n  skills:\n    - project: .claude/skills/\n    - global: ~/.claude/skills/\n\nlibrary:\n  skills:\n    # keep alphabetical\n    - name: alpha\n      description: First skill\n      source: ./alpha\n\n    - name: gamma\n      description: Third skill\n      source: ./gamma\n      requires: [\"skill:alpha\"]\n  agents: []\n  prompts:\n    - name: solo\n      description: Only prompt\n      source: ./solo\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "First skill",
+     "source": "./alpha",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "gamma",
+     "description": "Third skill",
+     "source": "./gamma",
+     "requires": [
+      "skill:alpha"
+     ]
+    },
+    {
+     "type": "prompt",
+     "name": "solo",
+     "description": "Only prompt",
+     "source": "./solo",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-three",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: A\n      source: ./alpha\n    - name: beta\n      description: B\n      source: ./beta\n    - name: gamma\n      description: C\n      source: ./gamma\n  agents: []\n  prompts: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "A",
+     "source": "./alpha",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "beta",
+     "description": "B",
+     "source": "./beta",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "gamma",
+     "description": "C",
+     "source": "./gamma",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-single",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: A\n      source: ./alpha\n  agents: []\n  prompts: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "A",
+     "source": "./alpha",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-trailing-blank",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: A\n      source: ./alpha\n\n  agents: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "A",
+     "source": "./alpha",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-quoted",
+   "text": "library:\n  skills:\n    - name: \"yaml-lint\"\n      description: Quoted name\n      source: ./yaml-lint\n  agents: []\n  prompts: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "yaml-lint",
+     "description": "Quoted name",
+     "source": "./yaml-lint",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-commented-section",
+   "text": "library:\n  skills:\n    # nothing here yet is fine\n    - name: alpha\n      description: A\n      source: ./alpha\n  agents: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "A",
+     "source": "./alpha",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-commented-item",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: A\n      # pinned to a fork on purpose\n      source: ./alpha\n  agents: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "A",
+     "source": "./alpha",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-golden-catalog",
+   "text": "# Fixture catalog for the single-catalog golden tests.\ndefault_dirs:\n  skills:\n    - project: .claude/skills/\n    - global: ~/.claude/skills/\n  agents:\n    - project: .claude/agents/\n    - global: ~/.claude/agents/\n  prompts:\n    - project: .claude/commands/\n    - global: ~/.claude/commands/\n\nlibrary:\n  skills:\n    - name: backend-code-practices\n      description: Backend conventions for Spring Boot services\n      source: https://github.com/acme/agentics/blob/main/skills/backend-code-practices/SKILL.md\n    - name: session-retro\n      description: Distill a finished session into durable style learnings\n      source: https://github.com/acme/agentics/blob/main/skills/session-retro/SKILL.md\n      requires: [\"skill:backend-code-practices\"]\n  agents:\n    - name: sql-review\n      description: Reviews SQL migrations and stored procedures\n      source: https://github.com/acme/agentics/blob/main/agents/sql-review.md\n  prompts:\n    - name: grill-me\n      description: Interrogate a plan for its load-bearing decisions\n      source: https://github.com/acme/agentics/blob/main/prompts/grill-me.md\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "backend-code-practices",
+     "description": "Backend conventions for Spring Boot services",
+     "source": "https://github.com/acme/agentics/blob/main/skills/backend-code-practices/SKILL.md",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "session-retro",
+     "description": "Distill a finished session into durable style learnings",
+     "source": "https://github.com/acme/agentics/blob/main/skills/session-retro/SKILL.md",
+     "requires": [
+      "skill:backend-code-practices"
+     ]
+    },
+    {
+     "type": "agent",
+     "name": "sql-review",
+     "description": "Reviews SQL migrations and stored procedures",
+     "source": "https://github.com/acme/agentics/blob/main/agents/sql-review.md",
+     "requires": []
+    },
+    {
+     "type": "prompt",
+     "name": "grill-me",
+     "description": "Interrogate a plan for its load-bearing decisions",
+     "source": "https://github.com/acme/agentics/blob/main/prompts/grill-me.md",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-personal-catalog",
+   "text": "library:\n  skills:\n    - name: scratch-thing\n      description: Personal scratch skill\n      source: /srv/personal/scratch/SKILL.md\n    - name: session-retro\n      description: My iterated copy of session-retro\n      source: /srv/personal/session-retro/SKILL.md\n  agents: []\n  prompts: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "scratch-thing",
+     "description": "Personal scratch skill",
+     "source": "/srv/personal/scratch/SKILL.md",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "session-retro",
+     "description": "My iterated copy of session-retro",
+     "source": "/srv/personal/session-retro/SKILL.md",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-broken-catalog",
+   "text": "library:\n  skills:\n    - name: session-retro\n      description: Distill a finished session into durable style learnings\n      source: https://github.com/acme/agentics/blob/main/skills/session-retro/SKILL.md\n      requires: [\"skill:missing-dep\"]\n    - name: backend-code-practices\n      description: Backend conventions for Spring Boot services\n      source: https://github.com/acme/agentics/blob/main/skills/backend-code-practices/SKILL.md\n    - name: session-retro\n      description: A second entry with the same name\n      source: https://github.com/acme/agentics/blob/main/skills/retro/SKILL.md\n  agents: []\n  prompts: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "session-retro",
+     "description": "Distill a finished session into durable style learnings",
+     "source": "https://github.com/acme/agentics/blob/main/skills/session-retro/SKILL.md",
+     "requires": [
+      "skill:missing-dep"
+     ]
+    },
+    {
+     "type": "skill",
+     "name": "backend-code-practices",
+     "description": "Backend conventions for Spring Boot services",
+     "source": "https://github.com/acme/agentics/blob/main/skills/backend-code-practices/SKILL.md",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "session-retro",
+     "description": "A second entry with the same name",
+     "source": "https://github.com/acme/agentics/blob/main/skills/retro/SKILL.md",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:py-empty-catalog",
+   "text": "library:\n  skills: []\n  agents: []\n  prompts: []\n",
+   "entries": []
+  },
+  {
+   "id": "splice:scaffold",
+   "text": "# Personal library catalog. Registered in the tool's config.local.yaml.\n# Add entries with: library add --catalog personal --name … --description … --source …\n#\n# No default_dirs here: install locations belong to the tool, not the catalog.\nlibrary:\n  skills: []\n  agents: []\n  prompts: []\n",
+   "entries": []
+  },
+  {
+   "id": "splice:probe-mixed",
+   "text": "# header comment\nlibrary:\n  skills:\n    - name: alpha\n      description: A.\n      source: https://github.com/o/r/blob/main/skills/alpha/SKILL.md\n    # comment inside alpha block\n    - name: gamma\n      description: G.\n      source: https://github.com/o/r/blob/main/skills/gamma/SKILL.md\n      tags: [x]\n\n  agents: []\n  prompts:\n    - name: p1\n      description: P.\n      source: /tmp/p1.md\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "A.",
+     "source": "https://github.com/o/r/blob/main/skills/alpha/SKILL.md",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "gamma",
+     "description": "G.",
+     "source": "https://github.com/o/r/blob/main/skills/gamma/SKILL.md",
+     "requires": []
+    },
+    {
+     "type": "prompt",
+     "name": "p1",
+     "description": "P.",
+     "source": "/tmp/p1.md",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:d1-library-comment",
+   "text": "library:  # c\n  skills: []\n",
+   "entries": []
+  },
+  {
+   "id": "splice:d1-missing-section",
+   "text": "library:\n  agents: []\n",
+   "entries": []
+  },
+  {
+   "id": "splice:d1-inline-space",
+   "text": "library:\n  skills: [ ]\n",
+   "entries": []
+  },
+  {
+   "id": "splice:d1-two-space-items",
+   "text": "library:\n  skills:\n  - name: alpha\n    description: x\n    source: y\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "x",
+     "source": "y",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:d1-case-order",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: x\n      source: y\n    - name: Charlie\n      description: x\n      source: y\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "x",
+     "source": "y",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "Charlie",
+     "description": "x",
+     "source": "y",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:d1-crlf",
+   "text": "library:\r\n  skills:\r\n    - name: alpha\r\n      description: x\r\n      source: y\r\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "x",
+     "source": "y",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:d1-no-trailing-newline",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: x\n      source: y",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "x",
+     "source": "y",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:d1-top-level-after",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: x\n      source: y\n\ndefault_dirs:\n  skills: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "x",
+     "source": "y",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:r-spaced-commented",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: A\n      source: ./alpha\n\n    # beta is the odd one\n    - name: beta\n      description: B\n      source: ./beta\n      tags: [x]\n\n    - name: gamma\n      description: C\n      source: ./gamma\n\n  agents: []\n  prompts:\n    - name: solo\n      description: Only prompt\n      source: ./solo\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "A",
+     "source": "./alpha",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "beta",
+     "description": "B",
+     "source": "./beta",
+     "requires": []
+    },
+    {
+     "type": "skill",
+     "name": "gamma",
+     "description": "C",
+     "source": "./gamma",
+     "requires": []
+    },
+    {
+     "type": "prompt",
+     "name": "solo",
+     "description": "Only prompt",
+     "source": "./solo",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:r-block-values",
+   "text": "library:\n  skills:\n    - name: alpha\n      description: >\n        A folded\n        description\n      source: ./alpha\n      requires:\n        - skill:beta\n      owner: platform\n    - name: beta\n      source: ./beta\n      requires:\n      - skill:alpha\n  agents: []\n  prompts: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "alpha",
+     "description": "A folded description\n",
+     "source": "./alpha",
+     "requires": [
+      "skill:beta"
+     ]
+    },
+    {
+     "type": "skill",
+     "name": "beta",
+     "description": "",
+     "source": "./beta",
+     "requires": [
+      "skill:alpha"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "splice:r-only-prompts",
+   "text": "# just prompts so far\nlibrary:\n  prompts:\n    - name: p\n      description: P\n      source: ./p\n",
+   "entries": [
+    {
+     "type": "prompt",
+     "name": "p",
+     "description": "P",
+     "source": "./p",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:r-library-empty",
+   "text": "library:\n",
+   "entries": []
+  },
+  {
+   "id": "splice:r-header-comment",
+   "text": "library:\n  skills: # mine\n    - name: a\n      description: A\n      source: ./a\n  agents: []\n  prompts: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "A",
+     "source": "./a",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:r-flow-items",
+   "text": "library:\n  skills: [{name: a, description: A, source: ./a}]\n  agents: []\n  prompts: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "A",
+     "source": "./a",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "splice:r-brackets-comment",
+   "text": "library:\n  skills: []  # none\n  agents: []\n  prompts: []\n",
+   "entries": []
+  },
+  {
+   "id": "yaml11-name-yes",
+   "text": "library:\n  skills:\n    - name: yes\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "bool",
+      "repr": "True"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-No",
+   "text": "library:\n  skills:\n    - name: No\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "bool",
+      "repr": "False"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-on",
+   "text": "library:\n  skills:\n    - name: on\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "bool",
+      "repr": "True"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-null",
+   "text": "library:\n  skills:\n    - name: null\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "NoneType",
+      "repr": "None"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-tilde",
+   "text": "library:\n  skills:\n    - name: ~\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "NoneType",
+      "repr": "None"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-int",
+   "text": "library:\n  skills:\n    - name: 123\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "int",
+      "repr": "123"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-octal",
+   "text": "library:\n  skills:\n    - name: 012\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "int",
+      "repr": "10"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-hex",
+   "text": "library:\n  skills:\n    - name: 0x1F\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "int",
+      "repr": "31"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-float",
+   "text": "library:\n  skills:\n    - name: 1.5\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "float",
+      "repr": "1.5"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-exp",
+   "text": "library:\n  skills:\n    - name: 1e3\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "1e3",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-sexagesimal",
+   "text": "library:\n  skills:\n    - name: 1:20\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "int",
+      "repr": "80"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-date",
+   "text": "library:\n  skills:\n    - name: 2001-12-14\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "date",
+      "repr": "datetime.date(2001, 12, 14)"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-timestamp",
+   "text": "library:\n  skills:\n    - name: 2001-12-14t21:59:43.10-05:00\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "datetime",
+      "repr": "datetime.datetime(2001, 12, 14, 21, 59, 43, 100000, tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=68400)))"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-inf",
+   "text": "library:\n  skills:\n    - name: .inf\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "float",
+      "repr": "inf"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-quoted-yes",
+   "text": "library:\n  skills:\n    - name: 'yes'\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "yes",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-double-quoted-int",
+   "text": "library:\n  skills:\n    - name: \"123\"\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "123",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-empty",
+   "text": "library:\n  skills:\n    - name: ''\n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "yaml11-name-missing",
+   "text": "library:\n  skills:\n    - name: \n      description: d\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": {
+      "py": "NoneType",
+      "repr": "None"
+     },
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "requires-block",
+   "text": "library:\n  skills:\n    - name: a\n      description: d\n      source: ./s\n      requires:\n        - skill:b\n        - prompt:c\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "d",
+     "source": "./s",
+     "requires": [
+      "skill:b",
+      "prompt:c"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "requires-flow-unquoted",
+   "text": "library:\n  skills:\n    - name: a\n      description: d\n      source: ./s\n      requires: [skill:b, prompt:c]\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "d",
+     "source": "./s",
+     "requires": [
+      "skill:b",
+      "prompt:c"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "requires-scalar",
+   "text": "library:\n  skills:\n    - name: a\n      description: d\n      source: ./s\n      requires: skill:b\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "d",
+     "source": "./s",
+     "requires": [
+      "s",
+      "k",
+      "i",
+      "l",
+      "l",
+      ":",
+      "b"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "requires-empty",
+   "text": "library:\n  skills:\n    - name: a\n      description: d\n      source: ./s\n      requires: []\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "requires-null",
+   "text": "library:\n  skills:\n    - name: a\n      description: d\n      source: ./s\n      requires:\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "unknown-key",
+   "text": "library:\n  skills:\n    - name: a\n      description: d\n      source: ./s\n      tags: [x, y]\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "folded-description",
+   "text": "library:\n  skills:\n    - name: a\n      description: >\n        two\n        lines\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "two lines\n",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "duplicate-key",
+   "text": "library:\n  skills:\n    - name: a\n      name: b\n      source: ./s\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "b",
+     "description": "",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "anchor-alias",
+   "text": "library:\n  skills:\n    - &x {name: a, description: d, source: ./s}\n  prompts:\n    - *x\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    },
+    {
+     "type": "prompt",
+     "name": "a",
+     "description": "d",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "merge-key",
+   "text": "base: &b {description: shared, source: ./s}\nlibrary:\n  skills:\n    - <<: *b\n      name: a\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "shared",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "section-null",
+   "text": "library:\n  skills:\n  agents: []\n",
+   "entries": []
+  },
+  {
+   "id": "library-null",
+   "text": "library:\n",
+   "entries": []
+  },
+  {
+   "id": "no-library",
+   "text": "default_dirs: {}\n",
+   "entries": []
+  },
+  {
+   "id": "item-is-string",
+   "text": "library:\n  skills:\n    - just-a-string\n",
+   "error": {
+    "class": "AttributeError",
+    "message": "'str' object has no attribute 'get'"
+   }
+  },
+  {
+   "id": "section-is-mapping",
+   "text": "library:\n  skills:\n    a: {name: a}\n",
+   "error": {
+    "class": "AttributeError",
+    "message": "'str' object has no attribute 'get'"
+   }
+  },
+  {
+   "id": "tab-indent",
+   "text": "library:\n\tskills: []\n",
+   "error": {
+    "class": "ScannerError",
+    "message": "while scanning for the next token"
+   }
+  },
+  {
+   "id": "bom",
+   "text": "﻿library:\n  skills: []\n",
+   "entries": []
+  },
+  {
+   "id": "crlf",
+   "text": "library:\r\n  skills:\r\n    - name: a\r\n      source: ./s\r\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "a",
+     "description": "",
+     "source": "./s",
+     "requires": []
+    }
+   ]
+  },
+  {
+   "id": "empty-document",
+   "text": "",
+   "entries": []
+  },
+  {
+   "id": "unicode",
+   "text": "library:\n  skills:\n    - name: café\n      description: d\n      source: ./s\n      requires: [\"skill:日本\"]\n",
+   "entries": [
+    {
+     "type": "skill",
+     "name": "café",
+     "description": "d",
+     "source": "./s",
+     "requires": [
+      "skill:日本"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main window: fs under $HOME and app data, git and gh only (architecture.md §2.4)",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "opener:default",
+    "fs:default",
+    "fs:allow-read-file",
+    "fs:allow-read-text-file",
+    "fs:allow-write-file",
+    "fs:allow-write-text-file",
+    "fs:allow-exists",
+    "fs:allow-stat",
+    "fs:allow-lstat",
+    "fs:allow-read-dir",
+    "fs:allow-mkdir",
+    "fs:allow-rename",
+    "fs:allow-copy-file",
+    "fs:allow-remove",
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "$HOME/**" }, { "path": "$APPDATA" }, { "path": "$APPDATA/**" }],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/Library/Keychains/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.config/gh/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.netrc" },
+        { "path": "$HOME/.docker/**" },
+        { "path": "$HOME/.kube/**" }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        { "name": "git", "cmd": "git", "args": true, "sidecar": false },
+        { "name": "gh", "cmd": "gh", "args": true, "sidecar": false }
+      ]
+    },
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "git", "cmd": "git", "args": true, "sidecar": false },
+        { "name": "gh", "cmd": "gh", "args": true, "sidecar": false }
+      ]
+    },
+    "shell:allow-kill"
+  ]
+}

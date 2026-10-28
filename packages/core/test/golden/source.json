@@ -1,0 +1,457 @@
+{
+ "meta": {
+  "corpus": "source",
+  "generator": "tools/golden/gen.py",
+  "library": {
+   "repo": "the-library-skill",
+   "commit": "a29e816"
+  },
+  "python": "3.14.5",
+  "pyyaml": "6.0.3",
+  "home": "/home/golden",
+  "functions": "parse_source, Source.clone_urls, _remote_web"
+ },
+ "parseSource": [
+  {
+   "input": "/Users/you/skills/x/SKILL.md",
+   "parsed": {
+    "kind": "local",
+    "path": "/Users/you/skills/x/SKILL.md"
+   }
+  },
+  {
+   "input": "~/dev/skills/x/SKILL.md",
+   "parsed": {
+    "kind": "local",
+    "path": "/home/golden/dev/skills/x/SKILL.md"
+   }
+  },
+  {
+   "input": "~",
+   "parsed": {
+    "kind": "local",
+    "path": "/home/golden"
+   }
+  },
+  {
+   "input": "/",
+   "parsed": {
+    "kind": "local",
+    "path": "/"
+   }
+  },
+  {
+   "input": "  /padded/path.md  ",
+   "parsed": {
+    "kind": "local",
+    "path": "/padded/path.md"
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/blob/main/skills/x/SKILL.md",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "skills/x/SKILL.md",
+    "parentPath": "skills/x",
+    "filename": "SKILL.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo.git/blob/main/skills/x/SKILL.md",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "skills/x/SKILL.md",
+    "parentPath": "skills/x",
+    "filename": "SKILL.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/blob/v1.2.3/agents/a.md",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "v1.2.3",
+    "filePath": "agents/a.md",
+    "parentPath": "agents",
+    "filename": "a.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/blob/main/SKILL.md",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "SKILL.md",
+    "parentPath": "",
+    "filename": "SKILL.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/blob/main/skills/x/",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "skills/x/",
+    "parentPath": "skills/x",
+    "filename": "",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/blob/main/skills/x/SKILL.md?plain=1",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "skills/x/SKILL.md",
+    "parentPath": "skills/x",
+    "filename": "SKILL.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/blob/main/skills/x/SKILL.md#L10-L20",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "skills/x/SKILL.md",
+    "parentPath": "skills/x",
+    "filename": "SKILL.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/blob/main/a?b#c/d.md",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "a",
+    "parentPath": "",
+    "filename": "a",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/blob/feature/x/skills/y/SKILL.md",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "feature",
+    "filePath": "x/skills/y/SKILL.md",
+    "parentPath": "x/skills/y",
+    "filename": "SKILL.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://github.com/org/repo/tree/main/skills/x",
+   "error": "unrecognized source format: https://github.com/org/repo/tree/main/skills/x"
+  },
+  {
+   "input": "https://github.com/org/repo",
+   "error": "unrecognized source format: https://github.com/org/repo"
+  },
+  {
+   "input": "https://raw.githubusercontent.com/org/repo/main/prompts/p.md",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "prompts/p.md",
+    "parentPath": "prompts",
+    "filename": "p.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://raw.githubusercontent.com/org/repo/refs/heads/main/prompts/p.md",
+   "parsed": {
+    "kind": "github",
+    "org": "org",
+    "repo": "repo",
+    "branch": "refs",
+    "filePath": "heads/main/prompts/p.md",
+    "parentPath": "heads/main/prompts",
+    "filename": "p.md",
+    "cloneUrls": [
+     "git@github.com:org/repo.git",
+     "https://github.com/org/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://bitbucket.org/ws/repo/src/main/skills/x/SKILL.md",
+   "parsed": {
+    "kind": "bitbucket",
+    "org": "ws",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "skills/x/SKILL.md",
+    "parentPath": "skills/x",
+    "filename": "SKILL.md",
+    "cloneUrls": [
+     "git@bitbucket.org:ws/repo.git",
+     "https://bitbucket.org/ws/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://bitbucket.org/ws/repo/src/main/skills/x/SKILL.md?at=main",
+   "parsed": {
+    "kind": "bitbucket",
+    "org": "ws",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "skills/x/SKILL.md",
+    "parentPath": "skills/x",
+    "filename": "SKILL.md",
+    "cloneUrls": [
+     "git@bitbucket.org:ws/repo.git",
+     "https://bitbucket.org/ws/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://bitbucket.org/ws/repo/src/0123abcd/agents/a.md#lines-5",
+   "parsed": {
+    "kind": "bitbucket",
+    "org": "ws",
+    "repo": "repo",
+    "branch": "0123abcd",
+    "filePath": "agents/a.md",
+    "parentPath": "agents",
+    "filename": "a.md",
+    "cloneUrls": [
+     "git@bitbucket.org:ws/repo.git",
+     "https://bitbucket.org/ws/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://bitbucket.org/ws/repo/raw/main/agents/a.md",
+   "parsed": {
+    "kind": "bitbucket",
+    "org": "ws",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "agents/a.md",
+    "parentPath": "agents",
+    "filename": "a.md",
+    "cloneUrls": [
+     "git@bitbucket.org:ws/repo.git",
+     "https://bitbucket.org/ws/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "https://bitbucket.org/ws/repo.git/src/main/x.md",
+   "parsed": {
+    "kind": "bitbucket",
+    "org": "ws",
+    "repo": "repo",
+    "branch": "main",
+    "filePath": "x.md",
+    "parentPath": "",
+    "filename": "x.md",
+    "cloneUrls": [
+     "git@bitbucket.org:ws/repo.git",
+     "https://bitbucket.org/ws/repo.git"
+    ]
+   }
+  },
+  {
+   "input": "http://github.com/org/repo/blob/main/x.md",
+   "error": "unrecognized source format: http://github.com/org/repo/blob/main/x.md"
+  },
+  {
+   "input": "https://www.github.com/org/repo/blob/main/x.md",
+   "error": "unrecognized source format: https://www.github.com/org/repo/blob/main/x.md"
+  },
+  {
+   "input": "https://GitHub.com/org/repo/blob/main/x.md",
+   "error": "unrecognized source format: https://GitHub.com/org/repo/blob/main/x.md"
+  },
+  {
+   "input": "https://gitlab.com/org/repo/-/blob/main/x.md",
+   "error": "unrecognized source format: https://gitlab.com/org/repo/-/blob/main/x.md"
+  },
+  {
+   "input": "git@github.com:org/repo.git",
+   "error": "unrecognized source format: git@github.com:org/repo.git"
+  },
+  {
+   "input": "./relative/SKILL.md",
+   "error": "unrecognized source format: ./relative/SKILL.md"
+  },
+  {
+   "input": "relative/SKILL.md",
+   "error": "unrecognized source format: relative/SKILL.md"
+  },
+  {
+   "input": "",
+   "error": "unrecognized source format: "
+  },
+  {
+   "input": "   ",
+   "error": "unrecognized source format:    "
+  },
+  {
+   "input": "C:\\skills\\x\\SKILL.md",
+   "error": "unrecognized source format: C:\\skills\\x\\SKILL.md"
+  }
+ ],
+ "remoteWeb": [
+  {
+   "input": "git@github.com:org/repo.git",
+   "parsed": [
+    "github.com",
+    "org",
+    "repo"
+   ]
+  },
+  {
+   "input": "git@github.com:org/repo",
+   "parsed": [
+    "github.com",
+    "org",
+    "repo"
+   ]
+  },
+  {
+   "input": "ssh://git@github.com/org/repo.git",
+   "parsed": [
+    "github.com",
+    "org",
+    "repo"
+   ]
+  },
+  {
+   "input": "https://github.com/org/repo.git",
+   "parsed": [
+    "github.com",
+    "org",
+    "repo"
+   ]
+  },
+  {
+   "input": "https://github.com/org/repo",
+   "parsed": [
+    "github.com",
+    "org",
+    "repo"
+   ]
+  },
+  {
+   "input": "https://github.com/org/repo/",
+   "parsed": [
+    "github.com",
+    "org",
+    "repo"
+   ]
+  },
+  {
+   "input": "git@bitbucket.org:ws/repo.git",
+   "parsed": [
+    "bitbucket.org",
+    "ws",
+    "repo"
+   ]
+  },
+  {
+   "input": "https://bitbucket.org/ws/repo.git",
+   "parsed": [
+    "bitbucket.org",
+    "ws",
+    "repo"
+   ]
+  },
+  {
+   "input": "https://user@bitbucket.org/ws/repo.git",
+   "parsed": [
+    "user@bitbucket.org",
+    "ws",
+    "repo"
+   ]
+  },
+  {
+   "input": "https://gitlab.com/group/sub/repo.git",
+   "parsed": [
+    "gitlab.com",
+    "group",
+    "sub/repo"
+   ]
+  },
+  {
+   "input": "file:///tmp/repo.git",
+   "parsed": null
+  },
+  {
+   "input": "/tmp/repo.git",
+   "parsed": null
+  },
+  {
+   "input": "",
+   "parsed": null
+  },
+  {
+   "input": "  https://github.com/o/r.git  ",
+   "parsed": [
+    "github.com",
+    "o",
+    "r"
+   ]
+  }
+ ]
+}

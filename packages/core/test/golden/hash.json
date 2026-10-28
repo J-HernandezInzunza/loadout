@@ -1,0 +1,352 @@
+{
+ "meta": {
+  "corpus": "hash",
+  "generator": "tools/golden/gen.py",
+  "library": {
+   "repo": "the-library-skill",
+   "commit": "a29e816"
+  },
+  "python": "3.14.5",
+  "pyyaml": "6.0.3",
+  "function": "library.content_hash (library.py:191)",
+  "note": "`hash` is the path hashed, relative to the tree root"
+ },
+ "cases": [
+  {
+   "id": "empty-dir",
+   "hash": ".",
+   "nodes": [],
+   "contentHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "id": "missing-path",
+   "hash": "nope",
+   "nodes": [],
+   "contentHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "id": "single-file-dir",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    }
+   ],
+   "contentHash": "sha256:63a1e65f996192a66daab6e104fa18039031739018c09ea42b41b813b3e8c957"
+  },
+  {
+   "id": "single-file-target",
+   "hash": "SKILL.md",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    },
+    {
+     "path": "other.md",
+     "type": "file",
+     "text": "ignored\n"
+    }
+   ],
+   "contentHash": "sha256:63a1e65f996192a66daab6e104fa18039031739018c09ea42b41b813b3e8c957"
+  },
+  {
+   "id": "empty-file",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": ""
+    }
+   ],
+   "contentHash": "sha256:86229dae9fda97bb4a85741b384eb1ca75e49e0fbf7cc2f751de1fe1f450d6f1"
+  },
+  {
+   "id": "nested",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    },
+    {
+     "path": "references/a.md",
+     "type": "file",
+     "text": "a\n"
+    },
+    {
+     "path": "references/deep/b.md",
+     "type": "file",
+     "text": "b\n"
+    },
+    {
+     "path": "scripts/run.sh",
+     "type": "file",
+     "text": "#!/bin/sh\n"
+    }
+   ],
+   "contentHash": "sha256:7ae5cc69bdab19b4b330fdb4e82e2cc94a93bdf86e1e25c9b07394601b4bc205"
+  },
+  {
+   "id": "empty-subdir-ignored",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    },
+    {
+     "path": "empty",
+     "type": "dir"
+    },
+    {
+     "path": "also/empty",
+     "type": "dir"
+    }
+   ],
+   "contentHash": "sha256:63a1e65f996192a66daab6e104fa18039031739018c09ea42b41b813b3e8c957"
+  },
+  {
+   "id": "binary",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    },
+    {
+     "path": "img.bin",
+     "type": "file",
+     "base64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wAA"
+    }
+   ],
+   "contentHash": "sha256:74cb63ceeb276bbd3c8e0704a3f3fa9f70a652e6bc9aa5b3cfe5dc3882de65ba"
+  },
+  {
+   "id": "sort-order",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "a-b",
+     "type": "file",
+     "text": "1"
+    },
+    {
+     "path": "a.b",
+     "type": "file",
+     "text": "2"
+    },
+    {
+     "path": "a/b",
+     "type": "file",
+     "text": "3"
+    },
+    {
+     "path": "B",
+     "type": "file",
+     "text": "4"
+    },
+    {
+     "path": "_z",
+     "type": "file",
+     "text": "5"
+    },
+    {
+     "path": "Z",
+     "type": "file",
+     "text": "6"
+    },
+    {
+     "path": "a b",
+     "type": "file",
+     "text": "7"
+    }
+   ],
+   "contentHash": "sha256:60fda0cc098030fd9443a141f16c692db2ff15831a5a003a86c82817b467103f"
+  },
+  {
+   "id": "dotfiles-and-git",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    },
+    {
+     "path": ".hidden",
+     "type": "file",
+     "text": "h\n"
+    },
+    {
+     "path": ".git/HEAD",
+     "type": "file",
+     "text": "ref: refs/heads/main\n"
+    },
+    {
+     "path": ".git/config",
+     "type": "file",
+     "text": "[core]\n"
+    }
+   ],
+   "contentHash": "sha256:d6f53e072a2fa825d49ae979406ceb29c38a4272e478718df1afdbbbed2e421c"
+  },
+  {
+   "id": "unicode-nfc",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "café.md",
+     "type": "file",
+     "text": "nfc\n"
+    },
+    {
+     "path": "日本/語.md",
+     "type": "file",
+     "text": "ja\n"
+    },
+    {
+     "path": "🙂.md",
+     "type": "file",
+     "text": "emoji\n"
+    }
+   ],
+   "contentHash": "sha256:570a8d5a5df8defcfe7a01de154255dfcc066e598b3ffa651014da8ffa706358"
+  },
+  {
+   "id": "unicode-nfd",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "café.md",
+     "type": "file",
+     "text": "nfd\n"
+    }
+   ],
+   "contentHash": "sha256:60396512903b108af972a21c908b8db7daaccff93ab2cd9857f43f9c3000c259"
+  },
+  {
+   "id": "symlink-to-file",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    },
+    {
+     "path": "link.md",
+     "type": "symlink",
+     "target": "SKILL.md"
+    }
+   ],
+   "contentHash": "sha256:d66fa8ac35b3d0a65c7aeda3ab0b9a1816a9e9eb176243dad3c9afaec8eeab9d"
+  },
+  {
+   "id": "symlink-to-dir-not-descended",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    },
+    {
+     "path": "real/x.md",
+     "type": "file",
+     "text": "x\n"
+    },
+    {
+     "path": "alias",
+     "type": "symlink",
+     "target": "real"
+    }
+   ],
+   "contentHash": "sha256:6be13248d81f947e05b920f2fe4b0b470a48debffd18afccffe8c144f556c2fb"
+  },
+  {
+   "id": "dangling-symlink",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "---\nname: x\n---\n# X\n"
+    },
+    {
+     "path": "broken",
+     "type": "symlink",
+     "target": "does-not-exist"
+    }
+   ],
+   "contentHash": "sha256:63a1e65f996192a66daab6e104fa18039031739018c09ea42b41b813b3e8c957"
+  },
+  {
+   "id": "rename-changes-hash-a",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "one.md",
+     "type": "file",
+     "text": "same\n"
+    }
+   ],
+   "contentHash": "sha256:ad963bc7b82312b13c10482a3b1698cacad43d389136872b84114e256b13e69b"
+  },
+  {
+   "id": "rename-changes-hash-b",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "two.md",
+     "type": "file",
+     "text": "same\n"
+    }
+   ],
+   "contentHash": "sha256:f9396d4c1cd34030866f15b7e5c648887009422b314ec3504f831150c682678f"
+  },
+  {
+   "id": "content-boundary-a",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "ab",
+     "type": "file",
+     "text": "c"
+    }
+   ],
+   "contentHash": "sha256:629c2f14f654f026086f2aefe1855533d0897f49df86a19073be17b237361b09"
+  },
+  {
+   "id": "content-boundary-b",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "a",
+     "type": "file",
+     "text": "bc"
+    }
+   ],
+   "contentHash": "sha256:aa795aa4bbb6117911ef062e271bcb05ccfd58ea439da7d46a44e3a3fcefa790"
+  },
+  {
+   "id": "crlf-content",
+   "hash": ".",
+   "nodes": [
+    {
+     "path": "SKILL.md",
+     "type": "file",
+     "text": "line\r\nline\r\n"
+    }
+   ],
+   "contentHash": "sha256:4fb067bdac8f410eea77aa7f1020aa385868513c4840945c2ec2dd4f99d88860"
+  }
+ ]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "loadout",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "scripts": {
+    "typecheck": "tsc -b && vue-tsc -p apps/desktop --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "cargo:check": "cargo check --locked --offline --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run cargo:check && npm run cargo:test",
+    "check:offline": "sandbox-exec -f tools/offline.sb npm run check",
+    "golden": "PYTHONDONTWRITEBYTECODE=1 \"${LIBRARY_SKILL_DIR:-$HOME/Projects/my-tools/the-library-skill}/.venv/bin/python\" -B tools/golden/gen.py",
+    "golden:check": "npm run golden -- --check",
+    "golden:test": "cd tools/golden && PYTHONDONTWRITEBYTECODE=1 \"${LIBRARY_SKILL_DIR:-$HOME/Projects/my-tools/the-library-skill}/.venv/bin/python\" -B -m unittest test_rebuild_ref",
+    "cargo:test": "cargo test --locked --offline -q --manifest-path apps/desktop/src-tauri/Cargo.toml"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.19.0",
+    "eslint": "10.13.0",
+    "eslint-plugin-vue": "10.12.0",
+    "globals": "17.13.0",
+    "jsdom": "30.1.3",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}
