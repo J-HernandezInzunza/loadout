@@ -120,7 +120,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
     `{py, repr}` value maps to its declared TS form and is reported as a field problem), and every
     `read.json` error case is a typed parse problem.
 
-- [ ] **M1.13 Catalog scaffold.** `scaffoldCatalog(id)`: a text the splice accepts (EDIT-15's
+- [x] **M1.13 Catalog scaffold.** `scaffoldCatalog(id)`: a text the splice accepts (EDIT-15's
   comments may mention Loadout instead of the CLI).
   - Rules: EDIT-15
   - Depends: M1.07
