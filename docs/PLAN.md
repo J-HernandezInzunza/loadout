@@ -426,7 +426,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.03
   - Done when: WRITE-14 has a test; the result reports `committed: false`, `pushed: false`.
 
-- [ ] **M3.05 Direct mode.** Refresh the clone, edit it, commit, `push origin HEAD:<branch>`;
+- [x] **M3.05 Direct mode.** Refresh the clone, edit it, commit, `push origin HEAD:<branch>`;
   commit or push failure is a warning and the result says so; a rejected stale push leaves the
   clone for doctor's re-clone (A4, S4).
   - Rules: WRITE-13, WRITE-09
