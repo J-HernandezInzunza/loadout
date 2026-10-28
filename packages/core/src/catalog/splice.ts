@@ -14,6 +14,7 @@ const TOP_LEVEL_RE = new RegExp(`^[^${WS}]`);
 const SIBLING_RE = new RegExp(`^  [^${WS}]`);
 // `s`: Python's `.` matches `\r`, which CRLF files leave at the end of every line.
 const ITEM_NAME_RE = new RegExp(`^    - name:[${WS}]*(.+?)[${WS}]*$`, "s");
+const KEY_RE = /^ {6}([A-Za-z_][A-Za-z0-9_-]*):/;
 const STRIP_RE = new RegExp(`^[${WS}]+|[${WS}]+$`, "g");
 const LSTRIP_RE = new RegExp(`^[${WS}]+`);
 
@@ -148,12 +149,6 @@ function checkLayout(lines: string[], { idx, inline, end }: Section): void {
   }
 }
 
-/** Throws SPLICE_UNSUPPORTED unless the type's section can be edited line by line. */
-export function assertSpliceable(text: string, type: EntryType): void {
-  const lines = text.split("\n");
-  checkLayout(lines, locateSection(lines, PLURAL[type]));
-}
-
 /** EDIT-07: items start with exactly four spaces and `- name:`; quotes around the name are dropped. */
 function itemsOf(lines: string[], { idx, end }: Section): Item[] {
   const items: Item[] = [];
@@ -252,5 +247,64 @@ export function removeEntry(text: string, type: EntryType, name: string): string
   }
   lines.splice(start, stop - start);
   if (items.length === 1) lines[sec.idx] = `  ${section}: []`;
+  return lines.join("\n");
+}
+
+/** Exclusive end of a key's value: deeper lines, or a same-indent `- ` block sequence. */
+function valueEnd(lines: string[], keyIdx: number, own: number): number {
+  let j = keyIdx + 1;
+  while (j <= own) {
+    const l = lines[j]!;
+    if (!(isBlank(l) || indent(l) > 6 || (indent(l) === 6 && l.slice(6).startsWith("-")))) break;
+    j++;
+  }
+  while (j - 1 > keyIdx && isBlank(lines[j - 1]!)) j--; // trailing blanks belong to nobody
+  return j;
+}
+
+const FIELDS = ["description", "source", "requires"] as const;
+
+/**
+ * D4 (EDIT-12): rewrite description, source and requires in place within the item's own lines,
+ * inserting a missing one after the nearest earlier field; the name line, every other key, comments
+ * and blank lines stay byte for byte.
+ */
+export function replaceEntry(text: string, type: EntryType, name: string, entry: Omit<Entry, "catalog">): string {
+  const section = PLURAL[type];
+  const lines = text.split("\n");
+  const { sec, items } = prepare(lines, section);
+  const { line } = target(items, name, section, sec);
+  const rendered = renderEntry(entry);
+  const want = { description: rendered[1]!, source: rendered[2]!, requires: rendered[3] };
+
+  // Re-located after every edit: edits above change where the item ends.
+  const keys = () => {
+    const s = locateSection(lines, section);
+    const { limit } = target(itemsOf(lines, s), name, section, s);
+    const own = ownEnd(lines, line, limit);
+    const found = new Map<string, [number, number]>();
+    for (let i = line + 1; i <= own; i++) {
+      const key = KEY_RE.exec(lines[i]!)?.[1];
+      if (key !== undefined && !found.has(key)) found.set(key, [i, valueEnd(lines, i, own)]);
+    }
+    return found;
+  };
+
+  FIELDS.forEach((key, k) => {
+    const value = want[key];
+    const found = keys().get(key);
+    if (found) {
+      lines.splice(found[0], found[1] - found[0], ...(value === undefined ? [] : [value]));
+      return;
+    }
+    if (value === undefined) return;
+    const current = keys();
+    let at = line + 1;
+    for (const prev of FIELDS.slice(0, k)) {
+      const p = current.get(prev);
+      if (p) at = p[1];
+    }
+    lines.splice(at, 0, value);
+  });
   return lines.join("\n");
 }

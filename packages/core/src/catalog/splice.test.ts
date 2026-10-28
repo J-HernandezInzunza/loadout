@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { expected, expectedReplay, loadGolden, replaySplice, type FixtureEntry, type SpliceCase, type SpliceImpl } from "../../test/golden.ts";
-import { assertSpliceable, removeEntry, renderEntry, spliceEntry, validateRef } from "./splice.ts";
+import { removeEntry, renderEntry, replaceEntry, spliceEntry, validateRef } from "./splice.ts";
 
 const fixture = loadGolden("splice");
-const notYet = () => {
-  throw new Error("not implemented");
-};
-const impl: SpliceImpl = { renderEntry, spliceEntry, removeEntry, replaceEntry: notYet };
+const impl: SpliceImpl = { renderEntry, spliceEntry, removeEntry, replaceEntry };
 const renderCases = fixture.cases.filter((c) => c.id.startsWith("render/"));
 
 describe("renderEntry", () => {
@@ -51,8 +48,6 @@ const targetExists = (c: SpliceCase) => {
   const type = "type" in op ? op.type : op.entry.type;
   return new RegExp(`^  ${PLURAL[type]}:`, "m").test(fixture.texts[c.text!]!.text);
 };
-// Replace lands in M1.11; until then its cases reach the layout check directly.
-const checkOnly: SpliceImpl = { ...impl, replaceEntry: (text, type) => (assertSpliceable(text, type), notYet()) };
 const replays = (c: SpliceCase) => expect(replaySplice(fixture, c, impl)).toMatchObject(expectedReplay(c));
 
 describe("spliceEntry", () => {
@@ -88,40 +83,35 @@ describe("spliceEntry", () => {
   });
 });
 
-describe("assertSpliceable", () => {
-  // Inserts into a missing section that D1 refuses because the section before it fails D2 are M1.09's.
+describe("unsupported layouts", () => {
   const unsupported = fixture.cases.filter((c) => {
     const e = expected(c);
-    return "error" in e && e.error.code === "SPLICE_UNSUPPORTED" && targetExists(c);
+    return "error" in e && e.error.code === "SPLICE_UNSUPPORTED";
   });
 
-  it("has the 28 cases the rebuild refuses up front in an existing section", () => {
-    expect(unsupported).toHaveLength(28);
+  it("has the 48 cases the rebuild refuses up front", () => {
+    expect(unsupported).toHaveLength(48);
   });
 
   it.each(byCase(unsupported))("EDIT-09: refuses %s with SPLICE_UNSUPPORTED and its line", (_, c) => {
-    expect(replaySplice(fixture, c, checkOnly)).toEqual(expectedReplay(c));
+    expect(replaySplice(fixture, c, impl)).toEqual(expectedReplay(c));
   });
 
   it("EDIT-09: accepts a comment after the section header", () => {
-    expect(() => assertSpliceable("library:\n  skills: # mine\n    - name: a\n", "skill")).not.toThrow();
+    const entry: FixtureEntry = { type: "skill", name: "b", description: "B", source: "./b", requires: [] };
+    expect(() => spliceEntry("library:\n  skills: # mine\n    - name: a\n", entry)).not.toThrow();
   });
 });
 
 describe("spliceEntry into a missing section", () => {
-  // A round trip that creates a section and then removes from it waits for removeEntry (M1.10).
-  const missing = fixture.cases.filter((c) => {
-    if (c.text === null || targetExists(c)) return false;
-    const roundTrip = c.ops[0]!.op === "splice" && c.ops.some((o) => o.op === "remove" || o.op === "replace");
-    return !(roundTrip && "text" in expected(c));
-  });
+  const missing = fixture.cases.filter((c) => c.text !== null && !targetExists(c));
 
-  it("has the 132 cases whose text lacks the target section", () => {
-    expect(missing).toHaveLength(132);
+  it("has the 168 cases whose text lacks the target section", () => {
+    expect(missing).toHaveLength(168);
   });
 
   it.each(byCase(missing))("EDIT-05: %s", (_, c) => {
-    expect(replaySplice(fixture, c, checkOnly)).toMatchObject(expectedReplay(c));
+    expect(replaySplice(fixture, c, impl)).toMatchObject(expectedReplay(c));
   });
 
   it("EDIT-05: creates the section after the one before it in canonical order", () => {
@@ -152,5 +142,54 @@ describe("removeEntry", () => {
     expect(() => removeEntry("library:\n  skills: []\n", "skill", "x")).toThrow(
       expect.objectContaining({ code: "NOT_FOUND", message: "'x' not found in skills" }),
     );
+  });
+});
+
+describe("replaceEntry", () => {
+  const replaces = fixture.cases.filter((c) => c.ops.some((o) => o.op === "replace"));
+
+  it.each(byCase(replaces))("EDIT-12: %s", (_, c) => replays(c));
+
+  it("EDIT-12: keeps the name line, unknown keys, comments and blanks, and edits fields in place", () => {
+    const text = [
+      "library:",
+      "  skills:",
+      "    - name: beta",
+      "      # why beta",
+      "      description: B",
+      "      tags: [x]",
+      "",
+      "      source: ./beta",
+      "    - name: gamma",
+      "      description: C",
+      "      source: ./gamma",
+      "",
+    ].join("\n");
+    const entry: FixtureEntry = { type: "skill", name: "ignored", description: "B2", source: "./b2", requires: ["skill:gamma"] };
+    expect(replaceEntry(text, "skill", "beta", entry).split("\n").slice(2, 10)).toEqual([
+      "    - name: beta",
+      "      # why beta",
+      "      description: B2",
+      "      tags: [x]",
+      "",
+      "      source: ./b2",
+      '      requires: ["skill:gamma"]',
+      "    - name: gamma",
+    ]);
+  });
+});
+
+describe("the splice corpus", () => {
+  it("replays all 896 cases as the rebuild expects", () => {
+    const failing = fixture.cases.filter((c) => {
+      try {
+        expect(replaySplice(fixture, c, impl)).toMatchObject(expectedReplay(c));
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    expect(fixture.cases).toHaveLength(896);
+    expect(failing.map((c) => c.id)).toEqual([]);
   });
 });
