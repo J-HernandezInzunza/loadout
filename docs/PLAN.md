@@ -309,7 +309,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.10, M2.12, M1.22
   - Done when: each rule has a test; per-item override provenance is present (A27).
 
-- [ ] **M2.14 Apply install.** `applyInstall(plan, { overwrite })`: re-check the fingerprint
+- [x] **M2.14 Apply install.** `applyInstall(plan, { overwrite })`: re-check the fingerprint
   (`STALE_PLAN`), stage into `tmp/` and rename into place (R14), write a v2 receipt per dest, stop
   at the first failure keeping earlier items, report progress, honor abort, audit each destructive
   fs op. An off skill stays off.
