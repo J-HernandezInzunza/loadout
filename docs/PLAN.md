@@ -261,7 +261,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M1.04
   - Done when: every `hash.json` tree, materialized in the sandbox, gives the recorded digest.
 
-- [ ] **M2.08 Receipts v2.** `receipts/`: `ReceiptStore` (`get`, `put`, `delete`, `all`), file
+- [x] **M2.08 Receipts v2.** `receipts/`: `ReceiptStore` (`get`, `put`, `delete`, `all`), file
   sorted by dest, atomic writes behind an in-process queue (A32); an unknown version reads as empty
   and is never overwritten silently.
   - Rules: LOCK-02

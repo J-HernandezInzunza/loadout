@@ -31,3 +31,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M2.05 153a4d7 createGitClient: urlsFor/clone/lsRemoteHead/probe/revParse/pullFfOnly/behindCount; token via credential helper + env (checked with git credential fill, as arch §6 says); GitHub user x-access-token; GIT_SSH_COMMAND always set; new GIT_FAILED
 2026-10-28 M2.06 0a45438 createOperation (tmp/op-*, CloneCache + ProbeCache keyed by repoKey, promise-memoized incl. failures, dispose) and sweepTemp at launch
 2026-10-28 M2.07 413109a contentHashV1 (all 20 hash.json digests) and fileManifest (relpath -> sha256 hex) over one walk; code-point path order
+2026-10-28 M2.08 28227de createReceiptStore: get/all/put/delete, sorted v2 file, queued read-modify-write (50 concurrent puts survive), crash mid-write keeps the old file; unreadable file reads empty + warning, writes refused (new RECEIPTS_INVALID)
