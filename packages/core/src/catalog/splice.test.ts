@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expected, expectedReplay, loadGolden, replaySplice, type SpliceCase, type SpliceImpl } from "../../test/golden.ts";
+import { expected, expectedReplay, loadGolden, replaySplice, type FixtureEntry, type SpliceCase, type SpliceImpl } from "../../test/golden.ts";
 import { assertSpliceable, renderEntry, spliceEntry, validateRef } from "./splice.ts";
 
 const fixture = loadGolden("splice");
@@ -51,6 +51,12 @@ const targetExists = (c: SpliceCase) => {
   const type = "type" in op ? op.type : op.entry.type;
   return new RegExp(`^  ${PLURAL[type]}:`, "m").test(fixture.texts[c.text!]!.text);
 };
+// Remove and replace land in M1.10 and M1.11; until then their cases reach the layout check directly.
+const checkOnly: SpliceImpl = {
+  ...impl,
+  removeEntry: (text, type) => (assertSpliceable(text, type), notYet()),
+  replaceEntry: (text, type) => (assertSpliceable(text, type), notYet()),
+};
 const replays = (c: SpliceCase) => expect(replaySplice(fixture, c, impl)).toMatchObject(expectedReplay(c));
 
 describe("spliceEntry", () => {
@@ -92,12 +98,6 @@ describe("assertSpliceable", () => {
     const e = expected(c);
     return "error" in e && e.error.code === "SPLICE_UNSUPPORTED" && targetExists(c);
   });
-  // Remove and replace land in M1.10 and M1.11; until then their cases reach the layout check directly.
-  const checkOnly: SpliceImpl = {
-    ...impl,
-    removeEntry: (text, type) => (assertSpliceable(text, type), notYet()),
-    replaceEntry: (text, type) => (assertSpliceable(text, type), notYet()),
-  };
 
   it("has the 28 cases the rebuild refuses up front in an existing section", () => {
     expect(unsupported).toHaveLength(28);
@@ -109,5 +109,30 @@ describe("assertSpliceable", () => {
 
   it("EDIT-09: accepts a comment after the section header", () => {
     expect(() => assertSpliceable("library:\n  skills: # mine\n    - name: a\n", "skill")).not.toThrow();
+  });
+});
+
+describe("spliceEntry into a missing section", () => {
+  // A round trip that creates a section and then removes from it waits for removeEntry (M1.10).
+  const missing = fixture.cases.filter((c) => {
+    if (c.text === null || targetExists(c)) return false;
+    const roundTrip = c.ops[0]!.op === "splice" && c.ops.some((o) => o.op === "remove" || o.op === "replace");
+    return !(roundTrip && "text" in expected(c));
+  });
+
+  it("has the 132 cases whose text lacks the target section", () => {
+    expect(missing).toHaveLength(132);
+  });
+
+  it.each(byCase(missing))("EDIT-05: %s", (_, c) => {
+    expect(replaySplice(fixture, c, checkOnly)).toMatchObject(expectedReplay(c));
+  });
+
+  it("EDIT-05: creates the section after the one before it in canonical order", () => {
+    const text = "library:\n  skills:\n    - name: a\n      description: A\n      source: ./a\n\n  prompts: []\n";
+    const entry: FixtureEntry = { type: "agent", name: "r", description: "R", source: "./r", requires: [] };
+    expect(spliceEntry(text, entry)).toBe(
+      "library:\n  skills:\n    - name: a\n      description: A\n      source: ./a\n  agents:\n    - name: r\n      description: R\n      source: ./r\n\n  prompts: []\n",
+    );
   });
 });

@@ -5,6 +5,7 @@ import { pyyamlInline } from "./scalar.ts";
 
 const ENTRY_TYPES = ["skill", "agent", "prompt"];
 const PLURAL: Record<EntryType, string> = { skill: "skills", agent: "agents", prompt: "prompts" };
+const SECTIONS = ["skills", "agents", "prompts"];
 
 // Python's str.isspace() set, which its regex `\s` and str.strip() use; JS's `\s` and trim() differ.
 const WS = "\\t\\n\\x0b\\x0c\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
@@ -163,11 +164,31 @@ function itemsOf(lines: string[], { idx, end }: Section): { name: string; line: 
   return items;
 }
 
+/**
+ * D1 (EDIT-05): add the missing section after the nearest earlier one in canonical order, placed by
+ * the append rule, or right after `library:` when none precedes it.
+ */
+function insertSection(lines: string[], section: string, block: string[]): string {
+  const earlier = SECTIONS.slice(0, SECTIONS.indexOf(section))
+    .map((s) => findSection(lines, s))
+    .filter((s) => s !== undefined);
+  const prev = earlier.at(-1);
+  let at = libraryIdx(lines) + 1;
+  if (prev) {
+    checkLayout(lines, prev); // its end only means something if the splice could edit it
+    at = prev.end;
+    while (at - 1 > prev.idx && isBlank(lines[at - 1]!)) at--;
+  }
+  lines.splice(at, 0, `  ${section}:`, ...block);
+  return lines.join("\n");
+}
+
 /** EDIT-08: insert in case-insensitive name order without re-sorting; `[]` becomes a block list. */
 export function spliceEntry(text: string, entry: Omit<Entry, "catalog">): string {
   const section = PLURAL[entry.type];
   const lines = text.split("\n");
   const block = renderEntry(entry);
+  if (!findSection(lines, section)) return insertSection(lines, section, block);
   const sec = locateSection(lines, section);
   checkLayout(lines, sec);
   const items = itemsOf(lines, sec);
