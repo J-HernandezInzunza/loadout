@@ -86,7 +86,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.06
   - Done when: every splice-only case in `splice.json` whose expectation is `python` passes.
 
-- [ ] **M1.08 Splice: unsupported layouts (D2).** Layout check before any edit; `SPLICE_UNSUPPORTED`
+- [x] **M1.08 Splice: unsupported layouts (D2).** Layout check before any edit; `SPLICE_UNSUPPORTED`
   with the 1-based line.
   - Rules: EDIT-09
   - Depends: M1.07
