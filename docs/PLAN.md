@@ -336,7 +336,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.15, M2.10
   - Done when: each listed rule of arch §4.5 has a named test.
 
-- [ ] **M2.17 Migrate parked copies.** `planMigrateParked()` lists every copy in
+- [x] **M2.17 Migrate parked copies.** `planMigrateParked()` lists every copy in
   `~/.claude/skills-disabled/`; `applyMigrateParked(plan)` moves each back (rename, or on `EXDEV`
   copy-verify-delete) and writes `"off"`; an occupied destination is left alone and reported.
   The app never writes into `-disabled` folders otherwise.
