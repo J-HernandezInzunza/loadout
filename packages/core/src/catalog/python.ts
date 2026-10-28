@@ -17,3 +17,20 @@ export function pyLess(a: string, b: string): boolean {
   }
   return x.length < y.length;
 }
+
+/** Python's repr() of a str, which the CLI's messages use to show a ref. */
+export function pyRepr(s: string): string {
+  const quote = s.includes("'") && !s.includes('"') ? '"' : "'";
+  const body = Array.from(s, (ch) => {
+    if (ch === "\\" || ch === quote) return "\\" + ch;
+    if (ch === "\t") return "\\t";
+    if (ch === "\n") return "\\n";
+    if (ch === "\r") return "\\r";
+    if (ch === " " || !/[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\p{Z}]/u.test(ch)) return ch;
+    const c = ch.codePointAt(0)!;
+    if (c <= 0xff) return "\\x" + c.toString(16).padStart(2, "0");
+    if (c <= 0xffff) return "\\u" + c.toString(16).padStart(4, "0");
+    return "\\U" + c.toString(16).padStart(8, "0");
+  });
+  return quote + body.join("") + quote;
+}

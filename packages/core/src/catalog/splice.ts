@@ -1,7 +1,7 @@
 // Line-based catalog edits, ported from library.py's splice functions (behaviors.md §2.7) with the
 // rebuild's decisions applied (§0.1, tools/golden/rebuild_ref.py).
 import { LibraryError, type Entry, type EntryType } from "../model/model.ts";
-import { pyLess, strip, WS } from "./python.ts";
+import { pyLess, pyRepr, strip, WS } from "./python.ts";
 import { pyyamlInline } from "./scalar.ts";
 
 const ENTRY_TYPES = ["skill", "agent", "prompt"];
@@ -21,23 +21,6 @@ const isBlank = (line: string) => strip(line) === "";
 // A11: refs are written inside `"` without escaping, so these would break the YAML.
 // eslint-disable-next-line no-control-regex -- control characters are exactly what this refuses
 const BAD_REF = /["\\\x00-\x1f\x7f]/;
-
-/** Python's repr() of a str, which the CLI's messages use to show a ref. */
-function pyRepr(s: string): string {
-  const quote = s.includes("'") && !s.includes('"') ? '"' : "'";
-  const body = Array.from(s, (ch) => {
-    if (ch === "\\" || ch === quote) return "\\" + ch;
-    if (ch === "\t") return "\\t";
-    if (ch === "\n") return "\\n";
-    if (ch === "\r") return "\\r";
-    if (ch === " " || !/[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\p{Z}]/u.test(ch)) return ch;
-    const c = ch.codePointAt(0)!;
-    if (c <= 0xff) return "\\x" + c.toString(16).padStart(2, "0");
-    if (c <= 0xffff) return "\\u" + c.toString(16).padStart(4, "0");
-    return "\\U" + c.toString(16).padStart(8, "0");
-  });
-  return quote + body.join("") + quote;
-}
 
 function refuseBadChars(ref: string): void {
   if (BAD_REF.test(ref)) throw new LibraryError("INVALID_REF", `invalid requires ref ${pyRepr(ref)}`);

@@ -89,7 +89,7 @@ export type EntryProblem = Exclude<CatalogProblem, { kind: "parse" }>;
 export type ParsedCatalog = { ok: true; data: unknown } | { ok: false; problem: CatalogProblem & { kind: "parse" } };
 
 /** YAML 1.1 as PyYAML reads it: its implicit types, `<<` merges, and the last of duplicate keys. */
-export function parseCatalog(text: string): ParsedCatalog {
+function parseYaml11(text: string, mapAsMap: boolean): ParsedCatalog {
   const lineCounter = new LineCounter();
   const doc = parseDocument(text, {
     version: "1.1",
@@ -105,7 +105,16 @@ export function parseCatalog(text: string): ParsedCatalog {
     const line = error.linePos?.[0].line;
     return { ok: false, problem: { kind: "parse", message, ...(line !== undefined && { line }) } };
   }
-  return { ok: true, data: doc.toJS() };
+  return { ok: true, data: doc.toJS({ mapAsMap }) };
+}
+
+export function parseCatalog(text: string): ParsedCatalog {
+  return parseYaml11(text, false);
+}
+
+/** Like parseCatalog, with every mapping a Map, so non-string keys keep their type (`pins: {4: a}`). */
+export function parseYamlMaps(text: string): ParsedCatalog {
+  return parseYaml11(text, true);
 }
 
 const isMapping = (v: unknown): v is Record<string, unknown> =>
