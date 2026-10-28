@@ -328,7 +328,7 @@ cover arch §4.5 rules 1–7.
     object, invalid JSON refused, symlink preserved, concurrent change detected), plus
     `CLAUDE_CONFIG_DIR`.
 
-- [ ] **M2.16 Toggle skills and prompts.** `setSkillState(names, "on" | "off")`: key = entry name
+- [x] **M2.16 Toggle skills and prompts.** `setSkillState(names, "on" | "off")`: key = entry name
   (rule 1, S10); `"on"` deletes the key; skills and prompts only, agents refused (Q15 A); works for
   unmanaged items (rule 6); `name-only`/`user-invocable-only` reported read-only (Q14 A); a
   report of managed-settings overrides for doctor (rule 4).
