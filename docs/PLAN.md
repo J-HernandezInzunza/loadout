@@ -186,7 +186,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.19
   - Done when: each rule has a test.
 
-- [ ] **M1.22 Library facade and reads.** `ops/`: `createLibrary(host)`; `list`, `show`,
+- [x] **M1.22 Library facade and reads.** `ops/`: `createLibrary(host)`; `list`, `show`,
   `catalogs`, `search` (W18) with catalog-level fields; input/output zod schemas per op.
   - Rules: RES-04, UPD-07
   - Depends: M1.20, M1.21
