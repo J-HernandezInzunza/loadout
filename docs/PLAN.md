@@ -468,7 +468,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.08
   - Done when: each rule has a test; an update preserves an unknown key end to end.
 
-- [ ] **M3.10 Remove.** `planRemove` per §3.14, with the dependents warning and optional purge of
+- [x] **M3.10 Remove.** `planRemove` per §3.14, with the dependents warning and optional purge of
   installed copies.
   - Rules: DEP-09, EDIT-10
   - Depends: M3.04, M2.18
