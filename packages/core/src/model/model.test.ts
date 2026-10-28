@@ -117,6 +117,7 @@ function codeName(code: ErrorCode): string {
     case "AUTH_FAILED":
     case "API_FAILED":
     case "GIT_FAILED":
+    case "RECEIPTS_INVALID":
       return code;
     default: {
       const unreachable: never = code;
@@ -128,6 +129,6 @@ function codeName(code: ErrorCode): string {
 describe("ErrorCode", () => {
   it("is a closed enum every switch can exhaust", () => {
     expect(ErrorCode.options.map(codeName)).toEqual(ErrorCode.options);
-    expect(ErrorCode.options).toHaveLength(23);
+    expect(ErrorCode.options).toHaveLength(24);
   });
 });
