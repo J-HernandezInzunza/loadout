@@ -58,7 +58,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.02
   - Done when: a test proves an escaping path fails, and temp dirs are removed after each test.
 
-- [ ] **M1.04 Golden fixture loader.** Typed readers for the six fixtures; `expected(case)` returns
+- [x] **M1.04 Golden fixture loader.** Typed readers for the six fixtures; `expected(case)` returns
   `rebuild ?? python`; helpers to replay splice `ops` and to materialize `hash.json` trees in the
   sandbox.
   - Rules: none (arch §3.2)
