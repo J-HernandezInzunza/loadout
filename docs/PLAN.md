@@ -102,7 +102,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.08
   - Done when: every case containing a `remove` op passes, round trips included.
 
-- [ ] **M1.11 Replace (D4).** `replaceEntry(text, type, name, entry)`.
+- [x] **M1.11 Replace (D4).** `replaceEntry(text, type, name, entry)`.
   - Rules: EDIT-12
   - Depends: M1.08
   - Done when: every case containing a `replace` op passes; together with M1.07–M1.10, all 896
