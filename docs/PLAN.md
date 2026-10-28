@@ -217,7 +217,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M1.03
   - Done when: the Node host's tests cover both ports, including an aborted and a timed-out request.
 
-- [ ] **M2.03 Host API stub.** A local HTTP server for tests that fakes the GitHub and Bitbucket
+- [x] **M2.03 Host API stub.** A local HTTP server for tests that fakes the GitHub and Bitbucket
   endpoints Loadout uses (current user, Bitbucket token refresh, PR create and list, with a duplicate
   answering as each host does), records every request, and can be told to fail; API base URLs are
   injectable in the core for tests only.
