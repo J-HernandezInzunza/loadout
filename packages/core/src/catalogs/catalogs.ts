@@ -32,14 +32,14 @@ export type CatalogStatus =
 export const cloneDir = (host: Host, id: string) => `${host.paths.appData}/clones/${id}`;
 
 /** The URLs to clone a catalog from: FETCH-02's order for a GitHub or Bitbucket repo, else the URL as given. */
-async function catalogUrls(git: GitClient, ref: RemoteRef): Promise<string[]> {
+export async function catalogUrls(git: GitClient, ref: RemoteRef): Promise<string[]> {
   const web = remoteWeb(ref.repo);
   const kind = web?.[0] === "github.com" ? "github" : web?.[0] === "bitbucket.org" ? "bitbucket" : null;
   return kind && web ? git.urlsFor({ kind, org: web[1], repo: web[2] }) : [ref.repo];
 }
 
 /** One repo, however it is spelled: ssh and https forms of the same host/org/repo are equal. */
-function sameRepo(a: string, b: string): boolean {
+export function sameRepo(a: string, b: string): boolean {
   const x = remoteWeb(a);
   const y = remoteWeb(b);
   if (!x || !y) return a === b;
