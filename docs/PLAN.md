@@ -200,7 +200,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
 Exit: every M2 task checked; hermetic git tests pass against `file://` repos; the toggle tests
 cover arch §4.5 rules 1–7.
 
-- [ ] **M2.01 Git test harness.** Bare repos under the sandbox served as `file://` URLs; a test-only
+- [x] **M2.01 Git test harness.** Bare repos under the sandbox served as `file://` URLs; a test-only
   `GIT_CONFIG_GLOBAL` with `url.<file://…>.insteadOf` for the https forms of github.com and
   bitbucket.org (ssh forms deliberately unmapped, so the ssh→https fallback runs);
   `GIT_ALLOW_PROTOCOL=file`; helpers to create repos, commit trees and move branches.
