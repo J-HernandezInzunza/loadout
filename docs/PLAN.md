@@ -365,7 +365,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.13, M2.16, M2.09
   - Done when: each rule has a test.
 
-- [ ] **M2.21 Register and unregister catalogs.** `planAddCatalog`/`applyAddCatalog` (clone or
+- [x] **M2.21 Register and unregister catalogs.** `planAddCatalog`/`applyAddCatalog` (clone or
   read to prove it works, `protected` stored explicitly, A21), `initCatalog` (scaffold; a path
   without `.yaml` gets `library.yaml` appended, A18), `removeCatalog` (purge clone; purge installs,
   global only, A19).
