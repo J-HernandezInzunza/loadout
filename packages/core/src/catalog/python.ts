@@ -34,3 +34,15 @@ export function pyRepr(s: string): string {
   });
   return quote + body.join("") + quote;
 }
+
+/** Python truthiness of a parsed YAML value (mappings as Maps), for the CLI's `x or default` and `if x`. */
+export const truthy = (v: unknown) =>
+  !(v === null || v === undefined || v === false || v === 0 || v === "" || (Array.isArray(v) && v.length === 0) || (v instanceof Map && v.size === 0));
+
+/** Python's str() of a YAML scalar. */
+export function pyStr(v: unknown): string {
+  if (v === null || v === undefined) return "None";
+  if (typeof v === "boolean") return v ? "True" : "False";
+  if (v instanceof Date) return v.toISOString().endsWith("T00:00:00.000Z") ? v.toISOString().slice(0, 10) : v.toISOString();
+  return String(v);
+}

@@ -1,21 +1,9 @@
 // The registry checks of library.py's Config.problems (MIG-01), run on a parsed config.local.yaml
 // (mappings as Maps, so keys keep their YAML types) before the one-time import.
-import { pyRepr, strip } from "../catalog/python.ts";
+import { pyRepr, pyStr, strip, truthy } from "../catalog/python.ts";
 
 type Mapping = Map<unknown, unknown>;
 const isMapping = (v: unknown): v is Mapping => v instanceof Map;
-
-/** Python truthiness, for the CLI's `raw.get(key)` checks. */
-const truthy = (v: unknown) =>
-  !(v === null || v === undefined || v === false || v === 0 || v === "" || (Array.isArray(v) && v.length === 0) || (isMapping(v) && v.size === 0));
-
-/** Python's str() of a YAML scalar. */
-function pyStr(v: unknown): string {
-  if (v === null || v === undefined) return "None";
-  if (typeof v === "boolean") return v ? "True" : "False";
-  if (v instanceof Date) return v.toISOString().endsWith("T00:00:00.000Z") ? v.toISOString().slice(0, 10) : v.toISOString();
-  return String(v);
-}
 
 /** Python's repr() of a YAML scalar, for pin keys. */
 const reprOf = (v: unknown) => (typeof v === "string" ? pyRepr(v) : pyStr(v));

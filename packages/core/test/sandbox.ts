@@ -25,6 +25,7 @@ const pathArgs: Record<keyof HostFs, number> = {
   exists: 1,
   stat: 1,
   lstat: 1,
+  realPath: 1,
   readDir: 1,
   mkdirp: 1,
   rename: 2,

@@ -12,7 +12,15 @@ export const AppConfigV1 = z.strictObject({
   catalogs: z.array(z.discriminatedUnion("kind", [LocalCatalog.strict(), RemoteCatalog.strict()])),
   pins: z.record(z.string(), z.string()),
   settings: z.strictObject({}),
-  imported: z.strictObject({ from: z.string(), at: z.string(), configSha256: z.string() }).exactOptional(),
+  imported: z
+    .strictObject({
+      from: z.string(),
+      at: z.string(),
+      configSha256: z.string(),
+      /** the Python CLI's receipts, kept only to classify what it installed (architecture.md §4.4) */
+      installs: z.string().exactOptional(),
+    })
+    .exactOptional(),
 });
 export type AppConfigV1 = z.infer<typeof AppConfigV1>;
 

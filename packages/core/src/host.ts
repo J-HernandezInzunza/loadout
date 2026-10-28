@@ -13,6 +13,8 @@ export interface HostFs {
   /** follows links */
   stat(path: string): Promise<{ kind: FileKind; size: number; mode: number }>;
   lstat(path: string): Promise<{ kind: FileKind; size: number; mode: number }>;
+  /** the path with every symlink resolved; rejects { code: "ENOENT" } when missing */
+  realPath(path: string): Promise<string>;
   readDir(path: string): Promise<{ name: string; kind: FileKind }[]>;
   mkdirp(path: string): Promise<void>;
   /** rejects { code: "EXDEV" } across volumes */

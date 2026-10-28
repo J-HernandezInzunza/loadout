@@ -46,6 +46,14 @@ describe("fs", () => {
     expect((await stat(p)).mode & 0o777).toBe(0o700);
   });
 
+  it("realPath resolves every symlink in the path", async () => {
+    await host.fs.mkdirp(join(root, "tool", "skill"));
+    await symlink(join(root, "tool"), join(root, "link"));
+    const real = await host.fs.realPath(join(root, "tool"));
+    expect(await host.fs.realPath(join(root, "link", "skill"))).toBe(join(real, "skill"));
+    await expect(host.fs.realPath(join(root, "missing"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("stat follows symlinks and lstat does not", async () => {
     await host.fs.mkdirp(join(root, "d"));
     await symlink(join(root, "d"), join(root, "link"));

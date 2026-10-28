@@ -15,6 +15,7 @@ export function createTauriHost(paths: Host["paths"]): Host {
     "exists",
     "stat",
     "lstat",
+    "realPath",
     "readDir",
     "mkdirp",
     "rename",
