@@ -358,7 +358,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.14
   - Done when: each rule has a test (SYNC-03 tests the fix).
 
-- [ ] **M2.20 Install state in reads.** `list`/`show` gain `installed`, `state`, `receipt`,
+- [x] **M2.20 Install state in reads.** `list`/`show` gain `installed`, `state`, `receipt`,
   `locations`, `disabled` (from overrides); `list({ checkRemote })` computes `stale`; `show`
   installs are filtered by type (A26); `scan()` and `refresh()` on the facade.
   - Rules: RES-07, RES-08, UPD-06, UPD-07
