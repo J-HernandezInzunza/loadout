@@ -155,13 +155,21 @@ export function assertSpliceable(text: string, type: EntryType): void {
 }
 
 /** EDIT-07: items start with exactly four spaces and `- name:`; quotes around the name are dropped. */
-function itemsOf(lines: string[], { idx, end }: Section): { name: string; line: number }[] {
-  const items = [];
+function itemsOf(lines: string[], { idx, end }: Section): Item[] {
+  const items: Item[] = [];
   for (let i = idx + 1; i < end; i++) {
     const m = lines[i]!.startsWith("    - ") ? ITEM_NAME_RE.exec(lines[i]!) : null;
     if (m) items.push({ name: strip(m[1]!).replace(/^["']+|["']+$/g, ""), line: i });
   }
   return items;
+}
+
+type Item = { name: string; line: number };
+
+function prepare(lines: string[], section: string): { sec: Section; items: Item[] } {
+  const sec = locateSection(lines, section);
+  checkLayout(lines, sec);
+  return { sec, items: itemsOf(lines, sec) };
 }
 
 /**
@@ -189,9 +197,7 @@ export function spliceEntry(text: string, entry: Omit<Entry, "catalog">): string
   const lines = text.split("\n");
   const block = renderEntry(entry);
   if (!findSection(lines, section)) return insertSection(lines, section, block);
-  const sec = locateSection(lines, section);
-  checkLayout(lines, sec);
-  const items = itemsOf(lines, sec);
+  const { sec, items } = prepare(lines, section);
   if (items.some((i) => i.name === entry.name)) {
     throw new LibraryError("DUPLICATE", `'${entry.name}' already exists in ${section}`);
   }
@@ -206,5 +212,45 @@ export function spliceEntry(text: string, entry: Omit<Entry, "catalog">): string
     while (at - 1 > sec.idx && isBlank(lines[at - 1]!)) at--;
   }
   lines.splice(at, 0, ...block);
+  return lines.join("\n");
+}
+
+/** Index of the item's last own line: lines indented six or more, blanks only between them (D3). */
+function ownEnd(lines: string[], target: number, limit: number): number {
+  let last = target;
+  for (let j = target + 1; j < limit; j++) {
+    if (isBlank(lines[j]!)) continue;
+    if (indent(lines[j]!) < 6) break;
+    last = j;
+  }
+  return last;
+}
+
+/** The named item's line and the line where the next item (or the section) starts. */
+function target(items: Item[], name: string, section: string, sec: Section): { line: number; limit: number } {
+  const k = items.findIndex((i) => i.name === name);
+  if (k < 0) throw new LibraryError("NOT_FOUND", `'${name}' not found in ${section}`);
+  return { line: items[k]!.line, limit: items[k + 1]?.line ?? sec.end };
+}
+
+/**
+ * D3 (EDIT-10, EDIT-11): delete the item's own lines plus the blank lines after them, or, for the
+ * last item, the blank lines above it, so the separator before the next section stays. Comments
+ * indented under six spaces are never deleted; an emptied section becomes `[]`.
+ */
+export function removeEntry(text: string, type: EntryType, name: string): string {
+  const section = PLURAL[type];
+  const lines = text.split("\n");
+  const { sec, items } = prepare(lines, section);
+  const { line, limit } = target(items, name, section, sec);
+  let start = line;
+  let stop = ownEnd(lines, line, limit) + 1;
+  if (line === items.at(-1)!.line) {
+    while (start - 1 > sec.idx && isBlank(lines[start - 1]!)) start--;
+  } else {
+    while (stop < limit && isBlank(lines[stop]!)) stop++;
+  }
+  lines.splice(start, stop - start);
+  if (items.length === 1) lines[sec.idx] = `  ${section}: []`;
   return lines.join("\n");
 }

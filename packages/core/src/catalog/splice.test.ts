@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { expected, expectedReplay, loadGolden, replaySplice, type FixtureEntry, type SpliceCase, type SpliceImpl } from "../../test/golden.ts";
-import { assertSpliceable, renderEntry, spliceEntry, validateRef } from "./splice.ts";
+import { assertSpliceable, removeEntry, renderEntry, spliceEntry, validateRef } from "./splice.ts";
 
 const fixture = loadGolden("splice");
 const notYet = () => {
   throw new Error("not implemented");
 };
-const impl: SpliceImpl = { renderEntry, spliceEntry, removeEntry: notYet, replaceEntry: notYet };
+const impl: SpliceImpl = { renderEntry, spliceEntry, removeEntry, replaceEntry: notYet };
 const renderCases = fixture.cases.filter((c) => c.id.startsWith("render/"));
 
 describe("renderEntry", () => {
@@ -51,12 +51,8 @@ const targetExists = (c: SpliceCase) => {
   const type = "type" in op ? op.type : op.entry.type;
   return new RegExp(`^  ${PLURAL[type]}:`, "m").test(fixture.texts[c.text!]!.text);
 };
-// Remove and replace land in M1.10 and M1.11; until then their cases reach the layout check directly.
-const checkOnly: SpliceImpl = {
-  ...impl,
-  removeEntry: (text, type) => (assertSpliceable(text, type), notYet()),
-  replaceEntry: (text, type) => (assertSpliceable(text, type), notYet()),
-};
+// Replace lands in M1.11; until then its cases reach the layout check directly.
+const checkOnly: SpliceImpl = { ...impl, replaceEntry: (text, type) => (assertSpliceable(text, type), notYet()) };
 const replays = (c: SpliceCase) => expect(replaySplice(fixture, c, impl)).toMatchObject(expectedReplay(c));
 
 describe("spliceEntry", () => {
@@ -133,6 +129,28 @@ describe("spliceEntry into a missing section", () => {
     const entry: FixtureEntry = { type: "agent", name: "r", description: "R", source: "./r", requires: [] };
     expect(spliceEntry(text, entry)).toBe(
       "library:\n  skills:\n    - name: a\n      description: A\n      source: ./a\n  agents:\n    - name: r\n      description: R\n      source: ./r\n\n  prompts: []\n",
+    );
+  });
+});
+
+describe("removeEntry", () => {
+  const removes = fixture.cases.filter((c) => c.ops.some((o) => o.op === "remove"));
+  const commented = ["r-spaced-commented", "py-commented-item", "py-commented-section"];
+
+  it("has the 330 cases with a remove, round trips included", () => {
+    expect(removes).toHaveLength(330);
+  });
+
+  it.each(byCase(removes))("EDIT-10: %s", (_, c) => replays(c));
+
+  it.each(byCase(removes.filter((c) => commented.includes(c.text!))))(
+    "EDIT-11: comments outside the item's own lines stay (%s)",
+    (_, c) => replays(c),
+  );
+
+  it("EDIT-10: refuses an unknown name with NOT_FOUND", () => {
+    expect(() => removeEntry("library:\n  skills: []\n", "skill", "x")).toThrow(
+      expect.objectContaining({ code: "NOT_FOUND", message: "'x' not found in skills" }),
     );
   });
 });
