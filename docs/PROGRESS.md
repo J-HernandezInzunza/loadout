@@ -49,3 +49,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M3.01 4ed2782 createPullRequest for GitHub and Bitbucket: create, duplicate -> existing PR by listing the head branch, expired-token refresh via tokenFor, AUTH_FAILED/API_FAILED/NOT_CONNECTED
 2026-10-28 M3.02 26c4a0e writeTarget: add (named / only writable / NO_WRITABLE_CATALOG / AMBIGUOUS_CATALOG with ids) and update/remove (resolved-from catalog, holders in order, optional type)
 2026-10-28 M3.03 2321b61 computeEdit (from the exact text, field no-op, verify), planCatalogEdit/applyCatalogEdit (fingerprint, STALE_PLAN, atomic), unifiedDiff (difflib ranges, deletions first), WriteResult + inPlaceResult
+2026-10-28 M3.04 3ee09be planLocalWrite/applyLocalWrite: atomic in-place write, no git even in a work tree, committed/pushed false, dry-run diff by basename

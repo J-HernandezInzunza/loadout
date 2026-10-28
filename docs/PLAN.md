@@ -421,7 +421,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.02, M1.11
   - Done when: each rule has a test; a file changed between plan and apply returns `STALE_PLAN`.
 
-- [ ] **M3.04 Local mode.** Write the file; no git (Q11).
+- [x] **M3.04 Local mode.** Write the file; no git (Q11).
   - Rules: WRITE-14
   - Depends: M3.03
   - Done when: WRITE-14 has a test; the result reports `committed: false`, `pushed: false`.
