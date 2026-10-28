@@ -397,7 +397,7 @@ cover arch §4.5 rules 1–7.
 Exit: every M3 task checked; WRITE and EDIT rules covered; a PR-mode test checks the branch name,
 the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was dropped, arch §5.5).
 
-- [ ] **M3.01 PR API clients.** `git/pullRequests.ts`: `createPullRequest(host, repo, { base, head,
+- [x] **M3.01 PR API clients.** `git/pullRequests.ts`: `createPullRequest(host, repo, { base, head,
   title, body })` for GitHub (`POST /repos/{owner}/{repo}/pulls`) and Bitbucket
   (`POST /2.0/repositories/{workspace}/{repo}/pullrequests`) through `Host.http` with the account's
   token; a duplicate resolves to the existing PR's URL (QUESTIONS.md Q2); other failures are typed.
