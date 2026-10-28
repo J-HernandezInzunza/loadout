@@ -33,6 +33,13 @@ describe("packages/core import boundary", () => {
     expect(await restrictedImportErrors('import type { Host } from "./host.ts";', "packages/core/src/x.ts")).toEqual([]);
   });
 
+  it.each(["packages/core/src/x.test.ts", "packages/core/test/sandbox.ts"])(
+    "lets the core's tests use Node built-ins (%s)",
+    async (filePath) => {
+      expect(await restrictedImportErrors('import { readFile } from "node:fs/promises";', filePath)).toEqual([]);
+    },
+  );
+
   it("does not restrict the desktop app", async () => {
     expect(await restrictedImportErrors('import { ref } from "vue";', "apps/desktop/src/x.ts")).toEqual([]);
   });

@@ -22,6 +22,8 @@ export default defineConfig([
   {
     // The core runs in the webview behind the Host port (architecture.md §2.1, §8.1).
     files: ["packages/core/**/*.{js,ts}"],
+    // Tests run on Node: they read fixtures and build the sandbox host.
+    ignores: ["packages/core/**/*.test.ts", "packages/core/test/**"],
     languageOptions: { globals: {} },
     rules: {
       "no-restricted-imports": [

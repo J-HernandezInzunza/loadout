@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/core" },
     { "path": "packages/host-node" },
+    { "path": "packages/core/test" },
     { "path": "test" }
   ]
 }
