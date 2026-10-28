@@ -94,6 +94,6 @@ export const ops = {
   scan: { input: z.strictObject({}), output: ScanReport },
   refresh: {
     input: z.strictObject({}),
-    output: z.array(z.strictObject({ id: z.string(), outcome: z.enum(["cloned", "pulled", "skipped"]) })),
+    output: z.array(z.strictObject({ id: z.string(), outcome: z.enum(["cloned", "pulled", "cached", "skipped"]) })),
   },
 };

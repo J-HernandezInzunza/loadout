@@ -77,7 +77,7 @@ describe("persistent catalog clones", () => {
     h.git(["update-ref", "-d", "refs/heads/main"], { cwd: repo.path });
 
     const res = await refresh(refs);
-    expect(res.value).toEqual([{ id: "team", outcome: "skipped" }]);
+    expect(res.value).toEqual([{ id: "team", outcome: "cached" }]);
     expect(res.warnings).toEqual([{ message: expect.stringMatching(/^catalog 'team': pull failed: .+; using the cached copy$/) }]);
     const registry = await loadRegistry(sb.host, config(refs));
     expect(registry.entriesOf("team").map((e) => e.name)).toEqual(["one"]);

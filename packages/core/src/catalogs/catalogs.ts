@@ -11,7 +11,8 @@ type RemoteRef = Extract<CatalogRef, { kind: "remote" }>;
 
 export interface CatalogRefresh {
   id: string;
-  outcome: "cloned" | "pulled" | "skipped";
+  /** cached: the pull failed and the existing clone still serves (RCAT-04); skipped: nothing usable */
+  outcome: "cloned" | "pulled" | "cached" | "skipped";
 }
 
 export type CatalogStatus =
@@ -62,7 +63,7 @@ async function refreshOne(host: Host, git: GitClient, ref: RemoteRef, opts: Call
   }
   const pulled = await git.pullFfOnly(clone, opts);
   if (pulled.ok) return { outcome: "pulled" };
-  return { outcome: "skipped", warning: { message: `catalog '${ref.id}': ${pulled.error.message}; using the cached copy` } };
+  return { outcome: "cached", warning: { message: `catalog '${ref.id}': ${pulled.error.message}; using the cached copy` } };
 }
 
 /** RCAT-03: clone absent remote catalogs, fast-forward present ones; per-catalog warnings, never an error. */
