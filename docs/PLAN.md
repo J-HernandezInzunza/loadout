@@ -433,7 +433,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.03, M2.09
   - Done when: each rule has a test against the harness, including a stale push.
 
-- [ ] **M3.06 PR mode.** Temp single-branch clone, branch `library/<op>-<name>-<%Y%m%dT%H%M%S>`
+- [x] **M3.06 PR mode.** Temp single-branch clone, branch `library/<op>-<name>-<%Y%m%dT%H%M%S>`
   with a `-2`… suffix on collision, commit, `push -u`, compare URL; then, when an account for the
   catalog's host is connected, open the PR through M3.01 (GitHub and Bitbucket alike), else return the
   manual result with the compare URL; an API failure is a warning with the compare URL; commit and PR
