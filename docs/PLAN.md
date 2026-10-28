@@ -108,7 +108,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: every case containing a `replace` op passes; together with M1.07–M1.10, all 896
     splice cases pass.
 
-- [ ] **M1.12 Catalog read.** `catalog/read.ts`: `parseCatalog(text)` with `yaml` (eemeli) in YAML
+- [x] **M1.12 Catalog read.** `catalog/read.ts`: `parseCatalog(text)` with `yaml` (eemeli) in YAML
   1.1 mode; `catalogEntries(data, catalogId)` in section order skills, agents, prompts; field
   validation the CLI lacks: a non-string `name`/`description`/`source`, or a `requires` that is not
   a list of strings, is a typed per-entry problem, not a crash (the CLI turns `requires: skill:b`
