@@ -146,7 +146,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Depends: M1.12
   - Done when: every `registry.json` case yields the same problem list, in the same order.
 
-- [ ] **M1.17 One-time import.** `planImport(toolDir?)` / `applyImport(plan)`: find the tool dir
+- [x] **M1.17 One-time import.** `planImport(toolDir?)` / `applyImport(plan)`: find the tool dir
   through the `~/.claude/skills/library` symlink (or take one); parse `config.local.yaml` (YAML 1.1);
   refuse when `validateRegistry` reports problems; normalize the legacy `catalog:` form; map
   catalogs (with explicit `protected`, `writable`) and pins; report, without importing,
