@@ -37,8 +37,13 @@ export interface GitClient {
   /** Local: the object a rev names in `dir`, or null. */
   revParse(dir: string, rev: string): Promise<string | null>;
   pullFfOnly(dir: string, opts?: CallOpts): Promise<Result<void>>;
-  /** RCAT-07: commits HEAD is behind origin/<branch> after a fetch; "unknown" when it could not fetch (A6). */
-  behindCount(dir: string, branch: string, opts?: CallOpts): Promise<number | "unknown">;
+  /**
+   * RCAT-07, RCAT-10: after a fetch, commits HEAD is behind origin/<branch> and commits it has that
+   * origin lacks; "unknown" when it could not fetch (A6).
+   */
+  divergence(dir: string, branch: string, opts?: CallOpts): Promise<{ behind: number; ahead: number } | "unknown">;
+  /** Local: `remote.origin.url` of the clone at `dir`, or "" when it has none. */
+  originUrl(dir: string): Promise<string>;
 }
 
 /** FETCH-03. GIT_SSH_COMMAND is always set: the core cannot see the user's environment, and a Finder launch carries none. */
@@ -162,13 +167,16 @@ export function createGitClient(host: Host, opts: GitClientOptions = {}): GitCli
       return res.code === 0 ? ok(undefined) : err({ code: "GIT_FAILED", message: `pull failed: ${res.summary}` });
     },
 
-    async behindCount(dir, branch, o = {}) {
+    async divergence(dir, branch, o = {}) {
       const fetched = await network(await originUrl(dir), ["-C", dir, "fetch", "--quiet", "origin", branch], undefined, o);
       if (fetched.code !== 0) return "unknown";
-      const res = await local(dir, ["rev-list", "--count", `HEAD..origin/${branch}`]);
-      const n = Number.parseInt(res.stdout.trim(), 10);
-      return res.code === 0 && Number.isInteger(n) ? n : "unknown";
+      // "<ahead>\t<behind>": left side is HEAD, right side origin.
+      const res = await local(dir, ["rev-list", "--left-right", "--count", `HEAD...origin/${branch}`]);
+      const [ahead, behind] = res.stdout.trim().split(/\s+/).map((n) => Number.parseInt(n, 10));
+      return res.code === 0 && Number.isInteger(ahead) && Number.isInteger(behind) ? { behind: behind!, ahead: ahead! } : "unknown";
     },
+
+    originUrl,
   };
 }
 

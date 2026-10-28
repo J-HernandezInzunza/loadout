@@ -104,7 +104,7 @@ describe("git client: environment", () => {
     await git.clone([remote.https], dest(), { branch: "main", signal });
     await git.lsRemoteHead([remote.https], "main", { signal });
     await git.pullFfOnly(dest(), { signal });
-    await git.behindCount(dest(), "main", { signal });
+    await git.divergence(dest(), "main", { signal });
     await git.revParse(dest(), "HEAD");
 
     for (const c of calls) {
@@ -191,14 +191,15 @@ describe("git client: persistent clones", () => {
     const remote = h.createRepo("github.com", "o/r");
     remote.commit({ "a.md": "1\n" });
     await git.clone([remote.https], dest(), { branch: "main" });
-    expect(await git.behindCount(dest(), "main")).toBe(0);
+    expect(await git.divergence(dest(), "main")).toEqual({ behind: 0, ahead: 0 });
+    expect(await git.originUrl(dest())).toBe(remote.https);
 
     remote.commit({ "a.md": "2\n" });
     remote.commit({ "a.md": "3\n" });
-    expect(await git.behindCount(dest(), "main")).toBe(2);
+    expect(await git.divergence(dest(), "main")).toEqual({ behind: 2, ahead: 0 });
     expect(await git.pullFfOnly(dest())).toMatchObject({ ok: true });
     expect(readFileSync(join(dest(), "a.md"), "utf8")).toBe("3\n");
-    expect(await git.behindCount(dest(), "main")).toBe(0);
+    expect(await git.divergence(dest(), "main")).toEqual({ behind: 0, ahead: 0 });
   });
 
   it("a diverged clone fails to pull with a summary", async () => {
@@ -209,6 +210,7 @@ describe("git client: persistent clones", () => {
     remote.setBranch("main", remote.commit({ "b.md": "b\n" }, { branch: "rewrite" }));
     h.git(["commit", "--allow-empty", "-q", "-m", "local"], { cwd: dest() });
     expect(base).not.toBe(remote.head());
+    expect(await git.divergence(dest(), "main")).toEqual({ behind: 1, ahead: 2 }); // base + local commit; the rewrite is a new root
     const res = await git.pullFfOnly(dest());
     expect(res).toMatchObject({ ok: false, error: { code: "GIT_FAILED" } });
     expect(!res.ok && res.error.message).toMatch(/^pull failed: fatal: /);
@@ -220,7 +222,7 @@ describe("git client: persistent clones", () => {
     remote.commit({ "a.md": "1\n" });
     await git.clone([remote.https], dest(), { branch: "main" });
     h.git(["remote", "set-url", "origin", "https://github.com/o/gone.git"], { cwd: dest() });
-    expect(await git.behindCount(dest(), "main")).toBe("unknown");
+    expect(await git.divergence(dest(), "main")).toBe("unknown");
   });
 });
 
