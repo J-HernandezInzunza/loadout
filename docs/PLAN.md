@@ -73,7 +73,7 @@ where pins and authoring live; RCAT-01/03 to M2 with the git client.)
   - Done when: all 4,693 cases in `scalar.json` match byte for byte, and every `multiline` case
     throws `MULTILINE_VALUE`.
 
-- [ ] **M1.06 Render entry and ref validation.** `catalog/splice.ts` `renderEntry(e)`;
+- [x] **M1.06 Render entry and ref validation.** `catalog/splice.ts` `renderEntry(e)`;
   `validateRef(ref)`: `type:name` with type in skill/agent/prompt, and no `"`, `\` or control
   characters (A11).
   - Rules: EDIT-01, DEP-11
