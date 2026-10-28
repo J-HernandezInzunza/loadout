@@ -344,7 +344,7 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.16
   - Done when: rule 7 has a test, including a simulated `EXDEV` and an occupied destination.
 
-- [ ] **M2.18 Uninstall.** `uninstall({ names, forcePaths })`: global destinations only, refuse an
+- [x] **M2.18 Uninstall.** `uninstall({ names, forcePaths })`: global destinations only, refuse an
   unmanaged destination unless its exact path is in `forcePaths`, prune receipts of absent dests,
   delete the skill's override and report it (Q17 A).
   - Rules: UNIN-01, UNIN-02

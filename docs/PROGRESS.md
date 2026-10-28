@@ -41,3 +41,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M2.15 bad3e94 createClaudeSettings: readSkillOverrides/editSkillOverrides; strict-JSON gate, minimal jsonc edits (byte-identical elsewhere), real-file writes, mode kept, one re-read on concurrent change, configDir for CLAUDE_CONFIG_DIR; jsonc-parser 3.3.1
 2026-10-28 M2.16 df1668b setSkillState (rules 1, 5, 6; Q14 A read-only values; Q15 A agents refused) and managedSkillOverrides (rule 4; JSON file only, MDM plist not readable)
 2026-10-28 M2.17 105bbc3 planMigrateParked/applyMigrateParked: off written first, rename or EXDEV copy-verify-delete, occupied and symlink-bearing cross-volume copies left and reported; skills only (the CLI parked nothing else)
+2026-10-28 M2.18 97f959f uninstall: deleted/pruned/absent/refused per item, forcePaths by exact path, override removed and reported (Q17 A), names resolvable from receipts after leaving the catalog
