@@ -47,3 +47,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-28 M2.21 9d00c99 planAddCatalog/applyAddCatalog (prove before save, explicit protected), initCatalog (A18), removeCatalog (A19 global purge incl. overrides, clone purge); refresh outcome 'cached' for a failed pull
 2026-10-28 M2.22 310101d doctor (checks 3, 4, 7-10, 13-31 + git/xcode, accounts, managed, diverged with recloneCatalog); xcode-select inferred from git --version (HostProc runs git only); check 10 asks for the catalog's branch
 2026-10-28 M3.01 4ed2782 createPullRequest for GitHub and Bitbucket: create, duplicate -> existing PR by listing the head branch, expired-token refresh via tokenFor, AUTH_FAILED/API_FAILED/NOT_CONNECTED
+2026-10-28 M3.02 26c4a0e writeTarget: add (named / only writable / NO_WRITABLE_CATALOG / AMBIGUOUS_CATALOG with ids) and update/remove (resolved-from catalog, holders in order, optional type)

@@ -406,7 +406,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Done when: create, duplicate, expired-token-then-refresh and server-error cases pass against the
     stub, for both hosts.
 
-- [ ] **M3.02 Write target.** `writeTarget(req)`: explicit catalog (unknown, skipped,
+- [x] **M3.02 Write target.** `writeTarget(req)`: explicit catalog (unknown, skipped,
   `writable: false`), no catalog (none writable, one, several → `AMBIGUOUS_CATALOG`), and for
   update/remove the catalog the entry resolved from (`AMBIGUOUS_CATALOG` with holders).
   - Rules: WRITE-01, WRITE-02, WRITE-03, WRITE-04
