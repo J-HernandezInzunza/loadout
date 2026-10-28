@@ -18,7 +18,7 @@ The first `npm run check` compiles Tauri's Rust dependencies (a few minutes). La
 
 ## The gate: `npm run check`
 
-Nothing merges unless this is green. It runs four checks in order and stops at the first failure:
+Nothing merges unless this is green. It runs five checks in order and stops at the first failure:
 
 | Script | Runs | Catches |
 |---|---|---|
@@ -26,6 +26,7 @@ Nothing merges unless this is green. It runs four checks in order and stops at t
 | `lint` | ESLint | rule breaks, including the import boundary: `packages/core` may not import Vue, Pinia, Tauri or Node built-ins (it runs in the webview, behind the `Host` port) |
 | `test` | Vitest, every `*.test.ts` | behavior against the spec and the golden fixtures |
 | `cargo:check` | `cargo check --locked --offline` | Rust errors and invalid Tauri config or capabilities |
+| `cargo:test` | `cargo test --locked --offline` | the Rust unit tests (PATH repair for a Finder-launched app) |
 
 `npm run check:offline` runs the same gate in a macOS sandbox with the network blocked
 (`tools/offline.sb`). Tests must never reach the network: git tests use local `file://` repos.
@@ -34,7 +35,7 @@ Nothing merges unless this is green. It runs four checks in order and stops at t
 
 `.github/workflows/ci.yml` runs on every pull request to `main` and every push to `main`, on a
 clean macOS machine. It downloads and builds dependencies first, then runs
-`npm run check:offline`. On a PR it shows as **CI / Typecheck, lint, test, cargo check (offline)**.
+`npm run check:offline`. On a PR it shows as **CI / Typecheck, lint, test, cargo check and test (offline)**.
 To run it by hand: Actions tab → CI → Run workflow (only for workflows already on `main`).
 
 ## Repository layout

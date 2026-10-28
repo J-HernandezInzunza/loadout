@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, lint, test, cargo check (offline)
+    name: Typecheck, lint, test, cargo check and test (offline)
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -37,6 +37,8 @@ jobs:
       - run: cargo fetch --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
       # Compiles Tauri's dependencies (minutes when the cache is cold) outside the gate's budget.
       - name: Build Rust dependencies
-        run: cargo check --locked --offline --manifest-path apps/desktop/src-tauri/Cargo.toml
+        run: |
+          cargo check --locked --offline --manifest-path apps/desktop/src-tauri/Cargo.toml
+          cargo test --locked --offline --no-run --manifest-path apps/desktop/src-tauri/Cargo.toml
 
       - run: npm run check:offline
