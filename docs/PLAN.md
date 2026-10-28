@@ -461,7 +461,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.04, M3.07
   - Done when: each rule has a test; a batch of three lands as one write.
 
-- [ ] **M3.09 Update.** `planUpdate` per §3.15: edits through `replaceEntry` (D4), name and type
+- [x] **M3.09 Update.** `planUpdate` per §3.15: edits through `replaceEntry` (D4), name and type
   fixed, `setSource` validated like add, no-op when fields are equal, unknown-dependency warning
   against the fresh text.
   - Rules: EDIT-12, WRITE-15, DEP-10
