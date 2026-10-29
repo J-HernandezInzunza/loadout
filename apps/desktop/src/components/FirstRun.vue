@@ -210,14 +210,15 @@ onMounted(() => planImport());
         </h3>
         <p class="first-run__line">
           A team's catalog is a git repository you clone; a personal one is a file on this machine that only you write
-          to.
+          to. If the team's lives on GitHub or Bitbucket, connecting that account lets you pick it from your
+          repositories and clone it without an SSH key.
         </p>
         <div class="first-run__actions">
           <button
             type="button"
             @click="adding = 'remote'"
           >
-            Paste a repository URL…
+            Add your team's catalog…
           </button>
           <button
             type="button"

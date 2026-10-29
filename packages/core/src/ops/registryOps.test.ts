@@ -134,6 +134,23 @@ describe("facade: registry, accounts and maintenance", () => {
     expect(await sb.host.secrets.get("github")).toBeNull();
   });
 
+  it("listRepos and checkCatalogRepo answer through the instance's accounts and API bases", async () => {
+    const { stub, library } = await setup({ A: ["x"] });
+    stub.addToken("bitbucket", "bb-token", "jose");
+    stub.addRepo("bitbucket", { org: "sedteam", name: "agent-library", defaultBranch: "main", readers: ["jose"], files: { main: ["library.yaml"] } });
+    value(await library.connect("bitbucket", { accessToken: "bb-token" }), ops.connect.output);
+    expect(value(await library.listRepos("bitbucket"), ops.listRepos.output)).toEqual([
+      { org: "sedteam", name: "agent-library", private: false, repo: "https://bitbucket.org/sedteam/agent-library.git" },
+    ]);
+    expect(value(await library.checkCatalogRepo({ on: "bitbucket", org: "sedteam", name: "agent-library" }), ops.checkCatalogRepo.output)).toEqual({
+      defaultBranch: "main",
+      branch: "main",
+      yamlPath: "library.yaml",
+      found: true,
+    });
+    expect(await library.listRepos("github")).toMatchObject({ ok: false, error: { code: "NOT_CONNECTED" } });
+  });
+
   it("beginSignIn/completeSignIn connect a GitHub account through the device flow; a build without the Bitbucket consumer can't sign in there", async () => {
     const { stub, library } = await setup({ A: ["x"] });
     const started = value(await library.beginSignIn("github"), ops.beginSignIn.output);

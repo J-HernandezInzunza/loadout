@@ -312,6 +312,14 @@ export const ops = {
   connect: { input: z.strictObject({ on: AccountHost, tokens: TokenSet }), output: AccountInfo },
   disconnect: { input: z.strictObject({ on: AccountHost }), output: z.undefined() },
   checkAccount: { input: z.strictObject({ on: AccountHost }), output: z.strictObject({ login: z.string(), scopes: z.array(z.string()).nullable() }) },
+  listRepos: {
+    input: z.strictObject({ on: AccountHost }),
+    output: z.array(z.strictObject({ org: z.string(), name: z.string(), private: z.boolean(), repo: z.string() })),
+  },
+  checkCatalogRepo: {
+    input: z.strictObject({ on: AccountHost, org: z.string(), name: z.string(), branch: z.string().exactOptional(), yamlPath: z.string().exactOptional() }),
+    output: z.strictObject({ defaultBranch: z.string(), branch: z.string(), yamlPath: z.string(), found: z.boolean() }),
+  },
   beginSignIn: { input: z.strictObject({ on: AccountHost }), output: SignIn },
   completeSignIn: { input: z.strictObject({ started: SignIn, redirectUrl: z.string().exactOptional() }), output: AccountInfo },
   planAdd: {

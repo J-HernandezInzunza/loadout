@@ -135,7 +135,7 @@ describe("first run: nothing registered", () => {
     expect(wrapper.findAll("button").some((b) => b.text() === "Import")).toBe(false);
   });
 
-  it("adds a team catalog from a pasted repository URL and lands on the loaded list", async () => {
+  it("adds a team catalog from a clone URL on another host and lands on the loaded list", async () => {
     const fake = emptyState();
     const requests: unknown[] = [];
     const { wrapper } = mountFirstRun({
@@ -144,8 +144,9 @@ describe("first run: nothing registered", () => {
       applyAddCatalog: async () => (fake.register(), ok([{ id: "shared", kind: "local" as const, path: "/x" }])),
     }, fake);
     await flushPromises();
-    await press(wrapper, "Paste a repository URL…");
+    await press(wrapper, "Add your team's catalog…");
     expect(wrapper.find("input[value=remote]").element).toHaveProperty("checked", true);
+    await wrapper.find("input[value=elsewhere]").setValue(true);
     // The first catalog has nothing to collide with, so precedence isn't asked.
     expect(wrapper.text()).not.toContain("use this catalog's copy");
     const [id, repo, branch] = wrapper.findAll("input[type=text]");
@@ -179,7 +180,7 @@ describe("first run: nothing registered", () => {
   it("goes back from adding to set-up", async () => {
     const { wrapper } = mountFirstRun();
     await flushPromises();
-    await press(wrapper, "Paste a repository URL…");
+    await press(wrapper, "Add your team's catalog…");
     await press(wrapper, "← Set up Loadout");
     expect(text(wrapper, ".first-run__title")).toEqual(["Import from the Python CLI", "Add a catalog"]);
   });

@@ -4,6 +4,7 @@
 import type { z } from "zod";
 import { createAccounts, type AccountHost, type TokenSet } from "../accounts/accounts.ts";
 import { defaultApiBases, type ApiBases } from "../accounts/apiBases.ts";
+import { checkCatalogRepo, listRepos, type CatalogRepo, type HostedRepo } from "../git/repos.ts";
 import {
   beginBitbucketSignIn,
   beginGitHubSignIn,
@@ -142,6 +143,10 @@ export interface Library {
    * SIGN_IN_EXPIRED or CANCELLED otherwise.
    */
   completeSignIn(started: IssuedSignIn, opts?: { signal?: AbortSignal; redirectUrl?: string }): Promise<Result<AccountInfo>>;
+  /** Every repository the host's connected account can read, owned or not, to pick a shared catalog from. */
+  listRepos(on: AccountHost, opts?: { signal?: AbortSignal }): Promise<Result<HostedRepo[]>>;
+  /** A repo's default branch and whether its catalog file is there, before planAddCatalog clones it. */
+  checkCatalogRepo(req: { on: AccountHost; org: string; name: string; branch?: string; yamlPath?: string; signal?: AbortSignal }): Promise<Result<CatalogRepo>>;
 
   /** One entry or a batch, landing as one write in the target catalog's write mode. */
   planAdd(req: AddRequest & { signal?: AbortSignal }): Promise<Result<IssuedCatalogEditPlan, WriteTargetErr>>;
@@ -479,6 +484,14 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
       const token = await accounts.tokenFor(on);
       if (!token.ok) return token;
       return accounts.whoami(on, token.value);
+    },
+
+    async listRepos(on, o = {}) {
+      return listRepos({ host, accounts, apiBases }, on, o);
+    },
+
+    async checkCatalogRepo(req) {
+      return checkCatalogRepo({ host, accounts, apiBases }, req);
     },
 
     async beginSignIn(on) {
