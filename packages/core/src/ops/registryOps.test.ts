@@ -129,7 +129,7 @@ describe("facade: registry, accounts and maintenance", () => {
     expect(await sb.host.secrets.get("github")).toBeNull();
   });
 
-  it("beginSignIn/completeSignIn connect a GitHub account through the device flow; Bitbucket isn't available yet", async () => {
+  it("beginSignIn/completeSignIn connect a GitHub account through the device flow; a build without the Bitbucket consumer can't sign in there", async () => {
     const { stub, library } = await setup({ A: ["x"] });
     const started = value(await library.beginSignIn("github"), ops.beginSignIn.output);
     expect(started).toMatchObject({ on: "github", userCode: "CODE-0001", verificationUri: "https://github.com/login/device" });

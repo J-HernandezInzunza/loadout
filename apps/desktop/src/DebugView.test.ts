@@ -2,8 +2,8 @@ import { flushPromises, mount } from "@vue/test-utils";
 import type { EntryRecord, LaunchReport, Library, PlanItem, Result } from "@loadout/core";
 import { createFakeLibrary } from "@loadout/core/testing";
 import { emit } from "@tauri-apps/api/event";
-import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { clearMocks, mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import { afterEach, describe, expect, it } from "vitest";
 import DebugView from "./DebugView.vue";
 import { createAuditLog } from "./host-tauri/audit.ts";
 
@@ -170,36 +170,45 @@ describe("DebugView actions", () => {
   });
 });
 
-describe("DebugView Bitbucket redirect spike", () => {
-  afterEach(() => {
-    clearMocks();
-    vi.unstubAllEnvs();
+describe("DebugView Bitbucket sign-in", () => {
+  afterEach(() => clearMocks());
+
+  function mockApp() {
+    const calls: [string, unknown][] = [];
+    mockWindows("main");
+    mockIPC((cmd, payload) => void calls.push([cmd, payload]), { shouldMockEvents: true });
+    return calls;
+  }
+
+  it("opens the consent page, then on the loadout:// redirect comes forward and reports the account", async () => {
+    const calls = mockApp();
+    const started = { on: "bitbucket", authorizeUrl: "https://bitbucket.org/site/oauth2/authorize?client_id=k&state=s" };
+    const completed: unknown[] = [];
+    const { wrapper } = setup(ready, {
+      beginSignIn: async () => ok(started as never),
+      completeSignIn: async (s, o) => (completed.push([s, o]), ok({ login: "jose", scopes: [], connectedAt: "2026-10-29T12:00:00Z" })),
+    });
+    await flushPromises();
+    await wrapper.find("[data-test=bitbucket-sign-in]").trigger("click");
+    await flushPromises();
+    expect(calls).toContainEqual(["plugin:opener|open_url", { url: started.authorizeUrl }]);
+    expect(panelLines(wrapper)).toEqual(["Approve Loadout in your browser; Loadout comes back when you do."]);
+
+    const redirectUrl = "loadout://oauth/bitbucket?code=c&state=s";
+    await emit("deep-link://new-url", [redirectUrl]);
+    await flushPromises();
+    expect(calls.some(([cmd]) => cmd === "plugin:window|set_focus")).toBe(true);
+    expect(completed).toEqual([[started, { redirectUrl }]]);
+    expect(panelLines(wrapper)).toEqual(["Signed in to Bitbucket as jose. You can close the browser tab."]);
   });
 
-  it("opens the authorize page with a fresh state, and reports a redirect without showing the code", async () => {
-    vi.stubEnv("LOADOUT_BITBUCKET_CLIENT_ID", "cid");
-    const opened: string[] = [];
-    mockIPC(
-      (cmd, payload) => {
-        if (cmd === "plugin:opener|open_url") opened.push((payload as { url: string }).url);
-      },
-      { shouldMockEvents: true },
-    );
+  it("a redirect with no sign-in in progress asks to start again", async () => {
+    mockApp();
     const { wrapper } = setup(ready);
     await flushPromises();
-    await wrapper.find("[data-test=bitbucket-redirect]").trigger("click");
+    await emit("deep-link://new-url", ["loadout://oauth/bitbucket?code=c&state=s"]);
     await flushPromises();
-
-    const authorize = new URL(opened[0]!);
-    expect(`${authorize.origin}${authorize.pathname}`).toBe("https://bitbucket.org/site/oauth2/authorize");
-    expect(authorize.searchParams.get("client_id")).toBe("cid");
-    expect(authorize.searchParams.get("response_type")).toBe("code");
-    const state = authorize.searchParams.get("state")!;
-
-    await emit("deep-link://new-url", [`loadout://oauth/bitbucket?code=secretcode123&state=${state}`]);
-    await flushPromises();
-    expect(panelLines(wrapper)).toEqual(["received loadout://oauth/bitbucket", "code: 13 characters", "state matches"]);
-    expect(wrapper.text()).not.toContain("secretcode123");
+    expect(panelLines(wrapper)).toEqual(["A Bitbucket sign-in came back, but none is in progress here; start it again."]);
   });
 });
 

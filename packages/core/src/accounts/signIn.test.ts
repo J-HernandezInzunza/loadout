@@ -3,19 +3,27 @@ import { createApiStub } from "../../test/apiStub.ts";
 import { createSandbox } from "../../test/sandbox.ts";
 import { createConfigStore } from "../config/config.ts";
 import { createAccounts } from "./accounts.ts";
-import { beginGitHubSignIn, completeGitHubSignIn, type SignInCtx } from "./signIn.ts";
+import { beginBitbucketSignIn, beginGitHubSignIn, completeBitbucketSignIn, completeGitHubSignIn, type SignInCtx } from "./signIn.ts";
 
 const t0 = new Date("2026-10-29T12:00:00.000Z");
 
-/** `githubClientId` null: a build without one. */
-async function setup(githubClientId: string | null = "gh-client") {
+const bitbucketClient = { id: "bb-key", secret: "bb-secret" };
+
+/** `githubClientId` null: a build without one; `bitbucket` false: a build without the consumer. */
+async function setup(githubClientId: string | null = "gh-client", bitbucket = true) {
   const sb = await createSandbox();
   const stub = await createApiStub();
   const clock = { now: t0 };
   const host = { ...sb.host, now: () => clock.now };
   const store = createConfigStore(host);
-  const accounts = createAccounts(host, store, { apiBases: stub.bases });
-  const ctx: SignInCtx = { host, apiBases: stub.bases, accounts, ...(githubClientId !== null && { githubClientId }) };
+  const accounts = createAccounts(host, store, { apiBases: stub.bases, ...(bitbucket && { bitbucketClient }) });
+  const ctx: SignInCtx = {
+    host,
+    apiBases: stub.bases,
+    accounts,
+    ...(githubClientId !== null && { githubClientId }),
+    ...(bitbucket && { bitbucketClient }),
+  };
   const begin = async () => {
     const started = await beginGitHubSignIn(ctx);
     if (!started.ok) throw new Error(started.error.message);
@@ -99,5 +107,70 @@ describe("GitHub sign-in (device flow)", () => {
 
     const wrong = await setup("someone-else");
     expect(await beginGitHubSignIn(wrong.ctx)).toMatchObject({ ok: false, error: { code: "API_FAILED", message: expect.stringContaining("incorrect_client_credentials") } });
+  });
+});
+
+describe("Bitbucket sign-in (authorization code to loadout://)", () => {
+  const redirect = (query: Record<string, string>) => `loadout://oauth/bitbucket?${new URLSearchParams(query)}`;
+
+  it("opens the consent page with a fresh state, exchanges the redirect's code, connects, and refreshes later", async () => {
+    const { sb, stub, host, clock, accounts, ctx } = await setup();
+    const started = beginBitbucketSignIn(ctx);
+    if (!started.ok) throw new Error(started.error.message);
+    const url = new URL(started.value.authorizeUrl);
+    expect(`${url.origin}${url.pathname}`).toBe(`${stub.bases.bitbucketAuth}/authorize`);
+    expect(Object.fromEntries(url.searchParams)).toEqual({ client_id: "bb-key", response_type: "code", state: started.value.state });
+    expect(beginBitbucketSignIn(ctx)).not.toMatchObject({ value: { state: started.value.state } });
+
+    stub.addAuthCode("code-1", "jose");
+    const connected = await completeBitbucketSignIn(ctx, started.value, redirect({ code: "code-1", state: started.value.state }));
+    expect(connected).toMatchObject({ ok: true, value: { login: "jose", connectedAt: t0.toISOString() } });
+    const exchange = stub.requests.find((r) => r.api === "bitbucketAuth")!;
+    expect(exchange.headers.authorization).toBe(`Basic ${btoa("bb-key:bb-secret")}`);
+    expect(Object.fromEntries(new URLSearchParams(exchange.body))).toEqual({ grant_type: "authorization_code", code: "code-1" });
+    const stored = JSON.parse((await host.secrets.get("bitbucket"))!);
+    expect(stored).toMatchObject({ accessToken: "bb-access-1", refreshToken: "bb-refresh-1", expiresAt: "2026-10-29T14:00:00.000Z" });
+
+    // Two hours on, the access token has lapsed and M2.04 refreshes it with the stored refresh token.
+    clock.now = new Date(t0.getTime() + 3 * 3_600_000);
+    expect(await accounts.tokenFor("bitbucket")).toEqual({ ok: true, value: "bb-access-2", warnings: [] });
+    expect(JSON.stringify(sb.audit)).not.toContain("bb-access");
+  });
+
+  it("refuses a redirect whose state isn't this sign-in's, before any exchange", async () => {
+    const { stub, ctx } = await setup();
+    const started = beginBitbucketSignIn(ctx);
+    if (!started.ok) throw new Error(started.error.message);
+    stub.addAuthCode("code-1", "jose");
+    expect(await completeBitbucketSignIn(ctx, started.value, redirect({ code: "code-1", state: "someone-elses" }))).toMatchObject({
+      ok: false,
+      error: { code: "AUTH_FAILED" },
+    });
+    expect(stub.requests).toEqual([]);
+  });
+
+  it("a declined consent is SIGN_IN_DENIED, and a used or stale code is SIGN_IN_EXPIRED", async () => {
+    const { stub, host, ctx } = await setup();
+    const started = beginBitbucketSignIn(ctx);
+    if (!started.ok) throw new Error(started.error.message);
+    const { state } = started.value;
+    expect(await completeBitbucketSignIn(ctx, started.value, redirect({ error: "access_denied", state }))).toMatchObject({
+      ok: false,
+      error: { code: "SIGN_IN_DENIED" },
+    });
+
+    stub.addAuthCode("code-1", "jose");
+    expect(await completeBitbucketSignIn(ctx, started.value, redirect({ code: "code-1", state }))).toMatchObject({ ok: true });
+    expect(await completeBitbucketSignIn(ctx, started.value, redirect({ code: "code-1", state }))).toMatchObject({
+      ok: false,
+      error: { code: "SIGN_IN_EXPIRED", message: expect.stringContaining("start the sign-in again") },
+    });
+    expect(await host.secrets.get("bitbucket")).not.toBeNull();
+  });
+
+  it("a build without the consumer reports Bitbucket sign-in unavailable", async () => {
+    const { stub, ctx } = await setup("gh-client", false);
+    expect(beginBitbucketSignIn(ctx)).toMatchObject({ ok: false, error: { code: "SIGN_IN_UNAVAILABLE" } });
+    expect(stub.requests).toEqual([]);
   });
 });

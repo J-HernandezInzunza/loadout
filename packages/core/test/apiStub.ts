@@ -39,6 +39,8 @@ export interface ApiStub {
   /** a Bitbucket refresh token; each refresh mints a fresh access token for `login` */
   addRefreshToken(refresh: string, login: string): void;
   pulls(api: "github" | "bitbucket"): StubPull[];
+  /** Bitbucket: an authorization code, as its consent page would redirect with, that exchanges for `login`'s tokens */
+  addAuthCode(code: string, login: string): void;
   /** GitHub device flow: the user approves `userCode` as `login`, which mints a token with `scopes` */
   approveDevice(userCode: string, login: string, scopes?: string[]): void;
   /** GitHub device flow: the user declines `userCode` */
@@ -63,6 +65,7 @@ export async function createApiStub(): Promise<ApiStub> {
   const requests: RecordedRequest[] = [];
   const tokens = new Map<string, { api: Api; login: string; scopes: string[]; expired: boolean }>();
   const refreshTokens = new Map<string, string>();
+  const authCodes = new Map<string, string>();
   const pulls: Record<"github" | "bitbucket", StubPull[]> = { github: [], bitbucket: [] };
   const failures: { match: { api: Api; method?: string; path?: string }; answer: Answer }[] = [];
   type Device = { userCode: string; state: "pending" | "slow" | "denied" | "expired" | { login: string; scopes: string[] } };
@@ -188,9 +191,20 @@ export async function createApiStub(): Promise<ApiStub> {
       return { status: 401, body: { error: "invalid_client", error_description: "Client credentials missing" } };
     }
     const form = new URLSearchParams(r.body);
-    const login = refreshTokens.get(form.get("refresh_token") ?? "");
-    if (form.get("grant_type") !== "refresh_token" || login === undefined) {
-      return { status: 400, body: { error: "invalid_grant", error_description: "Invalid refresh_token" } };
+    const grant = form.get("grant_type");
+    let login: string | undefined;
+    let refresh = form.get("refresh_token");
+    if (grant === "refresh_token") {
+      login = refreshTokens.get(refresh ?? "");
+    } else if (grant === "authorization_code") {
+      // Single use, as Bitbucket's codes are.
+      login = authCodes.get(form.get("code") ?? "");
+      authCodes.delete(form.get("code") ?? "");
+      refresh = `bb-refresh-${minted + 1}`;
+      if (login !== undefined) refreshTokens.set(refresh, login);
+    }
+    if (login === undefined) {
+      return { status: 400, body: { error: "invalid_grant", error_description: `Invalid ${grant === "authorization_code" ? "code" : "refresh_token"}` } };
     }
     const access = `bb-access-${++minted}`;
     tokens.set(access, { api: "bitbucket", login, scopes: [], expired: false });
@@ -198,7 +212,7 @@ export async function createApiStub(): Promise<ApiStub> {
       status: 200,
       body: {
         access_token: access,
-        refresh_token: form.get("refresh_token"),
+        refresh_token: refresh,
         expires_in: 7200,
         token_type: "bearer",
         scopes: "account repository:write pullrequest:write",
@@ -284,6 +298,9 @@ export async function createApiStub(): Promise<ApiStub> {
     },
     addRefreshToken(refresh, login) {
       refreshTokens.set(refresh, login);
+    },
+    addAuthCode(code, login) {
+      authCodes.set(code, login);
     },
     pulls: (api) => pulls[api],
     approveDevice(userCode, login, scopes = ["repo"]) {

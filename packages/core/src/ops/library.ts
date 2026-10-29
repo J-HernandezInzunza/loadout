@@ -4,7 +4,14 @@
 import type { z } from "zod";
 import { createAccounts, type AccountHost, type TokenSet } from "../accounts/accounts.ts";
 import { defaultApiBases, type ApiBases } from "../accounts/apiBases.ts";
-import { beginGitHubSignIn, completeGitHubSignIn, type GitHubSignIn } from "../accounts/signIn.ts";
+import {
+  beginBitbucketSignIn,
+  beginGitHubSignIn,
+  completeBitbucketSignIn,
+  completeGitHubSignIn,
+  type BitbucketSignIn,
+  type GitHubSignIn,
+} from "../accounts/signIn.ts";
 import { refreshCatalogs, type CatalogRefresh } from "../catalogs/catalogs.ts";
 import {
   applyAddCatalog,
@@ -55,8 +62,8 @@ export type IssuedAddCatalogPlan = Issued<AddCatalogPlan, "AddCatalogPlan">;
 export type IssuedImportPlan = Issued<ImportPlan, "ImportPlan">;
 export type IssuedPushPlan = Issued<PushPlan, "PushPlan">;
 export type IssuedPinPlan = Issued<PinPlan, "PinPlan">;
-/** A sign-in in progress: show its code and URL, then hand it back to completeSignIn. */
-export type IssuedSignIn = Issued<GitHubSignIn, "SignIn">;
+/** A sign-in in progress: GitHub's code to enter, or Bitbucket's page to open; hand it back to completeSignIn. */
+export type IssuedSignIn = Issued<GitHubSignIn | BitbucketSignIn, "SignIn">;
 
 /** An add, update or remove, carrying its op so one apply serves all three (architecture.md §2.3). */
 export type CatalogEditPlan = ({ op: "add" } & AddPlan) | ({ op: "update" } & UpdatePlan) | ({ op: "remove" } & RemovePlan);
@@ -127,8 +134,12 @@ export interface Library {
   disconnect(on: AccountHost): Promise<Result<void>>;
   /** Starts a browser sign-in (S12); SIGN_IN_UNAVAILABLE when the build lacks the host's OAuth client. */
   beginSignIn(on: AccountHost): Promise<Result<IssuedSignIn>>;
-  /** Waits for the user to finish in the browser, then connects the account; SIGN_IN_DENIED, SIGN_IN_EXPIRED or CANCELLED otherwise. */
-  completeSignIn(started: IssuedSignIn, opts?: { signal?: AbortSignal }): Promise<Result<AccountInfo>>;
+  /**
+   * Finishes in the browser's wake, then connects the account: GitHub by polling until the user decides,
+   * Bitbucket from `redirectUrl`, the loadout:// link its consent page sent. SIGN_IN_DENIED,
+   * SIGN_IN_EXPIRED or CANCELLED otherwise.
+   */
+  completeSignIn(started: IssuedSignIn, opts?: { signal?: AbortSignal; redirectUrl?: string }): Promise<Result<AccountInfo>>;
 
   /** One entry or a batch, landing as one write in the target catalog's write mode. */
   planAdd(req: AddRequest & { signal?: AbortSignal }): Promise<Result<IssuedCatalogEditPlan, WriteTargetErr>>;
@@ -207,6 +218,7 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
     apiBases,
     ...(opts.managedSettingsFile !== undefined && { managedSettingsFile: opts.managedSettingsFile }),
     ...(opts.githubClientId !== undefined && { githubClientId: opts.githubClientId }),
+    ...(opts.bitbucketClient !== undefined && { bitbucketClient: opts.bitbucketClient }),
   };
   const home = host.paths.home;
 
@@ -450,12 +462,14 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
     },
 
     async beginSignIn(on) {
-      if (on === "bitbucket") return err({ code: "SIGN_IN_UNAVAILABLE", message: "Bitbucket sign-in isn't built yet" });
-      return (await beginGitHubSignIn(ctx)) as Result<IssuedSignIn>;
+      const started = on === "github" ? await beginGitHubSignIn(ctx) : beginBitbucketSignIn(ctx);
+      return started as Result<IssuedSignIn>;
     },
 
     async completeSignIn(started, o = {}) {
-      return completeGitHubSignIn(ctx, started, o);
+      if (started.on === "github") return completeGitHubSignIn(ctx, started, o);
+      if (o.redirectUrl === undefined) return err({ code: "REFUSED", message: "A Bitbucket sign-in completes with the loadout:// redirect it received" });
+      return completeBitbucketSignIn(ctx, started, o.redirectUrl);
     },
 
     async planAdd(req) {

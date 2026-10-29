@@ -7,7 +7,8 @@ export default defineProject({
   clearScreen: false,
   server: { port: 1420, strictPort: true },
   build: { target: "safari17", outDir: "dist" },
-  // OAuth client IDs are public; the Bitbucket secret is deliberately not among these.
-  envPrefix: ["VITE_", "LOADOUT_GITHUB_CLIENT_ID", "LOADOUT_BITBUCKET_CLIENT_ID"],
+  // The OAuth clients from .env.local or CI. The Bitbucket secret ships inside the app by design: alone it
+  // grants nothing (QUESTIONS.md Q5).
+  envPrefix: ["VITE_", "LOADOUT_GITHUB_CLIENT_ID", "LOADOUT_BITBUCKET_CLIENT_ID", "LOADOUT_BITBUCKET_CLIENT_SECRET"],
   test: { name: "desktop", environment: "jsdom" },
 });

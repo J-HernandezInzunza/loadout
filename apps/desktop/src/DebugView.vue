@@ -1,9 +1,21 @@
 <script setup lang="ts">
 // Throwaway: proves the Tauri host end to end until the real screens exist.
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { onMounted, onUnmounted, ref } from "vue";
-import type { AuditEvent, CatalogRow, CoreError, EntryRecord, LaunchReport, Library, PlanItem, Result, Warning } from "@loadout/core";
+import type {
+  AuditEvent,
+  CatalogRow,
+  CoreError,
+  EntryRecord,
+  IssuedSignIn,
+  LaunchReport,
+  Library,
+  PlanItem,
+  Result,
+  Warning,
+} from "@loadout/core";
 import type { AuditLog } from "./host-tauri/audit.ts";
 
 const props = defineProps<{ library: Library; log: AuditLog; launched: Promise<Result<LaunchReport>> }>();
@@ -170,6 +182,7 @@ async function editDescription() {
 async function githubSignIn() {
   const started = await props.library.beginSignIn("github");
   if (!started.ok) return show(failure("GitHub sign-in", started.error));
+  if (started.value.on !== "github") return;
   const { userCode, verificationUri } = started.value;
   const controller = new AbortController();
   await show({
@@ -187,25 +200,38 @@ async function githubSignIn() {
   }
 }
 
-// Spike S12: does Bitbucket's redirect reach the app through loadout://? The code shows only as its length.
-const bitbucketState = ref<string | null>(null);
+// The Bitbucket sign-in waiting for its loadout:// redirect, if one is.
+let pendingBitbucket: IssuedSignIn | null = null;
 
-async function bitbucketRedirect() {
-  const clientId = import.meta.env.LOADOUT_BITBUCKET_CLIENT_ID;
-  if (!clientId) return show({ title: "Bitbucket redirect", lines: ["LOADOUT_BITBUCKET_CLIENT_ID isn't set in apps/desktop/.env.local"] });
-  bitbucketState.value = crypto.randomUUID();
-  const query = new URLSearchParams({ client_id: clientId, response_type: "code", state: bitbucketState.value });
-  await show({ title: "Bitbucket redirect", lines: ["Approve in the browser; the redirect should come back here."] });
-  await openUrl(`https://bitbucket.org/site/oauth2/authorize?${query}`);
+async function bitbucketSignIn() {
+  const started = await props.library.beginSignIn("bitbucket");
+  if (!started.ok) return show(failure("Bitbucket sign-in", started.error));
+  if (started.value.on !== "bitbucket") return;
+  const { authorizeUrl } = started.value;
+  await show({
+    title: "Bitbucket sign-in",
+    lines: ["Approve Loadout in your browser; Loadout comes back when you do."],
+    discard: async () => {
+      pendingBitbucket = null;
+    },
+  });
+  pendingBitbucket = started.value;
+  await openUrl(authorizeUrl);
 }
 
-function describeRedirect(raw: string): string[] {
-  const url = new URL(raw);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
-  const received = code ? `code: ${code.length} characters` : `no code: ${url.searchParams.get("error") ?? "no error given"}`;
-  const stateCheck = state === bitbucketState.value ? "state matches" : `state doesn't match (${state ?? "none"})`;
-  return [`received ${url.protocol}//${url.host}${url.pathname}`, received, stateCheck];
+async function onRedirect(urls: string[]) {
+  const redirectUrl = urls.find((url) => url.startsWith("loadout://oauth/bitbucket"));
+  if (redirectUrl === undefined) return;
+  // The browser tab stays on Bitbucket's page, so Loadout comes forward to say how it went.
+  await getCurrentWindow().setFocus();
+  const started = pendingBitbucket;
+  pendingBitbucket = null;
+  if (started === null) {
+    return show({ title: "Bitbucket sign-in", lines: ["A Bitbucket sign-in came back, but none is in progress here; start it again."] });
+  }
+  const done = await props.library.completeSignIn(started, { redirectUrl });
+  if (!done.ok) return show(failure("Bitbucket sign-in", done.error));
+  await show({ title: "Bitbucket sign-in", lines: [`Signed in to Bitbucket as ${done.value.login}. You can close the browser tab.`] });
 }
 
 let stopListening: (() => void) | undefined;
@@ -247,7 +273,7 @@ async function importFromCli() {
 
 onMounted(async () => {
   // Outside Tauri (component tests without IPC) there is no deep-link plugin to listen to.
-  onOpenUrl((urls) => void show({ title: "Deep link", lines: urls.flatMap(describeRedirect) })).then(
+  onOpenUrl((urls) => void onRedirect(urls)).then(
     (unlisten) => (stopListening = unlisten),
     () => {},
   );
@@ -350,10 +376,10 @@ onUnmounted(() => {
       </button>
       <button
         :disabled="busy"
-        data-test="bitbucket-redirect"
-        @click="act(bitbucketRedirect)"
+        data-test="bitbucket-sign-in"
+        @click="act(bitbucketSignIn)"
       >
-        Bitbucket redirect (S12 spike)
+        Sign in to Bitbucket
       </button>
       <button
         :disabled="busy"

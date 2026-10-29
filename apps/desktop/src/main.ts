@@ -19,10 +19,12 @@ async function claudeConfigDir(host: Host): Promise<string | undefined> {
 const log = createAuditLog();
 const host = createTauriHost(await tauriPaths(), log);
 const configDir = await claudeConfigDir(host);
-const githubClientId = import.meta.env.LOADOUT_GITHUB_CLIENT_ID;
+// A build without these reports that host's sign-in as unavailable.
+const { LOADOUT_GITHUB_CLIENT_ID: githubClientId, LOADOUT_BITBUCKET_CLIENT_ID: bitbucketId, LOADOUT_BITBUCKET_CLIENT_SECRET: bitbucketSecret } = import.meta.env;
 const library = createLibrary(host, {
   ...(configDir !== undefined && { claudeConfigDir: configDir }),
   ...(githubClientId && { githubClientId }),
+  ...(bitbucketId && bitbucketSecret && { bitbucketClient: { id: bitbucketId, secret: bitbucketSecret } }),
 });
 const launched = library.launch();
 

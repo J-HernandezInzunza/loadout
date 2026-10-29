@@ -7,4 +7,5 @@ declare module "*.vue" {
 interface ImportMetaEnv {
   readonly LOADOUT_GITHUB_CLIENT_ID?: string;
   readonly LOADOUT_BITBUCKET_CLIENT_ID?: string;
+  readonly LOADOUT_BITBUCKET_CLIENT_SECRET?: string;
 }
