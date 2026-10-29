@@ -55,7 +55,7 @@ export const useCatalogStore = defineStore("catalog", () => {
     if (await read()) lastPulled.value = new Date();
   }
 
-  async function run(label: string, work: () => Promise<void>) {
+  async function run(label: string, work: (signal: AbortSignal) => Promise<void>) {
     loading.value = true;
     failure.value = null;
     try {
@@ -68,7 +68,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   }
 
   /** Once, when the app opens: sweep, load the config, pull every catalog, then read. */
-  const launch = () => run("refreshing the catalog…", async () => pulled(await library.launch()));
+  const launch = () => run("refreshing the catalog…", async (signal) => pulled(await library.launch({ signal })));
   /** Refresh: the user asked for fresh, so pull first. */
   const refresh = () => run("refreshing the catalog…", async () => pulled(await library.refresh()));
   /** After a write: read what is on disk now. */

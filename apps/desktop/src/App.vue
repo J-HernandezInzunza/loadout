@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import ActivityBar from "./components/ActivityBar.vue";
 import AppearanceToggle from "./components/AppearanceToggle.vue";
 import BusyIndicator from "./components/BusyIndicator.vue";
+import CommandLog from "./components/CommandLog.vue";
 import StatusBanner from "./components/StatusBanner.vue";
 import ToastStack from "./components/ToastStack.vue";
 import { useCatalogStore } from "./stores/catalog.ts";
@@ -103,6 +104,8 @@ onMounted(() => catalog.launch());
     </section>
     <!-- Over the view rather than in it, so a notice never pushes the list around. -->
     <ToastStack />
+    <!-- The app's last row, under whichever view is on screen. -->
+    <CommandLog />
   </main>
 </template>
 

@@ -36,6 +36,14 @@ describe("UI-09, UI-55: page chrome", () => {
     expect(app).not.toMatch(/position:\s*(fixed|sticky)/);
   });
 
+  it("keeps the command bar in the flow, and its panel an overlay that never resizes the view", () => {
+    const log = source("CommandLog.vue");
+    expect(log).not.toMatch(/\.command-log\s*\{[^}]*position:\s*fixed/);
+    expect(log).toMatch(/\.command-log__list\s*\{[^}]*position:\s*absolute/);
+    expect(log).toMatch(/\.command-log__list\s*\{[^}]*bottom:\s*100%/);
+    expect(source("App.vue")).toContain("<CommandLog />");
+  });
+
   it("leaves the scrolling body full width, so nothing is clipped against its edge", () => {
     // A max-width on the scroller clips focus rings drawn outside an input stretched to it.
     const offenders = components()

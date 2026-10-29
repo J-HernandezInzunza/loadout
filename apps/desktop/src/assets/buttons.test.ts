@@ -7,6 +7,9 @@ const SIZING = /^\s*(padding|font-size|border-radius)\b/;
 
 /** Selectors allowed to size a button, by `path: selector`, each because it is not a button-shaped button. */
 const ALLOWED = new Set([
+  // The log's own bar: its height is locked to the strip it opens, so padding is horizontal only.
+  "components/CommandLog.vue: .command-log__toggle",
+  "components/CommandLog.vue: .command-log__more",
   // Icon buttons, sized by their icon.
   "components/AppearanceToggle.vue: .appearance-toggle",
   "components/ToastStack.vue: .toasts__close",
