@@ -524,7 +524,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Depends: M4.01
   - Done when: each op has a facade test; `pins()` reports a dangling pin (RES-11's inert cases).
 
-- [ ] **M4.03 Facade: authoring.** `planAdd`, `planUpdate`, `planRemove` and one
+- [x] **M4.03 Facade: authoring.** `planAdd`, `planUpdate`, `planRemove` and one
   `applyCatalogEdit(plan)` as arch §2.3 has it (the plan carries its op, so the three `apply*`
   functions become internal); `discardCatalogEdit`; `planPush`/`applyPush`/`discardPush`;
   `planPin`/`applyPin`/`unpin`; `suggestSource`.
