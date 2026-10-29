@@ -127,6 +127,13 @@ const freshness = computed(() => {
         <button
           type="button"
           class="ghost"
+          @click="views.accounts = true"
+        >
+          Accounts
+        </button>
+        <button
+          type="button"
+          class="ghost"
           @click="views.sync = true"
         >
           Sync

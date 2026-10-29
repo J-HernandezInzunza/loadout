@@ -2,6 +2,7 @@
 import type { Library } from "@loadout/core";
 import { storeToRefs } from "pinia";
 import { onMounted, ref } from "vue";
+import AccountsView from "./components/AccountsView.vue";
 import ActivityBar from "./components/ActivityBar.vue";
 import AddEntry from "./components/AddEntry.vue";
 import CatalogsView from "./components/CatalogsView.vue";
@@ -15,6 +16,7 @@ import ParkedSkills from "./components/ParkedSkills.vue";
 import SyncView from "./components/SyncView.vue";
 import ToastStack from "./components/ToastStack.vue";
 import { useLibrary } from "./services.ts";
+import { useAccountStore } from "./stores/accounts.ts";
 import { useCatalogStore } from "./stores/catalog.ts";
 import { useViewStore } from "./stores/views.ts";
 
@@ -23,6 +25,8 @@ const views = useViewStore();
 const { current } = storeToRefs(views);
 const { unregistered } = storeToRefs(catalog);
 const library = useLibrary();
+// Created with the app, so Bitbucket's sign-in redirect is heard whichever view is showing.
+useAccountStore();
 
 type MigratePlan = Extract<Awaited<ReturnType<Library["planMigrateParked"]>>, { ok: true }>["value"];
 /** what the Python CLI parked, shown before it moves back; only while at least one copy can */
@@ -51,6 +55,7 @@ onMounted(async () => {
       :back="views.manage ? 'Catalogs' : 'Loadout'"
     />
     <SyncView v-else-if="current.kind === 'sync'" />
+    <AccountsView v-else-if="current.kind === 'accounts'" />
     <CatalogsView
       v-else-if="current.kind === 'catalogs'"
       :at="current.catalog"

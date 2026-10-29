@@ -22,12 +22,12 @@ const tab = (w: Wrapper, text: string) => w.findAll(".catalog-tabs__tab").find((
 const two = [catalogRow({ id: "personal" }), catalogRow({ id: "team", precedence: 2, kind: "remote", writeMode: "pr", location: "git@bitbucket.org:acme/catalog.git (main, library.yaml)" })];
 
 describe("UI-10: the list header", () => {
-  it("has a labelled search, and Refresh, Catalogs and Sync; Enter in the search does nothing", async () => {
+  it("has a labelled search, and Refresh, Catalogs, Accounts and Sync; Enter in the search does nothing", async () => {
     const { wrapper } = await mountList();
     const search = wrapper.find("input[type=search]");
     expect(search.attributes("aria-label")).toBe("Search skills, agents and prompts");
     expect(search.attributes("placeholder")).toBe("Search skills, agents, prompts…");
-    expect(wrapper.findAll(".searchbar button").map((b) => b.text())).toEqual(["Refresh", "Catalogs", "Sync"]);
+    expect(wrapper.findAll(".searchbar button").map((b) => b.text())).toEqual(["Refresh", "Catalogs", "Accounts", "Sync"]);
 
     await wrapper.find("form").trigger("submit");
     expect(useViewStore().current.kind).toBe("list");
