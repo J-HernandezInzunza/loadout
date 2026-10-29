@@ -718,7 +718,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: each rule has a test; `EntryList.spec.ts` and `catalog.spec.ts`'s list and search
     cases are ported; "Hide overridden" no longer shows on the disabled tab (§4.10).
 
-- [ ] **M5.07 On/off switch.** `setSkillState` from the list for skills **and prompts** (Q15 A);
+- [x] **M5.07 On/off switch.** `setSkillState` from the list for skills **and prompts** (Q15 A);
   `name-only`/`user-invocable-only` shown read-only (Q14 A); toasts as today.
   - Rules: UI-20
   - Depends: M5.06
