@@ -904,12 +904,25 @@ on each card, below the switch; the window gets a minimum size instead of a coll
   - Depends: M7.01
   - Done when: a test reads the config and checks the minimum against the sidebar's width.
 
-- [ ] **M7.04 Milestone check (manual).** From a Finder-launched build: each Browse item, From,
+- [ ] **M7.04 Form controls of our own.** A small component library in `apps/desktop/src/components/ui/`:
+  `UiCheckbox`, `UiRadio` and `UiSelect`, each a wrapper around the native element (kept for keyboard,
+  focus, `v-model` and the native macOS menu) restyled with `appearance: none` from the tokens, to
+  match the on/off switch (sizes, border, the switch's on colour, focus ring, disabled opacity). The
+  select draws its own chevron. Every native checkbox, radio and select in the app moves to them;
+  Hide overridden stays a checkbox (decided 2026-10-29). Attributes fall through to the native
+  element, and v-model works as a boolean, an array (the requires lists) and a radio or select value.
+  - Rules: none (UI-09's consistency)
+  - Depends: M7.01
+  - Done when: a guard test fails on any native `<select>` or checkbox/radio `<input>` outside
+    `components/ui/`; each wrapper has tests for its v-model forms, a disabled state and a passed-through
+    attribute; the existing screen tests pass unchanged in what they assert.
+
+- [ ] **M7.05 Milestone check (manual).** From a Finder-launched build: each Browse item, From,
   state and Hide overridden together with search; bulk select on one catalog; Sync and Catalogs from
-  the sidebar and back; the Accounts rows; the window stops at its minimum size. Record it in
-  PROGRESS.md.
+  the sidebar and back; the Accounts rows; the restyled checkboxes, radios and selects in both themes;
+  the window stops at its minimum size. Record it in PROGRESS.md.
   - Rules: none
-  - Depends: M7.01, M7.02, M7.03
+  - Depends: M7.01, M7.02, M7.03, M7.04
   - Done when: every M7 task is checked and the run is recorded.
 
 ---
