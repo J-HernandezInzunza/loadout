@@ -16,7 +16,8 @@
     }
   },
   "plugins": {
-    "fs": { "requireLiteralLeadingDot": false }
+    "fs": { "requireLiteralLeadingDot": false },
+    "deep-link": { "desktop": { "schemes": ["loadout"] } }
   },
   "bundle": {
     "active": true,

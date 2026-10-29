@@ -4,6 +4,8 @@
 export interface ApiBases {
   /** GitHub REST, e.g. `${github}/user` */
   github: string;
+  /** GitHub's OAuth endpoints, e.g. `${githubLogin}/login/device/code` */
+  githubLogin: string;
   /** Bitbucket Cloud REST 2.0, e.g. `${bitbucket}/user` */
   bitbucket: string;
   /** Bitbucket OAuth, e.g. `${bitbucketAuth}/access_token` */
@@ -12,6 +14,7 @@ export interface ApiBases {
 
 export const defaultApiBases: ApiBases = {
   github: "https://api.github.com",
+  githubLogin: "https://github.com",
   bitbucket: "https://api.bitbucket.org/2.0",
   bitbucketAuth: "https://bitbucket.org/site/oauth2",
 };

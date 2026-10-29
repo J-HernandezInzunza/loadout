@@ -226,3 +226,58 @@ has a differing frontmatter name, and creating one was outside what the owner ap
 Loadout installs a skill into `~/.claude/skills/<entry name>/`, the folder name is always the
 catalog entry name, so the rule is simple: **toggle by entry name**. Re-check on Claude Code
 upgrades (doctor can compare the init list's spelling if it ever changes).
+
+## S11. Real-remote smoke from a Finder launch (M4.16; closes S1's Bitbucket gap)
+
+The M4.11 debug build (`target/debug/bundle/macos/Loadout.app`), opened from Finder on 2026-10-29,
+with the registry imported from the Python CLI: `my-engineering-library` (local, its sources on
+GitHub over ssh) and `shared` (`git@bitbucket.org:sedteam/agent-library.git`, branch `develop`,
+protected). No account connected. The owner reported every step as expected; the audit log, by step:
+
+| Step | git calls | Notes |
+|---|---|---|
+| Launch | origin check ×2, `pull --ff-only` (0.9 s) | the clone from the import's first launch was reused |
+| Install planning | `clone --depth 1 --single-branch` (0.9–1.1 s), then `rev-parse HEAD`, `HEAD:<path>` per item | `triage-bug` planned its closure (`bug-triager`, `bug-investigator`, `atlassian-toolkit`) from one GitHub clone; each plan left for another had its `tmp/op-*` deleted |
+| Install `intent-review` from `shared` | one clone, then move into `~/.claude/skills/intent-review`, `receipts.json` written, op dir deleted | |
+| Sync plan | `ls-remote … refs/heads/develop` (0.8 s) | up to date from the head alone; no clone |
+| Doctor | `git --version`, origin checks, `ls-remote`, `pull --ff-only`, `fetch origin develop` + `rev-list --left-right --count` | the debug view runs doctor without `noPull`, hence the pull |
+| PR-mode write (`grilling` description) | temp clone `pr-0`, `ls-remote` for the branch name (free), `checkout -b library/update-grilling-20261029T075931`, `add`, `commit -m "library: updated skill grilling"`, `push -u` (2.1 s) | no account, so no PR API call; the result carried the compare URL; op dir deleted |
+
+**Result:** ssh to Bitbucket and GitHub works from a Finder launch with the cached PATH (S1, S2),
+including `push`. Every operation's temp dir was removed. Cost worth knowing for M5: each install
+plan clones its source afresh (~1 s), since the clone cache lives for one operation; a UI that plans
+on every click may want to keep the plan, or the clone, around. The branch
+`library/update-grilling-20261029T075931` was pushed to `sedteam/agent-library`; delete it if no PR
+is wanted.
+
+## S12. OAuth redirects (M4.12)
+
+Both apps registered by the owner as QUESTIONS.md Q5's follow-up describes, the IDs and the
+Bitbucket secret in `apps/desktop/.env.local` (git-ignored). Run on 2026-10-29.
+
+**GitHub: device flow, no redirect.** `POST /login/device/code` with the client ID and
+`scope=repo` returned a user code; after the owner approved it at `github.com/login/device`, polling
+`/login/oauth/access_token` returned a bearer token with scope `repo`, no `expires_in` and no
+refresh token (the app has "Expire user access tokens" off), and `GET /user` answered 200 with
+`x-oauth-scopes: repo`. The probe never printed or kept the token; the owner revoked the grant
+afterwards. Device flow is enough on its own: no client secret, no redirect, and M2.04 stores the
+token as it is. A first attempt expired after the 15-minute window (`expired_token`), so M4.13
+must offer to restart.
+
+**Bitbucket: `loadout://oauth/bitbucket` through tauri-plugin-deep-link.** The consumer accepted the
+custom scheme as its callback URL; the consent page names it ("You will be redirected to
+loadout://oauth/bitbucket") and lists Account (read, incl. primary email), Pull requests and
+Repositories, read and modify. After Accept the browser asked to open Loadout, and the
+Finder-launched debug build's `onOpenUrl` received `loadout://oauth/bitbucket?code=…&state=…`:
+a 1206-character code and the `state` it sent. The browser tab stays on the consent page (an app
+can't close it), so M4.14 should bring Loadout's window forward and show the signed-in account.
+The deep link reaches only a bundled, launched-once app (`tauri dev` can't receive it).
+
+**Chosen:** GitHub device flow; Bitbucket authorization code to `loadout://oauth/bitbucket`, with a
+random `state` checked on return. The loopback alternative (`http://127.0.0.1:<fixed port>`; the
+consumer has one callback, so the port can't vary) was not needed. It would be harder to intercept
+silently (a port already taken fails visibly, while another app claiming `loadout://` would not)
+and could show a "you can close this tab" page, at the cost of a local HTTP listener in Rust and a
+port that can collide. Given Q5's decision (the secret ships in builds; interception needs
+something already on the machine), the deep link is the simpler fit; switching later is a
+callback-URL edit plus that listener.

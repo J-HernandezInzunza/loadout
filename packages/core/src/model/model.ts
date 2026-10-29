@@ -74,6 +74,10 @@ export const ErrorCode = z.enum([
   "GIT_FAILED",
   "RECEIPTS_INVALID",
   "SOURCE_MISSING",
+  "SIGN_IN_UNAVAILABLE",
+  "SIGN_IN_DENIED",
+  "SIGN_IN_EXPIRED",
+  "CANCELLED",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

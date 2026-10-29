@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { checked } from "../../test/checkedLibrary.ts";
 import { createSandbox } from "../../test/sandbox.ts";
 import { createConfigStore } from "../config/config.ts";
 import type { CatalogRef } from "../model/model.ts";
@@ -42,7 +43,7 @@ async function setup(extra: CatalogRef[] = []) {
     ...extra,
   ];
   await createConfigStore(sb.host).saveConfig({ version: 1, catalogs, pins: {}, settings: {} });
-  return { sb, library: createLibrary(sb.host) };
+  return { sb, library: checked(createLibrary(sb.host)) };
 }
 
 describe("createLibrary", () => {

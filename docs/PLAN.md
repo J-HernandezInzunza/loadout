@@ -1,6 +1,6 @@
-# Plan: M1 to M3
+# Plan: M1 to M4
 
-The task list the M1–M3 loop works through (prompt in START-HERE.md). Rule ids point at
+The task list the M1–M4 loop works through (prompt in START-HERE.md). Rule ids point at
 `docs/spec/behaviors.md`; `arch §x` at `docs/spec/architecture.md`; `S1`…`S10` at
 `docs/spec/spikes.md`. Where a rule carries a `(rebuild, §0.1: …)` note, the note wins.
 
@@ -22,7 +22,7 @@ Conventions every task follows: code in `packages/core/src/<module>/`, tests nex
 prompts (arch §8.4); no module-level state (arch §8.7); every mutation is a plan/apply pair with a
 fingerprint (arch §2.3); error codes come from the one closed enum (M1.02).
 
-Questions for the owner live in `docs/QUESTIONS.md`; none blocks a task right now.
+Questions for the owner live in `docs/QUESTIONS.md`.
 
 ---
 
@@ -382,12 +382,12 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.20, M2.21
   - Done when: each kept check has a test that triggers it.
 
-- [ ] **M2.23 Bitbucket and real-remote smoke (manual).** Run install, sync and doctor against the
+- [x] **M2.23 Bitbucket and real-remote smoke (manual).** Run install, sync and doctor against the
   team catalog on Bitbucket from a Finder-launched dev build; record results in
   `docs/spec/spikes.md` as S11.
   - Rules: none (S1 gap)
   - Depends: M2.22
-  - Blocked: (manual; the owner runs it)
+  - Done via M4.16: spikes.md S11.
   - Done when: S11 is written.
 
 ---
@@ -492,3 +492,163 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Rules: none
   - Depends: M3.05, M3.06, M3.09, M3.10, M3.11, M3.12
   - Done when: the rule-coverage test passes with every M1–M3 task checked.
+
+---
+
+## M4. Desktop host and accounts
+
+Exit: every M4 task checked; `createLibrary` exposes every op of arch §2.3 with input/output schemas;
+the app, launched from Finder, runs the core on the Tauri host against real remotes (S11); browser
+sign-in connects GitHub and Bitbucket accounts. Screens are the next milestone (open-questions.md
+"UI"); M4 ships at most a debug view.
+
+Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file per port, tested with
+`@tauri-apps/api/mocks` (`mockIPC`) asserting the plugin calls (arch §6); Rust stays glue (arch
+§2.4); `test/capabilities.test.ts` grows with every scope added.
+
+- [x] **M4.01 Facade: install lifecycle.** `createLibrary` gains `planInstall`/`applyInstall`,
+  `uninstall`, `setSkillState`, `planMigrateParked`/`applyMigrateParked`, `planSync`/`applySync` and
+  `discardPlan`, with the signatures of arch §2.3. One context per instance (git client, receipts,
+  settings, accounts, API bases) built in `createLibrary`; nothing module-level (arch §8.7). Input
+  and output zod schemas in `ops/schemas.ts`; plans are opaque in the schema (a branded object the
+  caller hands back, never edited).
+  - Rules: none (arch §2.3, §8.2, §8.3)
+  - Depends: M3.13
+  - Done when: each op has a facade test (happy path plus one refusal) on the Node host; two
+    instances still share no state.
+
+- [x] **M4.02 Facade: registry, accounts and maintenance.** `pins()` (name, catalog, holders,
+  dangling, resolvesTo; §3.6's list), `doctor`, `recloneCatalog`, `planAddCatalog`/`applyAddCatalog`,
+  `initCatalog`, `removeCatalog`, `planImport`/`applyImport`, `accounts`/`connect`/`disconnect`.
+  - Rules: none (arch §2.3, §5.5; behaviors.md §3.6 list form)
+  - Depends: M4.01
+  - Done when: each op has a facade test; `pins()` reports a dangling pin (RES-11's inert cases).
+
+- [x] **M4.03 Facade: authoring.** `planAdd`, `planUpdate`, `planRemove` and one
+  `applyCatalogEdit(plan)` as arch §2.3 has it (the plan carries its op, so the three `apply*`
+  functions become internal); `discardCatalogEdit`; `planPush`/`applyPush`/`discardPush`;
+  `planPin`/`applyPin`/`unpin`; `suggestSource`.
+  - Rules: none (arch §2.3)
+  - Depends: M4.02
+  - Done when: each op has a facade test; a PR-mode plan discarded through the facade leaves no temp
+    dir.
+
+- [x] **M4.04 Facade contract.** A test lists the `Library` interface's methods (TypeScript compiler
+  API, as `rule-coverage.test.ts` reads titles) and fails if one lacks an exported input or output
+  schema (arch §8.2); every result's warnings and error codes parse against `Warning`/`CoreError`.
+  An in-memory `Library` fake for the UI tests (arch §6) implements the same interface.
+  - Rules: none (arch §6, §8)
+  - Depends: M4.03
+  - Done when: removing any schema export fails the test; the fake type-checks against `Library`.
+
+- [x] **M4.05 Launch.** `library.launch({ signal })`: `sweepTemp`, load config (the typed
+  "no catalogs registered" state), refresh catalogs (warnings per catalog, A3), and report what it
+  did; reads before it finishes use the clones on disk (W14).
+  - Rules: none (arch §2.5 refresh policy, §5.4; M2.06's launch sweep)
+  - Depends: M4.04
+  - Done when: a killed operation's temp dir is gone after `launch`, and an offline launch returns
+    warnings, not an error.
+
+- [x] **M4.06 Tauri host: fs.** `HostFs` over `@tauri-apps/plugin-fs`: `writeTextAtomic` (temp in
+  the same dir + rename), `rename` rejecting `{ code: "EXDEV" }` across volumes, `lstat` that
+  doesn't follow links, `makeTempDir` under `<appData>/tmp`. Capability: arch §2.4 option 1
+  (`$HOME/**` with the eight denies, `$APPDATA` and `$APPDATA/**`,
+  `requireLiteralLeadingDot: false`, S3a).
+  - Rules: none (arch §2.2, §2.4; S3, S3a)
+  - Depends: M4.05
+  - Done when: each method has a `mockIPC` test; the capabilities test fails if a deny is dropped or
+    the scope widens past `$HOME`/`$APPDATA`.
+
+- [x] **M4.07 Tauri host: proc, paths, hashing, audit.** `HostProc` over the shell plugin's
+  `Command` for `git` only: cwd, env, timeout and `AbortSignal` both kill the child, `durationMs`;
+  `paths.home`/`appData` from `@tauri-apps/api/path`; `sha256` via `crypto.subtle`; `audit` into an
+  in-memory ring buffer the UI will subscribe to (arch §2.5), with proc start/end events.
+  - Rules: none (arch §2.2, §2.5; S1, S2)
+  - Depends: M4.06
+  - Done when: `mockIPC` tests cover a timeout and an abort killing the child; the audit buffer never
+    holds an env value (tokens travel in env, arch §5.5).
+
+- [x] **M4.08 Keychain secrets.** Rust `secret_get`/`secret_set`/`secret_delete` with the `keyring`
+  crate (service `com.jhernandezinzunza.loadout`, account `<host>`), the one exception to "no
+  commands" (arch §2.4); `HostSecrets` in host-tauri invokes them.
+  - Rules: none (arch §5.5)
+  - Depends: M4.07
+  - Done when: `cargo test` covers the three commands against keyring's mock store; a `mockIPC`
+    test covers the TS side; the capabilities file allows only these three commands (and M4.06's
+    `real_path`, Q6).
+
+- [x] **M4.09 HTTP.** Add `tauri-plugin-http`; `HostHttp` over its `fetch` with timeout and
+  `AbortSignal`; scope exactly `https://api.github.com/*`, `https://github.com/login/*`,
+  `https://api.bitbucket.org/*`, `https://bitbucket.org/site/oauth2/*` (arch §2.4).
+  - Rules: none (arch §2.2, §2.4, §5.5)
+  - Depends: M4.07
+  - Done when: `mockIPC` tests cover a timeout and an abort; the capabilities test fails on any other
+    URL in the scope.
+
+- [x] **M4.10 PATH cache.** In Rust `main`, before plugins start: use the PATH (and
+  `CLAUDE_CONFIG_DIR`) cached in app data at once; probe the login shell in the background (10 s
+  timeout, shell PATH first, S2) and write the cache for the next launch; probe inline only when
+  there is no cache yet.
+  - Rules: none (arch §5.3; Q4)
+  - Depends: M4.07
+  - Done when: `cargo test` covers cache hit, cache miss, a probe timeout and a corrupt cache file;
+    launch time with a warm cache doesn't wait on the shell.
+
+- [x] **M4.11 App wiring and debug view.** `main.ts` builds the Tauri host and one `createLibrary`
+  instance, runs `launch`, and shows a throwaway debug view (catalogs, entries with install state,
+  the audit log) to prove the host end to end; `apps/desktop/src/spike/` is removed.
+  - Rules: none (arch §2.5)
+  - Depends: M4.05, M4.06, M4.07, M4.08, M4.09, M4.10
+  - Done when: a dev build launched from Finder lists the registered catalogs and their entries, and
+    the audit log shows the launch's git calls.
+
+- [x] **M4.12 OAuth redirect spike.** Can both hosts redirect to `loadout://oauth/…` through
+  `tauri-plugin-deep-link`, or does one need a one-shot loopback listener? GitHub device flow needs
+  no redirect; check whether it is enough on its own. Record the answer as S12 in
+  `docs/spec/spikes.md`.
+  - Rules: none (arch §5.5)
+  - Depends: M4.11
+  - Done when: S12 is written with the chosen redirect per host.
+
+- [x] **M4.13 GitHub sign-in.** The flow S12 chose (device flow by default), ending in
+  `accounts.connect("github", tokenSet)` (M2.04); cancellable; a denied or expired authorization is
+  a typed error.
+  - Rules: none (arch §5.5)
+  - Depends: M4.12
+  - Done when: the flow's HTTP exchanges are tested against an extended API stub (M2.03); a manual
+    sign-in connects a real account.
+
+- [x] **M4.14 Bitbucket sign-in.** Authorization-code flow with the redirect S12 chose; the consumer
+  key and secret come from build-time environment variables (a GitHub Actions secret in release
+  builds, never committed, arch §5.5 and §10 risk 13); ends in `accounts.connect("bitbucket",
+  tokenSet)` with the refresh token, which M2.04 already uses.
+  - Rules: none (arch §5.5)
+  - Depends: M4.12
+  - Done when: the exchange and a refresh are tested against the stub; a build without the
+    variables reports Bitbucket sign-in as unavailable instead of failing; a manual sign-in connects
+    a real account, and Loadout then comes to the front saying who is signed in and that the browser
+    tab can be closed (S12: the tab stays on the consent page).
+
+- [x] **M4.15 Accounts in the debug view.** Connect, disconnect and "token still works" for both
+  hosts, through the facade (M4.02).
+  - Rules: none (arch §5.5)
+  - Depends: M4.13, M4.14
+  - Done when: a manual run connects and disconnects each host, and `config.json` and the audit log
+    never hold a token.
+
+- [x] **M4.16 Real-remote smoke (manual; replaces M2.23).** From a Finder-launched dev build: install,
+  sync and doctor against the team catalog on Bitbucket, and one PR-mode write (with an account
+  connected if M4.15 is done, else the compare URL); record results in `docs/spec/spikes.md` as S11.
+  - Rules: none (S1 gap)
+  - Depends: M4.11
+  - Done when: S11 is written and M2.23 is checked with a pointer to it.
+
+- [x] **M4.17 Milestone check.** `npm run check` green; the facade contract test passes; the
+  capabilities test covers fs, shell, http and the three commands.
+  - Rules: none
+  - Depends: M4.11, M4.15, M4.16
+  - Done when: every M4 task is checked.
+
+---
+
+Potentially next (not planned yet): M5, the screens (open-questions.md "UI"), built against the M4.04 `Library` fake; then R, the first release to teammates (arch §7: CI build, Homebrew cask with the quarantine caveat).

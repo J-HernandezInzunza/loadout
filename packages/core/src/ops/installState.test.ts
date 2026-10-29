@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createGitHarness } from "../../test/git.ts";
+import { checked } from "../../test/checkedLibrary.ts";
 import { createSandbox } from "../../test/sandbox.ts";
 import { createConfigStore } from "../config/config.ts";
 import { createGitClient } from "../git/git.ts";
@@ -44,7 +45,7 @@ async function setup(catalogs: Record<string, Item[]>, extra: CatalogRef[] = [])
     if (!p.ok) throw new Error(p.error.message);
     await applyInstall(ctx, p.value);
   };
-  const library = createLibrary(sb.host, { git });
+  const library = checked(createLibrary(sb.host, { git }));
   const list = async (o: Parameters<typeof library.list>[0] = {}) => {
     const r = await library.list(o);
     if (!r.ok) throw new Error(r.error.message);
