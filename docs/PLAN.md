@@ -704,7 +704,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: each rule has a test; `App.spec.ts`'s surviving assertions are ported (browser-only
     mode dropped: the fake serves dev and tests, W-UI4).
 
-- [ ] **M5.05 Command log.** The bottom bar over the host's audit buffer (proc start/end) plus intent
+- [x] **M5.05 Command log.** The bottom bar over the host's audit buffer (proc start/end) plus intent
   labels from the stores (W-UI2); never shows env values; Cancel aborts the running op.
   - Rules: UI-49
   - Depends: M5.04
