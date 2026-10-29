@@ -32,4 +32,9 @@ describe("remoteWeb", () => {
   it.each(fixture.remoteWeb.map((c) => [JSON.stringify(c.input), c] as const))("FETCH-01: %s", (_, c) => {
     expect(remoteWeb(c.input)).toEqual(c.parsed);
   });
+
+  it("reads Bitbucket's new SSH host as Bitbucket, whose web pages stay on bitbucket.org", () => {
+    expect(remoteWeb("git@ssh.bitbucket.org:sedteam/agent-library.git")).toEqual(["bitbucket.org", "sedteam", "agent-library"]);
+    expect(remoteWeb("ssh://git@ssh.bitbucket.org/sedteam/agent-library.git")).toEqual(["bitbucket.org", "sedteam", "agent-library"]);
+  });
 });

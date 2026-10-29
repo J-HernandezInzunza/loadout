@@ -35,7 +35,10 @@ export const cloneDir = (host: Host, id: string) => `${host.paths.appData}/clone
 export async function catalogUrls(git: GitClient, ref: RemoteRef): Promise<string[]> {
   const web = remoteWeb(ref.repo);
   const kind = web?.[0] === "github.com" ? "github" : web?.[0] === "bitbucket.org" ? "bitbucket" : null;
-  return kind && web ? git.urlsFor({ kind, org: web[1], repo: web[2] }) : [ref.repo];
+  if (!kind || !web) return [ref.repo];
+  const urls = await git.urlsFor({ kind, org: web[1], repo: web[2] });
+  // A registered ssh URL is the ssh attempt, so the host it names (ssh.bitbucket.org) is the one tried.
+  return ref.repo.startsWith("https://") ? urls : urls.map((u) => (u.startsWith("https://") ? u : ref.repo));
 }
 
 /** One repo, however it is spelled: ssh and https forms of the same host/org/repo are equal. */

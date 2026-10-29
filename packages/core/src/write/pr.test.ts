@@ -108,6 +108,7 @@ describe("PR write mode", () => {
     expect(compareUrl("git@github.com:o/r.git", "main", "library/x")).toBe("https://github.com/o/r/compare/main...library/x?expand=1");
     expect(compareUrl("https://bitbucket.org/ws/r.git", "dev", "library/x")).toBe("https://bitbucket.org/ws/r/pull-requests/new?source=library/x&dest=dev");
     expect(compareUrl("https://gitlab.com/o/r.git", "main", "b")).toBeNull();
+    expect(compareUrl("git@ssh.bitbucket.org:ws/r.git", "dev", "library/x")).toBe("https://bitbucket.org/ws/r/pull-requests/new?source=library/x&dest=dev");
   });
 
   it("WRITE-11: Bitbucket opens its PR through the API too", async () => {
