@@ -781,7 +781,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: each rule has a test; `AddEntry.spec.ts` and `EntryEditor.spec.ts` are ported;
     EntryRemove names a button that exists (§4.10).
 
-- [ ] **M5.16 Milestone check.** Every M5 rule in a test title; the old-spec port table complete in
+- [x] **M5.16 Milestone check.** Every M5 rule in a test title; the old-spec port table complete in
   PROGRESS.md (ported or dropped, with reasons); `npm run check` green; a Finder-launched debug build
   walks list → entry → install → toggle → sync → doctor → catalogs → add/edit/remove on a local
   catalog (manual; the owner runs it).
