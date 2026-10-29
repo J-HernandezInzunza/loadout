@@ -797,7 +797,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
 Exit: every M6 task checked; a teammate with nothing set up can go from first launch to a
 connected account, an installed skill and a PR on the shared catalog without the Python CLI.
 
-- [ ] **M6.01 First run.** With no catalogs registered: import from the Python CLI (its `planImport`
+- [x] **M6.01 First run.** With no catalogs registered: import from the Python CLI (its `planImport`
   report shown first, `notImported` included) or add a catalog: paste a repo URL or create a
   personal one (Q12 A). Replaces the old FirstRun's bootstrap half (UI-06 rebuild).
   - Rules: none (open-questions.md Q12 A; arch §4.2)
