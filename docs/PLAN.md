@@ -711,7 +711,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: UI-49 has a test; `CommandLog.spec.ts` and `commandActivity.spec.ts` are ported;
     cancelling an install from the bar aborts it (fake honouring the signal).
 
-- [ ] **M5.06 Catalog list.** Header with a labelled search, ranked search, rows and tabs, catalog
+- [x] **M5.06 Catalog list.** Header with a labelled search, ranked search, rows and tabs, catalog
   hues, summary strip, counts, empty states, cards and install badges.
   - Rules: UI-10, UI-11, UI-12, UI-13, UI-14, UI-15, UI-16, UI-17, UI-18, UI-19
   - Depends: M5.04
