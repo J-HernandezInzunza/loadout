@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { checked } from "../../test/checkedLibrary.ts";
 import type { EntryRecord } from "../registry/registry.ts";
-import { createFakeLibrary } from "./fake.ts";
+import { createFakeLibrary, seededState } from "./fake.ts";
 import type { Library } from "./library.ts";
 import { ops } from "./schemas.ts";
 
@@ -50,5 +50,25 @@ describe("in-memory Library fake", () => {
     const fake = checked(createFakeLibrary({}, { unpin: async (name) => ({ ok: true, value: { name, was: "A", resolvesTo: null }, warnings: [] }) }));
     expect(await fake.uninstall({ names: ["x"] })).toMatchObject({ ok: false, error: { code: "REFUSED" } });
     expect(await fake.unpin("x")).toMatchObject({ ok: true, value: { was: "A" } });
+  });
+
+  it("seeds a whole machine that reads back through the ops' schemas, with every install state", async () => {
+    const fake = checked(createFakeLibrary(seededState()));
+    const [list, catalogs, pins, accounts] = await Promise.all([fake.list(), fake.catalogs(), fake.pins(), fake.accounts()]);
+    expect(list.ok && ops.list.output.safeParse(list.value).success).toBe(true);
+    expect(catalogs.ok && ops.catalogs.output.safeParse(catalogs.value).success).toBe(true);
+    expect(pins.ok && ops.pins.output.safeParse(pins.value).success).toBe(true);
+    expect(accounts.ok && ops.accounts.output.safeParse(accounts.value).success).toBe(true);
+
+    const records = list.ok ? list.value : [];
+    expect(new Set(records.map((e) => e.state))).toEqual(new Set(["not_installed", "installed", "drifted", "stale", "unmanaged"]));
+    expect(new Set(records.map((e) => e.type))).toEqual(new Set(["skill", "agent", "prompt"]));
+    expect(records.some((e) => e.disabled)).toBe(true);
+    expect(records.filter((e) => e.installed).every((e) => (e.state === "unmanaged") === (e.receipt === null))).toBe(true);
+    expect(catalogs.ok && catalogs.value.map((c) => [c.id, c.entries])).toEqual([
+      ["personal", records.filter((e) => e.catalog === "personal").length],
+      ["team", records.filter((e) => e.catalog === "team").length],
+    ]);
+    expect(await fake.show("deploy")).toMatchObject({ ok: true, value: { entry: { catalog: "team", pinned: true } } });
   });
 });

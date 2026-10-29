@@ -1,7 +1,8 @@
 // Every rule id of a checked task in docs/PLAN.md must appear in the title of some describe/it/test
-// under packages/ and test/ (PLAN.md, "How the loop uses this file").
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+// under packages/, apps/ and test/ (PLAN.md, "How the loop uses this file").
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -57,9 +58,11 @@ function uncovered(text: string, allTitles: string[]): string[] {
   return [...checkedRules(text)].flatMap(([task, ids]) => ids.filter((id) => !covered.has(id)).map((id) => `${task}: ${id}`));
 }
 
-const repoTitles = ["packages", "test"]
-  .flatMap((d) => testFiles(join(repoRoot, d)))
-  .flatMap((f) => titles(readFileSync(f, "utf8")));
+const titlesUnder = (root: string) =>
+  ["packages", "apps", "test"]
+    .flatMap((d) => testFiles(join(root, d)))
+    .flatMap((f) => titles(readFileSync(f, "utf8")));
+const repoTitles = titlesUnder(repoRoot);
 const unchecked = plan.replace(/^- \[[xX]\]/gm, "- [ ]");
 const tick = (text: string, task: string) => text.replace(`- [ ] **${task} `, `- [x] **${task} `);
 
@@ -76,6 +79,22 @@ describe("rule coverage", () => {
     const copy = tick(unchecked, "M1.05");
     expect(uncovered(copy, [])).toEqual(["M1.05: EDIT-02", "M1.05: EDIT-03"]);
     expect(uncovered(copy, ['"EDIT-02: quotes like PyYAML"'])).toEqual(["M1.05: EDIT-03"]);
+  });
+
+  it("counts a title in an apps/ test, such as a screen's UI rule", () => {
+    const root = mkdtempSync(join(tmpdir(), "rule-coverage-"));
+    try {
+      for (const d of ["packages", "test"]) mkdirSync(join(root, d));
+      const file = join(root, "apps/desktop/src/components/Toggle.test.ts");
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, 'it("UI-20: the switch turns a skill off", () => {});');
+      const copy = tick(unchecked, "M5.07");
+      expect(uncovered(copy, titlesUnder(root))).toEqual([]);
+      rmSync(file);
+      expect(uncovered(copy, titlesUnder(root))).toEqual(["M5.07: UI-20"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("reads a Rules line for every task in the plan", () => {

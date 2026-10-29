@@ -7,6 +7,8 @@ import type { EntryRecord } from "../registry/registry.ts";
 import type { Library } from "./library.ts";
 import type { CatalogRow, EntryDetail, PinRecord } from "./schemas.ts";
 
+export * from "./seeds.ts";
+
 export interface FakeState {
   catalogs: CatalogRow[];
   /** every copy, in resolution order, as list() returns them */
