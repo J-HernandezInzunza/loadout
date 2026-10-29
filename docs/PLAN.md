@@ -817,7 +817,7 @@ connected account, an installed skill and a PR on the shared catalog without the
   - Depends: M5.16
   - Done when: each state and outcome (connected, denied, expired, cancelled, unavailable) is tested.
 
-- [ ] **M6.04 Authoring on shared catalogs.** Add, edit and remove on remote catalogs (UI-40
+- [x] **M6.04 Authoring on shared catalogs.** Add, edit and remove on remote catalogs (UI-40
   rebuild): PR mode shows the PR or compare link; direct mode asks before pushing (Q3 A); a PR-mode
   write with no account offers "Connect {host} to open the PR here, or continue and get a link";
   `STALE_PLAN` re-plans.
