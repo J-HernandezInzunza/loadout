@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createGitHarness } from "../../test/git.ts";
+import { checked } from "../../test/checkedLibrary.ts";
 import { createSandbox } from "../../test/sandbox.ts";
 import { createConfigStore } from "../config/config.ts";
 import { createGitClient } from "../git/git.ts";
@@ -30,7 +31,7 @@ async function setup(catalogs: Record<string, string>, extra: CatalogRef[] = [])
     refs.push({ id, kind: "local", path });
   }
   await createConfigStore(sb.host).saveConfig({ version: 1, catalogs: [...refs, ...extra], pins: {}, settings: {} });
-  const library = createLibrary(sb.host, { git: createGitClient(sb.host) });
+  const library = checked(createLibrary(sb.host, { git: createGitClient(sb.host) }));
   const src = (name: string) => join(sb.host.paths.home, "src", name, "SKILL.md");
   const tmp = () => readdir(join(sb.host.paths.appData, "tmp")).catch(() => []);
   return { sb, h, library, src, tmp, file: (id: string) => join(sb.root, `${id}.yaml`) };

@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createApiStub } from "../../test/apiStub.ts";
 import { createGitHarness } from "../../test/git.ts";
+import { checked } from "../../test/checkedLibrary.ts";
 import { createSandbox } from "../../test/sandbox.ts";
 import { createConfigStore } from "../config/config.ts";
 import { createGitClient } from "../git/git.ts";
@@ -30,11 +31,11 @@ async function setup(catalogs: Record<string, string[]> = { A: ["x", "y"], B: ["
   if (refs.length + extra.length > 0) {
     await createConfigStore(sb.host).saveConfig({ version: 1, catalogs: [...refs, ...extra], pins, settings: {} });
   }
-  const library = createLibrary(sb.host, {
+  const library = checked(createLibrary(sb.host, {
     git: createGitClient(sb.host),
     apiBases: stub.bases,
     managedSettingsFile: join(sb.root, "managed-settings.json"),
-  });
+  }));
   return { sb, stub, library, configFile: join(sb.host.paths.appData, "config.json") };
 }
 
