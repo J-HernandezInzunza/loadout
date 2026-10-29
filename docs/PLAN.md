@@ -687,7 +687,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: a table in PROGRESS.md maps every old `catalog.ts` export to its new home; each moved
     rule has a core test; the facade contract test still passes.
 
-- [ ] **M5.03 Design tokens and primitives.** Port `assets/tokens.css` and its specs (no colour
+- [x] **M5.03 Design tokens and primitives.** Port `assets/tokens.css` and its specs (no colour
   literals, 4.5:1 / 3:1 contrast in both themes), the button scale, `PageHeader`, `Busy`,
   `StatusBanner`, `Toasts`, `ActivityBar`, `AppearanceToggle` (native theme via `setTheme`).
   - Rules: UI-09, UI-50, UI-51, UI-52, UI-53, UI-54, UI-55
