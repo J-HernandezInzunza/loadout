@@ -744,7 +744,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Depends: M5.08
   - Done when: UI-30 has a test; the `Pin` mistyping and the missing unpin status (§4.10) are gone.
 
-- [ ] **M5.11 Install.** The install page and preview: source picker when several catalogs hold the
+- [x] **M5.11 Install.** The install page and preview: source picker when several catalogs hold the
   name; **file-level** preview with locally edited files flagged, destination-only when offline (Q5
   A, replacing UI-34's destination-level list); drift gate; button wording without the project
   scope; `STALE_PLAN` re-plans; unmanaged destinations reported (replacing them is M6).
