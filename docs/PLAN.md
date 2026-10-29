@@ -676,7 +676,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: a UI rule id in an `apps/desktop` test title counts as covered (proved with a fixture
     plan, as M1.01 does); `mountView` renders a component against a seeded fake in one call.
 
-- [ ] **M5.02 View logic into the core (W-UI1).** Audit the old `desktop/src/catalog.ts`: each function
+- [x] **M5.02 View logic into the core (W-UI1).** Audit the old `desktop/src/catalog.ts`: each function
   that decides rather than words either maps to a facade result field already there or gains one:
   winner grouping (`allRows`/`winningRows`/`catalogRows`), install status, dependency and dependent
   views, `editableCatalogs` (rebuild: writable and not skipped; remote ones wait for M6),

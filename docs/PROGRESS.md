@@ -1,6 +1,43 @@
 # Progress
 
-One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what changed>`.
+One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what changed>` (see Log).
+
+## Old `desktop/src/catalog.ts` exports (M5.02)
+
+Where each export of the old app's `catalog.ts` lives now. "Core" functions are in
+`packages/core/src/ops/views.ts` unless noted; "Vue" ones are wording and land with the screen that
+uses them.
+
+| Old export | Decides or words | New home |
+|---|---|---|
+| `Row` | view shape | Vue (M5.06), built from `EntryRecord` |
+| `catalogHue` | words (UI-14) | Vue (M5.06) |
+| `allRows` | decides: copies of a name side by side | core `groupByName(list())` |
+| `winningRows` | decides: the copy that wins, and what it beats | `list()` fields: `overriddenBy === null`, `overrides` (RES-07/08) |
+| `catalogRows` | decides: one catalog's copies | `list({ catalog })` |
+| `searchRows` | words: ranking (UI-11) | Vue (M5.06) |
+| `SESSION_TIMING` | words | Vue (M5.07) |
+| `installStatus` | words a decided state | `EntryRecord.state` and `disabled` (global destination only, so no scope or location re-judging); badge text in Vue (M5.06) |
+| `archivedPath` | dropped | no parked copies (Q16 B); the off note has no "Parked at" (M5.08) |
+| `Dependency`, `dependencies` | decides: declared vs inherited, installed | `show().requires[]`: `direct`, `installed`, `state` |
+| `DependentView`, `dependents` | decides: installed | `show().dependents[]`: `direct`, `installed`, `state` |
+| `isOnDisk` | decides | `installed` on records and on `show()`'s related entries: one test (§4.10) |
+| `editableCatalogs` | decides: write target | `CatalogRow.editable` (WRITE-01: writable, not skipped); M5 also requires `kind === "local"` in Vue until M6 |
+| `CatalogDescription`, `describeCatalog` | words | Vue (M5.14) |
+| `requirableRefs` | decides: DEP-02 | core `requirableRefs` |
+| `AddConsequences`, `addConsequences` | decides: DUPLICATE, override split | core `addConsequences`, sharing `splitOverrides` with `planAdd`'s warnings (pins included, which the old one ignored) |
+| `editableCopies` | decides | `show().copies` joined with `CatalogRow.editable` |
+| `EntryDraft`, `entryEdits` | decides: the planUpdate fields | core `entryEdits` (returns `setDescription`/`setSource`/`setRequires`) |
+| `Purgeable`, `purgeable` | dropped | global only: purge deletes `show().installs`' dests; no scope to block it |
+| `PlannedItem`, `InstallPlan`, `installPlan` | decides: target vs dependency, drift gate | `PlanItem.requiredBy` (empty = asked for), `PlanItem.state`; core `discardsEdits(plan)` for the gate |
+| `InstalledCopy`, `installedCopies` | decides | `EntryRecord.locations` and `receipt` (`receipt.catalog.id` = from which catalog; null = unmanaged) |
+| `PushOutcome`, `describePush` | words | Vue (M5.09), keyed on the push result's `method` |
+| `InstallAction`, `describeInstallAction` | words | Vue (M5.11), from plan item states; no project scope |
+| `summarizeChanges` | words | Vue (M5.11), from `Preview` |
+| `describeDependencyWrite` | words | Vue (M5.13) if sync's dependencies need it; the old states are gone |
+| `describeDestState` | words | Vue (M5.11) |
+
+## Log
 
 2026-10-28 M1.01 50d467a rule-coverage test: checked tasks' rule ids must appear in a describe/it/test title
 2026-10-28 M1.02 e065f4e model types with zod schemas, closed ErrorCode enum, Result with ok()/err()
@@ -78,3 +115,4 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-29 M4.15 b1acfc1 checkAccount(on) on the facade (tokenFor + whoami); debug view Accounts section: sign in, check, disconnect per host; owner connected, checked and disconnected both hosts; config.json's strict schema and the git/fs-only audit log keep tokens out
 2026-10-29 M4.17 b1acfc1 milestone check (no code change): npm run check green (1970 TS + 15 Rust tests); facade contract test passes for all 43 Library methods; capabilities test pins fs (exact allow + denies), shell (git only), http (four URLs) and the app commands (real_path + three Keychain); every M4 task checked
 2026-10-29 M5.01 67687f2 rule coverage scans apps/ (fixture-tree proof with UI-20); services.ts injection keys (libraryKey, auditLogKey; useLibrary/useAuditLog for setup stores via app-level provide); testing/mountView (fresh Pinia + seeded fake + audit log, sync mount); @loadout/core/testing seed builders and seededState() (every install state, off skill, override, pin, account), parsed against the ops schemas
+2026-10-29 M5.02 d150380 show requires/dependents gain direct/installed/state; CatalogRow.editable (writeTarget add by name); views.ts: groupByName, requirableRefs, addConsequences (splitOverrides shared with planAdd, pins count), entryEdits (setDescription/setSource/setRequires or null), discardsEdits (drift gate); export map table at the top of PROGRESS.md, which now has a Log heading
