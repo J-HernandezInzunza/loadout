@@ -585,7 +585,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: `mockIPC` tests cover a timeout and an abort; the capabilities test fails on any other
     URL in the scope.
 
-- [ ] **M4.10 PATH cache.** In Rust `main`, before plugins start: use the PATH (and
+- [x] **M4.10 PATH cache.** In Rust `main`, before plugins start: use the PATH (and
   `CLAUDE_CONFIG_DIR`) cached in app data at once; probe the login shell in the background (10 s
   timeout, shell PATH first, S2) and write the cache for the next launch; probe inline only when
   there is no cache yet.
