@@ -833,19 +833,27 @@ connected account, an installed skill and a PR on the shared catalog without the
 
 - [ ] **M6.07 Catalog from a connected account.** Adding a shared catalog (first run and
   RegisterCatalog's shared mode) asks where it lives. GitHub or Bitbucket connects that account in
-  place (M6.03's sign-in, as M6.04's write gate does), then picks the repository from the account's
-  repos (every page, type to filter), presets the branch to the repo's default (editable), and checks
-  for `library.yaml` at the root through the API before anything is cloned. "Somewhere else" keeps
-  pasting a URL. With the account connected, clones go https first with its token (FETCH-02), so a new
-  machine needs no SSH key; first run says so. Core: read-only `listRepos(on, { query, signal })`,
-  `repoInfo(on, repo)` (default branch) and a file-exists check over `Host.http`, with stub endpoints
-  for each (M2.03).
+  place (M6.03's sign-in, as M6.04's write gate does), then picks the repository from the repos the
+  account can read, owned or not (GitHub `/user/repos` with every affiliation; Bitbucket the
+  workspaces' repos with the member role; every page, type to filter), or "Other": paste a link. The
+  link can be a repo page, a deeper browser link (`/tree/<branch>/…`, `/src/<branch>/…`) or a clone
+  URL; it is reduced to host/org/repo (clone URLs are rebuilt from that, so no `.git` is needed) and
+  a branch or `library.yaml` path in it is taken. The branch defaults to the repo's default
+  (editable), and `library.yaml` is checked through the API before anything is cloned; a 404 says
+  either the file or access is missing (an org that restricts OAuth apps hides its repos until an
+  owner approves Loadout). "Somewhere else" (another host) keeps pasting a clone URL. With the
+  account connected, clones go https first with its token (FETCH-02), so a new machine needs no SSH
+  key; first run says so. Core: read-only `listRepos(on, { query, signal })`, `repoInfo(on, repo)`
+  (default branch), a file-exists check over `Host.http` and `parseRepoLink(url)`, with stub
+  endpoints for each (M2.03). Check Bitbucket's current listing endpoint first: its cross-workspace
+  listings have been deprecated in stages.
   - Rules: none (arch §5.5; open-questions Q12 A)
   - Depends: M6.01, M6.03
-  - Done when: both hosts list, filter (across pages) and pick a repo against the stub; the branch
-    defaults to the repo's default; a repo without `library.yaml` is refused before cloning; a
-    denied, expired or cancelled sign-in leaves pasting a URL available; the pasted-URL path still
-    works.
+  - Done when: both hosts list, filter (across pages) and pick a repo the user doesn't own against
+    the stub; Other accepts a repo page, a deep link (branch and path taken) and a clone URL for
+    each host; the branch defaults to the repo's default; a repo without `library.yaml` (or not
+    readable) is refused before cloning; a denied, expired or cancelled sign-in leaves pasting
+    available; the pasted-URL path still works.
 
 - [ ] **M6.06 Milestone check (manual).** On a fresh app-data folder, from a Finder-launched build:
   first run (connect the host and pick the shared catalog), sign in to the other host, install,
