@@ -8,6 +8,7 @@ import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import { useViewStore, type EntryStop } from "../stores/views.ts";
 import BusyIndicator from "./BusyIndicator.vue";
+import CopyChooser from "./CopyChooser.vue";
 import InstalledCopies from "./InstalledCopies.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
@@ -22,7 +23,7 @@ const library = useLibrary();
 const activity = useActivityStore();
 const views = useViewStore();
 const catalog = useCatalogStore();
-const { catalogs, entries } = storeToRefs(catalog);
+const { catalogs } = storeToRefs(catalog);
 
 const detail = ref<EntryDetail | null>(null);
 const loading = ref(false);
@@ -64,12 +65,6 @@ const declared = computed(() => detail.value?.requires.filter((d) => d.direct) ?
 const inherited = computed(() => detail.value?.requires.filter((d) => !d.direct) ?? []);
 const dependents = computed(() => detail.value?.dependents ?? []);
 
-const choosable = computed(() => (detail.value?.copies.length ?? 0) > 1);
-const pinnedTo = computed(() => detail.value?.copies.find((c) => c.pinned)?.catalog ?? "");
-/** each copy's source string, from the catalog it sits in */
-const sourceOf = (catalog: string) => entries.value.find((e) => e.catalog === catalog && e.name === props.stop.name)?.source ?? "";
-/** Where Loadout writes in this milestone: editable, and a file on this machine. */
-const editable = (id: string) => catalogs.value.some((c) => c.id === id && c.editable && c.kind === "local");
 
 function brokenBecause(reason: "malformed" | "not_found" | "cycle"): string {
   if (reason === "not_found") return "no catalog defines it";
@@ -170,71 +165,10 @@ const handoff = computed(() =>
           </button>
         </div>
 
-        <h3 class="entry-detail__section">
-          <template v-if="choosable">
-            Where this comes from ({{ detail.copies.length }} catalogs)
-          </template>
-          <template v-else>
-            Catalog holding this name
-          </template>
-        </h3>
-        <p
-          v-if="choosable"
-          class="entry-detail__copies-lead"
-        >
-          <template v-if="pinnedTo">
-            Pinned to <strong>{{ pinnedTo }}</strong>, so its copy installs whatever the catalog order says.
-          </template>
-          <template v-else>
-            Decided by catalog order. Pin one to settle it for this name alone, without reordering the
-            registry for everything else.
-          </template>
-          Copies already on this machine keep the source they came from until you install again.
-        </p>
-        <ul class="entry-detail__copies">
-          <li
-            v-for="copy in detail.copies"
-            :key="copy.catalog"
-            class="entry-detail__copy"
-            :class="{ 'entry-detail__copy--wins': copy.wins }"
-            :style="{ '--catalog-hue': hueOf(copy.catalog) }"
-          >
-            <div class="entry-detail__copy-head">
-              <span class="entry-detail__origin-chip">{{ copy.catalog }}</span>
-              <!-- Pinned and first-by-order look alike from outside and are undone by different things. -->
-              <span
-                v-if="copy.pinned"
-                class="entry-detail__pinned"
-              >pinned — this is what installs</span>
-              <span
-                v-else-if="copy.wins"
-                class="entry-detail__wins"
-              >first by catalog order — this is what installs</span>
-              <span
-                v-else
-                class="entry-detail__loses"
-              >overridden by {{ copy.overriddenBy }}</span>
-            </div>
-            <p
-              v-if="copy.overrides.length"
-              class="entry-detail__chain"
-            >
-              overrides {{ copy.overrides.join(", ") }}
-            </p>
-            <p class="entry-detail__copy-source">
-              {{ sourceOf(copy.catalog) }}
-            </p>
-            <!-- A pointer, not a form: the edit belongs with the catalog management. -->
-            <button
-              v-if="editable(copy.catalog)"
-              type="button"
-              class="ghost btn-sm"
-              @click="views.manage = { catalog: copy.catalog, entry: detail.name }"
-            >
-              Edit this entry in {{ copy.catalog }}
-            </button>
-          </li>
-        </ul>
+        <CopyChooser
+          :detail="detail"
+          @changed="afterWrite()"
+        />
 
         <template v-if="declared.length">
           <h3 class="entry-detail__section">

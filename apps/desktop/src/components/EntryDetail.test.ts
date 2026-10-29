@@ -149,13 +149,13 @@ describe("UI-29: copies and pins", () => {
     const { wrapper } = await mountDetail(detail({ copies: copies(false) }));
     expect(wrapper.findAll(".entry-detail__section").map((h) => h.text())).toContain("Where this comes from (2 catalogs)");
     expect(wrapper.find(".entry-detail__copies-lead").text()).toContain("Decided by catalog order.");
-    expect(labels(wrapper, ".entry-detail__copy-head")).toEqual(["personal first by catalog order — this is what installs", "team overridden by personal"]);
+    expect(labels(wrapper, ".entry-detail__copy-head")).toEqual(["personal first by catalog order — this is what installs Pin to this", "team overridden by personal Use this one"]);
     expect(texts(wrapper, ".entry-detail__copy-source")).toEqual([
       "https://github.com/acme/skills/blob/main/skills/tidy/SKILL.md",
       "https://github.com/acme/skills/blob/main/skills/tidy/SKILL.md",
     ]);
 
-    const edit = wrapper.findAll(".entry-detail__copy button");
+    const edit = wrapper.findAll(".entry-detail__edit");
     expect(edit.map((b) => b.text())).toEqual(["Edit this entry in personal"]);
     await edit[0]!.trigger("click");
     expect(useViewStore().current).toEqual({ kind: "catalogs", catalog: "personal", entry: "tidy" });
@@ -164,7 +164,7 @@ describe("UI-29: copies and pins", () => {
   it("names the pin when there is one, and calls a single holder the catalog holding the name", async () => {
     const pinned = await mountDetail(detail({ copies: copies(true) }));
     expect(pinned.wrapper.find(".entry-detail__copies-lead").text()).toContain("Pinned to team, so its copy installs whatever the catalog order says.");
-    expect(labels(pinned.wrapper, ".entry-detail__copy-head")[1]).toBe("team pinned — this is what installs");
+    expect(labels(pinned.wrapper, ".entry-detail__copy-head")[1]).toBe("team pinned — this is what installs Clear pin");
 
     const single = await mountDetail();
     expect(single.wrapper.findAll(".entry-detail__section").map((h) => h.text())).toContain("Catalog holding this name");
