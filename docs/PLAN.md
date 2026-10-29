@@ -577,7 +577,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
     test covers the TS side; the capabilities file allows only these three commands (and M4.06's
     `real_path`, Q6).
 
-- [ ] **M4.09 HTTP.** Add `tauri-plugin-http`; `HostHttp` over its `fetch` with timeout and
+- [x] **M4.09 HTTP.** Add `tauri-plugin-http`; `HostHttp` over its `fetch` with timeout and
   `AbortSignal`; scope exactly `https://api.github.com/*`, `https://github.com/login/*`,
   `https://api.bitbucket.org/*`, `https://bitbucket.org/site/oauth2/*` (arch §2.4).
   - Rules: none (arch §2.2, §2.4, §5.5)
