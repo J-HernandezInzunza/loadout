@@ -927,7 +927,109 @@ on each card, below the switch; the window gets a minimum size instead of a coll
 
 ---
 
-Potentially next (not planned yet): R, the first release to teammates (arch §7: CI build with the
-OAuth clients as Actions secrets, Homebrew cask with the quarantine caveat, a manual smoke run of the
-signed `.app` on a clean user account). Roadmap: infrastructure to record workflows in the native app
+## R. First release to teammates
+
+Exit: every R task checked; `v0.1.0` is a published GitHub Release with its notes and checksums; a
+teammate on a clean Mac installs it with `brew install --cask`, gets past the quarantine step the
+install notes describe, signs in and installs a skill; the next release reaches them with
+`brew upgrade --cask`.
+
+How a release flows (arch §7; Q1: the repo is public, so Homebrew downloads release assets without a
+token; Q2 B: ad-hoc signing, the quarantine step is in the cask's caveats):
+
+1. A version PR sets the version everywhere and merges to main.
+2. The owner tags that merge `v<version>` and pushes the tag.
+3. The release workflow runs the gate, builds the app with the OAuth clients from the `release`
+   environment's secrets, and creates a **draft** GitHub Release with the `.dmg`, a SHA-256 file and
+   generated notes under a hand-written summary.
+4. The owner smoke-tests the draft's own `.dmg`, edits the notes if needed, and publishes it.
+5. Publishing triggers the tap workflow, which updates `Casks/loadout.rb` in the tap repository;
+   teammates install or upgrade from there.
+
+Decided 2026-10-29: the first version is `0.1.0` (0.x: early, anything may change); releases are drafts
+until a person publishes them; a release candidate (`v0.1.0-rc.1`) is published as a pre-release and
+never reaches the tap.
+
+- [ ] **R.01 One version, visible.** The version lives in `apps/desktop/package.json`; `tauri.conf.json`
+  reads it from there (`"version": "../package.json"`), and a script sets it in the other
+  package.json files and `Cargo.toml` (`npm run version:set 0.1.0`). The app shows its version at the
+  foot of the sidebar and at the top of Doctor's report, so a bug report can say which build it is.
+  - Rules: none (arch §7)
+  - Depends: M7.05
+  - Done when: a test fails when any of the files disagree; `version:set` is tested on a copy of the
+    files; the sidebar and Doctor show the version from `@tauri-apps/api/app` (mocked in tests).
+
+- [ ] **R.02 Release workflow.** `.github/workflows/release.yml`, on a pushed tag `v*`: refuse a tag that
+  doesn't match the version (R.01); run the gate; build `aarch64-apple-darwin` with
+  `tauri-apps/tauri-action@v1` (ad-hoc signed as configured, `releaseDraft: true`,
+  `generateReleaseNotes: true`, the summary from R.03 as `releaseBody`, `prerelease` for a tag with a
+  `-`); upload `Loadout_<version>_aarch64.dmg.sha256`. The job runs in a GitHub environment named
+  `release` that holds `LOADOUT_GITHUB_CLIENT_ID`, `LOADOUT_BITBUCKET_CLIENT_ID` and
+  `LOADOUT_BITBUCKET_CLIENT_SECRET`, and fails before building if one is missing (a build without them
+  would ship sign-in as unavailable). `permissions: contents: write` on this job only.
+  - Rules: none (arch §5.5, §7, §10 risk 13)
+  - Depends: R.01
+  - Done when: a test reads the workflow and checks the trigger, the version check, the environment,
+    the draft and pre-release settings and the missing-secret guard; `actionlint` passes; the
+    `v0.1.0-rc.1` dry run in R.07 produced a draft with the `.dmg` and its checksum.
+
+- [ ] **R.03 How a release reads on GitHub.** `.github/release.yml` groups the generated notes by PR
+  label (Features, Fixes, Docs and chores; `skip-changelog` leaves a PR out), with the labels created
+  in the repo; a summary template (`.github/release-summary.md`, used as `releaseBody`) with Install,
+  Upgrade, the quarantine step and why it exists, and Known issues; a tag ruleset so only the owner can
+  create or delete `v*` tags; a bug-report issue form asking for the version from R.01 and Doctor's
+  output.
+  - Rules: none
+  - Depends: R.02
+  - Done when: the files exist and a test checks the categories name labels the repo defines (the list
+    kept in the test); the ruleset is in place (checked by hand, recorded in PROGRESS.md).
+
+- [ ] **R.04 The tap.** A public repository `J-HernandezInzunza/homebrew-tap` (so `brew tap
+  j-hernandezinzunza/tap` finds it) with `Casks/loadout.rb`: `version`, `sha256`, `url` to the
+  release's `.dmg`, `name`, `desc`, `homepage`, `app "Loadout.app"`, `depends_on macos: ">= :sonoma"`,
+  `depends_on arch: :arm64`, `caveats` with the `xattr -dr com.apple.quarantine` command and a link
+  to why, and `zap` for the app data folder (`~/Library/Application Support/com.jhernandezinzunza.loadout`)
+  that never touches `~/.claude`.
+  - Rules: none (arch §7; Q2 B)
+  - Depends: R.02
+  - Done when: `brew style` and `brew audit --cask` pass on the tap; the cask installs the rc's `.dmg`
+    on this machine with the version and checksum pinned by hand.
+
+- [ ] **R.05 Tap update on publish.** `.github/workflows/tap.yml`, on `release: published` and only when
+  not a pre-release: download the `.dmg`, check it against the published `.sha256`, rewrite `version`
+  and `sha256` in the tap's cask and push the commit with a fine-grained token (`TAP_TOKEN`, contents
+  write on the tap repository only, stored in the `release` environment).
+  - Rules: none (arch §7)
+  - Depends: R.04
+  - Done when: a test reads the workflow (trigger, pre-release guard, checksum comparison); the cask
+    edit is a script with tests on a fixture cask; publishing `v0.1.0` produced the tap commit (R.08).
+
+- [ ] **R.06 Install and release docs.** README: what Loadout is, Install (tap, install, the quarantine
+  step and why), Upgrade, Uninstall (and what `zap` removes), sign-in, where to report a bug. A
+  release runbook in CONTRIBUTING.md: the version PR, tagging, checking the draft, publishing,
+  announcing (a short Slack post linking the release), and what to do when a release goes wrong
+  (delete the draft and the tag, or publish a fix version; never move a published tag).
+  - Rules: none
+  - Depends: R.03, R.05
+  - Done when: the runbook was followed for R.07 and R.08 without a step missing from it.
+
+- [ ] **R.07 Release candidate (manual).** Tag `v0.1.0-rc.1`; check the draft's assets, checksum and
+  notes; publish it as a pre-release (the tap must not change); install its `.dmg` on a clean macOS
+  user account (no Homebrew tap yet, no `~/.claude`, no keychain items); run the quarantine step,
+  first run, sign-in, install and toggle; record it in PROGRESS.md.
+  - Rules: none
+  - Depends: R.02, R.03, R.04, R.06
+  - Done when: the run is recorded, and every problem found is a task or fixed.
+
+- [ ] **R.08 v0.1.0 (manual).** The version PR to `0.1.0`, tag, check and publish the draft; the tap
+  commit lands; a teammate installs with `brew tap j-hernandezinzunza/tap && brew install --cask loadout`
+  and reaches a signed-in, installed skill; the release is announced. Record it in PROGRESS.md.
+  - Rules: none
+  - Depends: R.05, R.07
+  - Done when: every R task is checked and the teammate's install is recorded.
+
+---
+
+Roadmap (not planned): Developer ID signing and notarization, which removes the quarantine step
+(arch §7, Q2 A), then `tauri-plugin-updater`; infrastructure to record workflows in the native app
 (Q13 c).
