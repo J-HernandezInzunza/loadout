@@ -40,9 +40,39 @@ export interface HostProc {
   ): Promise<ProcResult>;
 }
 
+/** macOS Keychain in the app (architecture.md §5.5); in memory on the Node host. */
+export interface HostSecrets {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+export interface HttpRequest {
+  method: "GET" | "POST" | "PUT" | "DELETE";
+  url: string;
+  headers?: Record<string, string>;
+  body?: string;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+export interface HttpResponse {
+  status: number;
+  /** names lowercased */
+  headers: Record<string, string>;
+  body: string;
+}
+
+/** Host REST APIs and OAuth endpoints only. Rejects with AbortError or TimeoutError. */
+export interface HostHttp {
+  request(req: HttpRequest): Promise<HttpResponse>;
+}
+
 export interface Host {
   fs: HostFs;
   proc: HostProc;
+  secrets: HostSecrets;
+  http: HostHttp;
   paths: { home: string; appData: string };
   now(): Date;
   /** hex */

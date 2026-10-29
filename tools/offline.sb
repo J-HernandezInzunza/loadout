@@ -1,6 +1,8 @@
 ;; macOS sandbox profile for `npm run check:offline`: everything allowed except network.
 ;; Blocks outbound IP and DNS lookups (mDNSResponder), so any test that reaches the network fails.
+;; Loopback stays open for the tests' local HTTP servers (architecture.md §6).
 (version 1)
 (allow default)
 (deny network-outbound (remote ip))
 (deny network-outbound (remote unix-socket (path-regex #"^/private/var/run/mDNSResponder")))
+(allow network-outbound (remote ip "localhost:*"))

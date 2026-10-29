@@ -1,5 +1,5 @@
 // A Node Host rooted in a per-test temp dir (architecture.md §6, after the Python suite's TempTool).
-// Any fs path or process cwd outside the root is rejected and recorded; the test fails when it
+// Any fs path or process cwd outside the root, or HTTP request off loopback, is rejected and recorded; the test fails when it
 // finishes with an unverified escape, even if the code under test swallowed the rejection.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -12,6 +12,8 @@ export interface Sandbox {
   root: string;
   host: Host;
   audit: AuditEvent[];
+  /** Set on every process the host runs: git reads only `<root>/gitconfig` and only `file://` remotes. */
+  gitEnv: Record<string, string>;
   /** Throws if any call escaped since the last verify, then forgets those escapes. */
   verify(): void;
 }
@@ -44,6 +46,11 @@ export async function createSandbox(): Promise<Sandbox> {
   await mkdir(appData);
 
   const audit: AuditEvent[] = [];
+  const gitEnv = {
+    GIT_CONFIG_GLOBAL: join(root, "gitconfig"),
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_ALLOW_PROTOCOL: "file",
+  };
   const escapes: string[] = [];
   const inner = createNodeHost({ home, appData, onAudit: (e) => audit.push(e) });
 
@@ -67,6 +74,7 @@ export async function createSandbox(): Promise<Sandbox> {
   const sandbox: Sandbox = {
     root,
     audit,
+    gitEnv,
     host: {
       ...inner,
       fs,
@@ -74,7 +82,16 @@ export async function createSandbox(): Promise<Sandbox> {
         async run(program, args, opts) {
           const cwd = opts.cwd ?? root;
           guard("proc.run cwd", cwd);
-          return inner.proc.run(program, args, { ...opts, cwd });
+          return inner.proc.run(program, args, { ...opts, cwd, env: { ...opts.env, ...gitEnv } });
+        },
+      },
+      http: {
+        request(req) {
+          if (new URL(req.url).hostname !== "127.0.0.1") {
+            escapes.push(`http.request: ${req.url}`);
+            return Promise.reject(new Error(`http.request: ${req.url} leaves loopback`));
+          }
+          return inner.http.request(req);
         },
       },
     },

@@ -7,11 +7,22 @@ import { CatalogRef, err, ok, type Result } from "../model/model.ts";
 
 const [LocalCatalog, RemoteCatalog] = CatalogRef.options;
 
+/** Non-secret facts about a connected account; its tokens live in Host.secrets (architecture.md §5.5). */
+export const AccountInfo = z.strictObject({
+  login: z.string(),
+  scopes: z.array(z.string()),
+  connectedAt: z.string(),
+});
+export type AccountInfo = z.infer<typeof AccountInfo>;
+
 export const AppConfigV1 = z.strictObject({
   version: z.literal(1),
   catalogs: z.array(z.discriminatedUnion("kind", [LocalCatalog.strict(), RemoteCatalog.strict()])),
   pins: z.record(z.string(), z.string()),
   settings: z.strictObject({}),
+  accounts: z
+    .strictObject({ github: AccountInfo.exactOptional(), bitbucket: AccountInfo.exactOptional() })
+    .exactOptional(),
   imported: z
     .strictObject({
       from: z.string(),
@@ -30,6 +41,8 @@ export interface ConfigStore {
   loadConfig(): Promise<Result<LoadedConfig>>;
   /** Saves run one at a time, in call order. */
   saveConfig(config: AppConfigV1): Promise<Result<void>>;
+  /** Read, change and save as one step in the same queue, so concurrent updates never drop each other. */
+  updateConfig(change: (config: AppConfigV1) => AppConfigV1): Promise<Result<AppConfigV1>>;
 }
 
 const emptyConfig = (): AppConfigV1 => ({ version: 1, catalogs: [], pins: {}, settings: {} });
@@ -72,6 +85,17 @@ export function createConfigStore(host: Host): ConfigStore {
     },
     saveConfig(config) {
       const result = queue.then(() => write(config));
+      queue = result.catch(() => {});
+      return result;
+    },
+    updateConfig(change) {
+      const result = queue.then(async (): Promise<Result<AppConfigV1>> => {
+        const current = await read();
+        if (!current.ok) return current;
+        const next = change(current.value ?? emptyConfig());
+        const saved = await write(next);
+        return saved.ok ? ok(next) : saved;
+      });
       queue = result.catch(() => {});
       return result;
     },
