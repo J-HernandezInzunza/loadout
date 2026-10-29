@@ -759,7 +759,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Depends: M5.11
   - Done when: each rule has a test; `BulkInstall.spec.ts` is ported.
 
-- [ ] **M5.13 Sync and Doctor.** Sync plans on open and applies on confirm (A2: unmanaged reported,
+- [x] **M5.13 Sync and Doctor.** Sync plans on open and applies on confirm (A2: unmanaged reported,
   missing receipts listed); Doctor with the deep toggle disabled while running (§4.10) and the
   re-clone action for a diverged clone (A4).
   - Rules: UI-38, UI-39
