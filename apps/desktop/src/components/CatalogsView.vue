@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { CatalogRow, Library } from "@loadout/core";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { catalogHue, describeCatalog } from "../catalog.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import { useViewStore } from "../stores/views.ts";
+import EntryEditor from "./EntryEditor.vue";
+import EntryRemove from "./EntryRemove.vue";
 import PageHeader from "./PageHeader.vue";
 import RegisterCatalog, { type RegisterMode } from "./RegisterCatalog.vue";
 import StatusBanner from "./StatusBanner.vue";
@@ -54,6 +56,40 @@ function leaveCatalog() {
 watch(catalogs, () => {
   if (props.at !== null && !open.value) goTo(null);
 });
+
+// ---- a catalog's entries ----
+/** One panel at a time, held as one value so two open forms aren't representable. */
+type Panel = { key: string; mode: "edit" | "remove" };
+const panel = ref<Panel | null>(null);
+/** what the last removal did, said here because its row is gone */
+const entryOutcome = ref<string | null>(null);
+const keyOf = (e: { type: string; name: string }) => `${e.type}:${e.name}`;
+
+function show(key: string, mode: Panel["mode"]) {
+  const open = panel.value;
+  panel.value = open?.key === key && open.mode === mode ? null : { key, mode };
+  entryOutcome.value = null;
+}
+const isOpen = (key: string, mode: Panel["mode"]) => panel.value?.key === key && panel.value.mode === mode;
+
+function afterRemove(text: string) {
+  panel.value = null;
+  entryOutcome.value = text;
+}
+
+// Arriving from an entry page lands on that entry's edit form, scrolled into view.
+watch(
+  () => views.manage?.entry,
+  async (name) => {
+    const entry = held.value.find((e) => e.name === name);
+    if (!entry) return;
+    panel.value = { key: keyOf(entry), mode: "edit" };
+    await nextTick();
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById(`entry-${entry.name}`)?.scrollIntoView?.({ behavior: reduced ? "auto" : "smooth", block: "center" });
+  },
+  { immediate: true },
+);
 
 // ---- pins ----
 const pins = ref<Pin[]>([]);
@@ -397,6 +433,12 @@ async function unregister() {
           Add an entry
         </button>
       </template>
+      <StatusBanner
+        v-if="entryOutcome"
+        kind="success"
+      >
+        {{ entryOutcome }}
+      </StatusBanner>
       <p class="catalogs__lead">
         {{ open?.location }}
       </p>
@@ -424,11 +466,46 @@ async function unregister() {
           :id="`entry-${entry.name}`"
           :key="`${entry.type}:${entry.name}`"
           class="catalogs__entry"
+          :class="{ 'catalogs__entry--open': panel?.key === keyOf(entry) }"
         >
           <div class="catalogs__entry-line">
             <span class="catalogs__entry-name">{{ entry.name }}</span>
             <span class="catalogs__entry-type">{{ entry.type }}</span>
             <span class="catalogs__entry-desc">{{ entry.description }}</span>
+            <span class="catalogs__entry-actions">
+              <button
+                type="button"
+                class="ghost btn-sm"
+                :aria-expanded="isOpen(keyOf(entry), 'edit')"
+                @click="show(keyOf(entry), 'edit')"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                class="danger btn-sm"
+                :aria-expanded="isOpen(keyOf(entry), 'remove')"
+                @click="show(keyOf(entry), 'remove')"
+              >
+                Remove
+              </button>
+            </span>
+          </div>
+          <div
+            v-if="panel?.key === keyOf(entry)"
+            class="catalogs__panel fade-in"
+          >
+            <EntryEditor
+              v-if="panel.mode === 'edit'"
+              :entry="entry"
+              @close="panel = null"
+            />
+            <EntryRemove
+              v-else
+              :entry="entry"
+              @removed="afterRemove"
+              @close="panel = null"
+            />
           </div>
         </li>
       </ul>

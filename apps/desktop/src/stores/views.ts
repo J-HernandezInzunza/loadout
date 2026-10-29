@@ -49,15 +49,5 @@ export const useViewStore = defineStore("views", () => {
     if (installFor.value !== null && !names.has(installFor.value)) installFor.value = null;
   }
 
-  /** Closes every view, back to the catalog list. */
-  function home() {
-    doctor.value = false;
-    sync.value = false;
-    addingTo.value = null;
-    manage.value = null;
-    installFor.value = null;
-    trail.value = [];
-  }
-
-  return { doctor, sync, addingTo, manage, installFor, trail, current, prune, home };
+  return { doctor, sync, addingTo, manage, installFor, trail, current, prune };
 });

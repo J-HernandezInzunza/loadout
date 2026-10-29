@@ -34,7 +34,7 @@ describe("UI-10: the list header", () => {
 
     await button(wrapper, "Catalogs")!.trigger("click");
     expect(useViewStore().current).toEqual({ kind: "catalogs", catalog: null, entry: null });
-    useViewStore().home();
+    useViewStore().manage = null;
     await button(wrapper, "Sync")!.trigger("click");
     expect(useViewStore().current.kind).toBe("sync");
   });
