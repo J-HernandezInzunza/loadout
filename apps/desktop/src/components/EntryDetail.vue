@@ -21,17 +21,19 @@ const props = defineProps<{
 const library = useLibrary();
 const activity = useActivityStore();
 const views = useViewStore();
-const { catalogs, entries } = storeToRefs(useCatalogStore());
+const catalog = useCatalogStore();
+const { catalogs, entries } = storeToRefs(catalog);
 
 const detail = ref<EntryDetail | null>(null);
 const loading = ref(false);
 const failure = ref<string | null>(null);
 
-async function load() {
+/** `quiet` after a write on this page: the page stays up, so the outcome banner on it stays readable. */
+async function load(quiet = false) {
   const { name, catalog } = props.stop;
-  loading.value = true;
+  loading.value = !quiet;
   failure.value = null;
-  detail.value = null;
+  if (!quiet) detail.value = null;
   const shown = await activity.withActivity(`reading ${name}…`, () => library.show(name, { catalog }));
   loading.value = false;
   if (shown.ok) detail.value = shown.value;
@@ -39,7 +41,11 @@ async function load() {
 }
 
 // The catalog too: a name has a copy per catalog, and the list opens the one that was clicked.
-watch(() => [props.stop.name, props.stop.catalog], load, { immediate: true });
+watch([() => props.stop.name, () => props.stop.catalog], () => load(), { immediate: true });
+
+async function afterWrite() {
+  await Promise.all([load(true), catalog.reload()]);
+}
 
 const status = computed(() => (detail.value ? installStatus(detail.value.entry) : null));
 const hueOf = (id: string) => catalogHue(catalogs.value.find((c) => c.id === id)?.precedence ?? 1);
@@ -143,7 +149,11 @@ const handoff = computed(() =>
         </div>
 
         <!-- What you have before what you could do: the page is most often opened about an installed entry. -->
-        <InstalledCopies :entry="detail.entry" />
+        <InstalledCopies
+          :entry="detail.entry"
+          :affected="dependents.filter((d) => d.installed).map((d) => d.name)"
+          @changed="afterWrite()"
+        />
 
         <h3 class="entry-detail__section">
           Install and set up

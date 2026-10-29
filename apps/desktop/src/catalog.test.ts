@@ -1,6 +1,6 @@
 import { entryRecord, installedRecord } from "@loadout/core/testing";
 import { describe, expect, it } from "vitest";
-import { catalogHue, installStatus, rowsFor, searchRows } from "./catalog.ts";
+import { catalogHue, describePush, installStatus, rowsFor, searchRows } from "./catalog.ts";
 
 const label = (rows: ReturnType<typeof rowsFor>) => rows.map((r) => `${r.entry.name}@${r.entry.catalog}`);
 
@@ -71,5 +71,33 @@ describe("UI-11: search", () => {
   it("ignores case and surrounding space, and returns everything for an empty query", () => {
     expect(searchRows(rows, "  SLACK-T ").map((r) => r.entry.catalog)).toEqual(["personal", "team"]);
     expect(searchRows(rows, "   ")).toEqual(rows);
+  });
+});
+
+describe("UI-27: how a push ended", () => {
+  const base = { name: "tidy", catalog: "team", dest: "/Users/dev/.claude/skills/tidy", note: null, changed: true };
+
+  it("calls an unchanged push nothing to push, and a local one a copy written straight through", () => {
+    expect(describePush({ ...base, changed: false, kind: "local", target: "/src/tidy" })).toEqual({
+      headline: "Nothing to push.",
+      detail: "The local copy of tidy already matches its source.",
+      link: null,
+    });
+    expect(describePush({ ...base, kind: "local", target: "/src/tidy" })).toEqual({
+      headline: "Copied tidy back to its source.",
+      detail: "/src/tidy — a local source is written straight through, with no pull request.",
+      link: null,
+    });
+  });
+
+  it("says opened only when the host's API opened the pull request; a pushed branch offers its compare link", () => {
+    const api = { method: "api" as const, branch: "library/update-tidy-1", prUrl: "https://github.com/acme/skills/pull/7", compareUrl: "https://github.com/acme/skills/compare/main...library/update-tidy-1" };
+    expect(describePush({ ...base, kind: "remote", pr: api })).toEqual({ headline: "Pull request opened.", detail: "From library/update-tidy-1.", link: { url: api.prUrl, label: "View the pull request" } });
+
+    const manual = describePush({ ...base, kind: "remote", pr: { method: "manual", branch: "library/update-tidy-1", compareUrl: api.compareUrl } });
+    expect(manual.headline).toBe("Branch pushed — the pull request is not open yet.");
+    expect(manual.detail).toContain("nobody has been asked to review anything");
+    expect(manual.link).toEqual({ url: api.compareUrl, label: "Open a pull request" });
+    expect(describePush({ ...base, kind: "remote", pr: { method: "manual", branch: "b", compareUrl: null } }).link).toBeNull();
   });
 });

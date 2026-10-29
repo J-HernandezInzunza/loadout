@@ -1,6 +1,6 @@
 // Wording, ranking and colour for the catalog list; what the rows are (winners, provenance, install state)
 // is decided in the core and read off its records.
-import { groupByName, type CatalogRow, type EntryRecord } from "@loadout/core";
+import { groupByName, type CatalogRow, type EntryRecord, type Library } from "@loadout/core";
 
 const HUES = [211, 275, 25, 320];
 
@@ -84,4 +84,42 @@ export function searchRows(rows: Row[], query: string): Row[] {
 export function writeModeText(catalog: CatalogRow): string {
   if (!catalog.writable) return "read-only";
   return catalog.writeMode === "pr" ? "writes via pull request" : "writes directly";
+}
+
+type Value<T> = T extends (...args: never[]) => Promise<infer R> ? (R extends { ok: true; value: infer V } ? V : never) : never;
+export type PushResult = Value<Library["applyPush"]>;
+
+/** How a finished push ended, in words that match what happened, and the link worth offering. */
+export interface PushOutcome {
+  headline: string;
+  detail: string | null;
+  link: { url: string; label: string } | null;
+}
+
+/**
+ * What a push really did. A remote push always pushes its branch and only sometimes opens the PR, so this
+ * says "opened" only when the host's API opened one: a branch with a compare link is not in anyone's queue.
+ */
+export function describePush(result: PushResult): PushOutcome {
+  if (!result.changed) {
+    return { headline: "Nothing to push.", detail: `The local copy of ${result.name} already matches its source.`, link: null };
+  }
+  if (result.kind === "local") {
+    return {
+      headline: `Copied ${result.name} back to its source.`,
+      detail: `${result.target} — a local source is written straight through, with no pull request.`,
+      link: null,
+    };
+  }
+  const pr = result.pr;
+  if (pr?.method === "api" && pr.prUrl) {
+    return { headline: "Pull request opened.", detail: `From ${pr.branch}.`, link: { url: pr.prUrl, label: "View the pull request" } };
+  }
+  return {
+    headline: "Branch pushed — the pull request is not open yet.",
+    detail: pr
+      ? `${pr.branch} is on the remote. Opening the pull request is the next step, and nobody has been asked to review anything until you do.`
+      : "Opening the pull request is the next step.",
+    link: pr?.compareUrl ? { url: pr.compareUrl, label: "Open a pull request" } : null,
+  };
 }

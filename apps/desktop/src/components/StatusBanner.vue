@@ -17,7 +17,7 @@ defineProps<{
    * Preformatted text, such as git's stderr, rendered verbatim in a `<pre>` because its
    * line breaks carry meaning.
    */
-  detail?: string;
+  detail?: string | undefined;
 }>();
 </script>
 

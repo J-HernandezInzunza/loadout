@@ -1,11 +1,59 @@
 <script setup lang="ts">
 import type { EntryRecord } from "@loadout/core";
-import { computed } from "vue";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { computed, ref, watch } from "vue";
+import type { PushOutcome } from "../catalog.ts";
+import PushControl from "./PushControl.vue";
+import StatusBanner from "./StatusBanner.vue";
+import UninstallControl from "./UninstallControl.vue";
 
 const props = defineProps<{
   /** the page's entry with the install fields of its destination */
   entry: EntryRecord;
+  /** installed entries that depend on this one */
+  affected: string[];
 }>();
+const emit = defineEmits<{ changed: [] }>();
+
+/** One panel at a time, held as one value so two open forms aren't representable. */
+type Panel = { dest: string; mode: "push" | "remove" };
+const panel = ref<Panel | null>(null);
+/**
+ * How the last action ended. Held here rather than in the control, which closes as the page reloads:
+ * a success banner inside it would vanish before anyone read it.
+ */
+const outcome = ref<{ kind: "success" | "error"; text: string; detail?: string; push?: PushOutcome } | null>(null);
+
+function show(dest: string, mode: Panel["mode"]) {
+  const open = panel.value;
+  panel.value = open?.dest === dest && open.mode === mode ? null : { dest, mode };
+  if (panel.value) outcome.value = null;
+}
+
+const isOpen = (dest: string, mode: Panel["mode"]) => panel.value?.dest === dest && panel.value.mode === mode;
+
+function done(result: NonNullable<typeof outcome.value>) {
+  outcome.value = result;
+  panel.value = null;
+  if (result.kind === "success") emit("changed");
+}
+
+/** The PR or compare link, in the real browser rather than the app's WebView. */
+async function follow(url: string) {
+  try {
+    await openUrl(url);
+  } catch (e) {
+    outcome.value = { kind: "error", text: `Could not open ${url}.`, detail: String(e) };
+  }
+}
+
+watch(
+  [() => props.entry.name, () => props.entry.catalog],
+  () => {
+    panel.value = null;
+    outcome.value = null;
+  },
+);
 
 /**
  * What sits at the entry's destination: Loadout installs globally, so there is at most one. The receipt
@@ -25,6 +73,37 @@ const copies = computed(() =>
     <h3 class="copies__heading">
       On this machine ({{ copies.length }})
     </h3>
+
+    <!-- At the top of the surface that owns the command, never under the control that was pressed. -->
+    <StatusBanner
+      v-if="outcome"
+      :kind="outcome.kind"
+      :detail="outcome.detail"
+    >
+      <p class="copies__outcome">
+        {{ outcome.text }}
+      </p>
+      <template v-if="outcome.push">
+        <p
+          v-if="outcome.push.detail"
+          class="copies__outcome-detail"
+        >
+          {{ outcome.push.detail }}
+        </p>
+        <p
+          v-if="outcome.push.link"
+          class="copies__outcome-detail"
+        >
+          <button
+            type="button"
+            class="btn-sm"
+            @click="follow(outcome.push.link.url)"
+          >
+            {{ outcome.push.link.label }}
+          </button>
+        </p>
+      </template>
+    </StatusBanner>
 
     <p
       v-if="!copies.length"
@@ -58,6 +137,44 @@ const copies = computed(() =>
           >
             from {{ copy.fromCatalog }}, not {{ entry.catalog }}
           </span>
+          <span class="copies__actions">
+            <button
+              type="button"
+              class="ghost btn-sm"
+              :aria-expanded="isOpen(copy.dest, 'push')"
+              @click="show(copy.dest, 'push')"
+            >
+              Send edits back
+            </button>
+            <button
+              type="button"
+              class="danger btn-sm"
+              :aria-expanded="isOpen(copy.dest, 'remove')"
+              @click="show(copy.dest, 'remove')"
+            >
+              Remove
+            </button>
+          </span>
+        </div>
+        <div
+          v-if="panel?.dest === copy.dest"
+          class="copies__panel fade-in"
+        >
+          <PushControl
+            v-if="panel.mode === 'push'"
+            :entry="entry"
+            :dest="copy.dest"
+            @done="done"
+            @close="panel = null"
+          />
+          <UninstallControl
+            v-else
+            :entry="entry"
+            :dest="copy.dest"
+            :affected="affected"
+            @done="done"
+            @close="panel = null"
+          />
         </div>
       </li>
     </ul>
@@ -96,6 +213,21 @@ const copies = computed(() =>
 .copies__dest {
   font-size: 0.8rem;
   overflow-wrap: anywhere;
+}
+.copies__actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+.copies__panel {
+  margin-top: 0.75rem;
+}
+.copies__outcome,
+.copies__outcome-detail {
+  margin: 0;
+}
+.copies__outcome-detail {
+  margin-top: 0.4rem;
 }
 .copies__unmanaged,
 .copies__foreign {
