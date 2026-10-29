@@ -4,9 +4,11 @@ import { onMounted } from "vue";
 import ActivityBar from "./components/ActivityBar.vue";
 import CatalogView from "./components/CatalogView.vue";
 import CommandLog from "./components/CommandLog.vue";
+import DoctorView from "./components/DoctorView.vue";
 import EntryDetail from "./components/EntryDetail.vue";
 import InstallView from "./components/InstallView.vue";
 import PageHeader from "./components/PageHeader.vue";
+import SyncView from "./components/SyncView.vue";
 import ToastStack from "./components/ToastStack.vue";
 import { useCatalogStore } from "./stores/catalog.ts";
 import { useViewStore } from "./stores/views.ts";
@@ -22,6 +24,11 @@ onMounted(() => catalog.launch());
   <main class="app">
     <ActivityBar />
     <CatalogView v-if="current.kind === 'list'" />
+    <DoctorView
+      v-else-if="current.kind === 'doctor'"
+      :back="views.manage ? 'Catalogs' : 'Loadout'"
+    />
+    <SyncView v-else-if="current.kind === 'sync'" />
     <EntryDetail
       v-else-if="current.kind === 'entry'"
       :stop="current.stop"
