@@ -917,7 +917,7 @@ on each card, below the switch; the window gets a minimum size instead of a coll
     `components/ui/`; each wrapper has tests for its v-model forms, a disabled state and a passed-through
     attribute; the existing screen tests pass unchanged in what they assert.
 
-- [ ] **M7.05 Milestone check (manual).** From a Finder-launched build: each Browse item, From,
+- [x] **M7.05 Milestone check (manual).** From a Finder-launched build: each Browse item, From,
   state and Hide overridden together with search; bulk select on one catalog; Sync and Catalogs from
   the sidebar and back; the Accounts rows; the restyled checkboxes, radios and selects in both themes;
   the window stops at its minimum size. Record it in PROGRESS.md.
