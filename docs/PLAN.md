@@ -1,6 +1,6 @@
-# Plan: M1 to M4
+# Plan: M1 to M6
 
-The task list the M1–M4 loop works through (prompt in START-HERE.md). Rule ids point at
+The task list the M1–M6 loop works through (prompt in START-HERE.md). Rule ids point at
 `docs/spec/behaviors.md`; `arch §x` at `docs/spec/architecture.md`; `S1`…`S10` at
 `docs/spec/spikes.md`. Where a rule carries a `(rebuild, §0.1: …)` note, the note wins.
 
@@ -651,4 +651,196 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
 
 ---
 
-Potentially next (not planned yet): M5, the screens (open-questions.md "UI"), built against the M4.04 `Library` fake; then R, the first release to teammates (arch §7: CI build, Homebrew cask with the quarantine caveat).
+## M5. Screens: parity with the old app
+
+Exit: every M5 task checked; the old app's screens, wording and design tokens run on the M4 facade
+(open-questions.md Q9 A), with the §4.10 gaps fixed; every UI rule tagged `mvp` (UI-01…UI-55, less
+the `drop`/`later` ones: UI-06, UI-07, UI-33, UI-40, UI-56) appears in a test title; every old spec
+file (`the-library-skill/desktop/src/**/*.spec.ts`, 31 files) is ported or listed as dropped with its
+reason; the debug view is gone. New surfaces wait for M6.
+
+Conventions for the screen tasks: components in `apps/desktop/src/components/`, one Pinia store per
+area (arch §2.5: catalog, install, registry, activity, plus the view stack), tests next to each
+component as `*.test.ts` against the `@loadout/core/testing` fake, which grows stateful mutations as
+each screen needs them (never IPC mocks above the host layer). A screen task ports its old specs'
+assertions with the UI rule id in the title, takes the old wording verbatim unless a rebuild note or
+a §4.10 gap says otherwise, and fixes its own a11y gaps (labels, roles, `aria-expanded`, focus on
+inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestState`,
+`summarizeChanges`, …) stay in Vue; anything that decides rather than words lives in the core.
+
+- [ ] **M5.01 UI test footing.** The rule-coverage test also scans `apps/` for titles; a `mountView`
+  helper (Pinia with real stores over a seeded fake, the activity store fed by an audit log); the
+  fake gains realistic seed builders (catalogs, records with every install state, pins, accounts).
+  - Rules: none (tooling)
+  - Depends: M4.17
+  - Done when: a UI rule id in an `apps/desktop` test title counts as covered (proved with a fixture
+    plan, as M1.01 does); `mountView` renders a component against a seeded fake in one call.
+
+- [ ] **M5.02 View logic into the core (W-UI1).** Audit the old `desktop/src/catalog.ts`: each function
+  that decides rather than words either maps to a facade result field already there or gains one:
+  winner grouping (`allRows`/`winningRows`/`catalogRows`), install status, dependency and dependent
+  views, `editableCatalogs` (rebuild: writable and not skipped; remote ones wait for M6),
+  `requirableRefs`, `addConsequences`, `editableCopies`, `entryEdits`, `purgeable`, `installPlan`'s
+  blocking (drift gate), `installedCopies`. Search ranking (UI-11) and hues (UI-14) stay in the UI.
+  - Rules: none (behaviors.md §6 W-UI1; arch §2.5)
+  - Depends: M5.01
+  - Done when: a table in PROGRESS.md maps every old `catalog.ts` export to its new home; each moved
+    rule has a core test; the facade contract test still passes.
+
+- [ ] **M5.03 Design tokens and primitives.** Port `assets/tokens.css` and its specs (no colour
+  literals, 4.5:1 / 3:1 contrast in both themes), the button scale, `PageHeader`, `Busy`,
+  `StatusBanner`, `Toasts`, `ActivityBar`, `AppearanceToggle` (native theme via `setTheme`).
+  - Rules: UI-09, UI-50, UI-51, UI-52, UI-53, UI-54, UI-55
+  - Depends: M5.01
+  - Done when: each rule has a test; the old `tokens`, `contrast`, `buttons`, `theme`, `toasts`,
+    `statusFeedback`, `pageChrome` and `AppearanceToggle` specs are ported.
+
+- [ ] **M5.04 App shell and view stack.** `App.vue` over the stores: launch (M4.05) then load,
+  reload without pulling after writes, Refresh pulls; first-load Busy, dimmed reloads, freshness cue,
+  error banner in place of the list; the view stack with its back trail, pruned after reloads;
+  launch warnings shown once (per-catalog, A3). Replaces `DebugView.vue` and the M4 `main.ts` wiring.
+  - Rules: UI-01, UI-02, UI-03, UI-04, UI-05, UI-08
+  - Depends: M5.02, M5.03
+  - Done when: each rule has a test; `App.spec.ts`'s surviving assertions are ported (browser-only
+    mode dropped: the fake serves dev and tests, W-UI4).
+
+- [ ] **M5.05 Command log.** The bottom bar over the host's audit buffer (proc start/end) plus intent
+  labels from the stores (W-UI2); never shows env values; Cancel aborts the running op.
+  - Rules: UI-49
+  - Depends: M5.04
+  - Done when: UI-49 has a test; `CommandLog.spec.ts` and `commandActivity.spec.ts` are ported;
+    cancelling an install from the bar aborts it (fake honouring the signal).
+
+- [ ] **M5.06 Catalog list.** Header with a labelled search, ranked search, rows and tabs, catalog
+  hues, summary strip, counts, empty states, cards and install badges.
+  - Rules: UI-10, UI-11, UI-12, UI-13, UI-14, UI-15, UI-16, UI-17, UI-18, UI-19
+  - Depends: M5.04
+  - Done when: each rule has a test; `EntryList.spec.ts` and `catalog.spec.ts`'s list and search
+    cases are ported; "Hide overridden" no longer shows on the disabled tab (§4.10).
+
+- [ ] **M5.07 On/off switch.** `setSkillState` from the list for skills **and prompts** (Q15 A);
+  `name-only`/`user-invocable-only` shown read-only (Q14 A); toasts as today.
+  - Rules: UI-20
+  - Depends: M5.06
+  - Done when: UI-20 has a test; a prompt toggles; a read-only value shows and offers no switch.
+
+- [ ] **M5.08 Entry page.** `show` on open and on catalog change; the off note without "Parked at"
+  (rebuild); source card; "On this machine"; copies and pins; requires and dependents.
+  - Rules: UI-22, UI-23, UI-24, UI-25, UI-29, UI-31
+  - Depends: M5.06
+  - Done when: each rule has a test; `EntryDetail.spec.ts` and `InstalledCopies.spec.ts` are ported;
+    dependency pills use one "installed" test (§4.10).
+
+- [ ] **M5.09 Uninstall and push from the entry page.** Two-step uninstall naming the override it
+  removes (Q17 A); push with its provenance note and the PR or compare link. Success banners stay
+  visible after the control unmounts (§4.10).
+  - Rules: UI-26, UI-27
+  - Depends: M5.08
+  - Done when: each rule has a test; `UninstallControl.spec.ts` is ported.
+
+- [ ] **M5.10 Pin.** Two-step pin with the switch assessment, switching the installed copy when
+  nothing needs a decision; unpin from the entry page.
+  - Rules: UI-30
+  - Depends: M5.08
+  - Done when: UI-30 has a test; the `Pin` mistyping and the missing unpin status (§4.10) are gone.
+
+- [ ] **M5.11 Install.** The install page and preview: source picker when several catalogs hold the
+  name; **file-level** preview with locally edited files flagged, destination-only when offline (Q5
+  A, replacing UI-34's destination-level list); drift gate; button wording without the project
+  scope; `STALE_PLAN` re-plans; unmanaged destinations reported (replacing them is M6).
+  - Rules: UI-28, UI-32, UI-34, UI-35, UI-36
+  - Depends: M5.08
+  - Done when: each rule has a test; `InstallPreview.spec.ts`'s global-scope cases are ported; a
+    destination-only preview renders when the fake's fetch fails.
+
+- [ ] **M5.12 Bulk install and remove.** Selection on a catalog tab, one preview for all ticked names,
+  one drift gate, uninstall of the ticked installed ones.
+  - Rules: UI-21, UI-37
+  - Depends: M5.11
+  - Done when: each rule has a test; `BulkInstall.spec.ts` is ported.
+
+- [ ] **M5.13 Sync and Doctor.** Sync plans on open and applies on confirm (A2: unmanaged reported,
+  missing receipts listed); Doctor with the deep toggle disabled while running (§4.10) and the
+  re-clone action for a diverged clone (A4).
+  - Rules: UI-38, UI-39
+  - Depends: M5.04
+  - Done when: each rule has a test; `Sync.spec.ts` and `Doctor.spec.ts` are ported.
+
+- [ ] **M5.14 Catalogs and registration.** Registry level (add, health), pinned names, unregister
+  with an in-flight guard (§4.10), a catalog's entries; register an existing catalog, create a new
+  one, or add a shared one, with a picker that matches its hint (§4.10).
+  - Rules: UI-41, UI-42, UI-43, UI-44, UI-45
+  - Depends: M5.04
+  - Done when: each rule has a test; `Catalogs.spec.ts` and `RegisterCatalog.spec.ts` are ported.
+
+- [ ] **M5.15 Authoring on local catalogs.** Add entry (with the source-URL suggestion, Q13 b),
+  edit entry (only changed fields), remove entry (dry-run diff, dependents, purge), each through
+  `planAdd`/`planUpdate`/`planRemove` and `applyCatalogEdit`; remote catalogs wait for M6.
+  - Rules: UI-46, UI-47, UI-48
+  - Depends: M5.14
+  - Done when: each rule has a test; `AddEntry.spec.ts` and `EntryEditor.spec.ts` are ported;
+    EntryRemove names a button that exists (§4.10).
+
+- [ ] **M5.16 Milestone check.** Every M5 rule in a test title; the old-spec port table complete in
+  PROGRESS.md (ported or dropped, with reasons); `npm run check` green; a Finder-launched debug build
+  walks list → entry → install → toggle → sync → doctor → catalogs → add/edit/remove on a local
+  catalog (manual; the owner runs it).
+  - Rules: none
+  - Depends: M5.05, M5.07, M5.09, M5.10, M5.12, M5.13, M5.15
+  - Done when: the rule-coverage test passes with every M1–M5 task checked and the manual walk is
+    recorded in PROGRESS.md.
+
+---
+
+## M6. New surfaces
+
+Exit: every M6 task checked; a teammate with nothing set up can go from first launch to a
+connected account, an installed skill and a PR on the shared catalog without the Python CLI.
+
+- [ ] **M6.01 First run.** With no catalogs registered: import from the Python CLI (its `planImport`
+  report shown first, `notImported` included) or add a catalog: paste a repo URL or create a
+  personal one (Q12 A). Replaces the old FirstRun's bootstrap half (UI-06 rebuild).
+  - Rules: none (open-questions.md Q12 A; arch §4.2)
+  - Depends: M5.16
+  - Done when: both paths land on a loaded list, tested against the fake.
+
+- [ ] **M6.02 Parked skills.** On the first launch that finds copies in `skills-disabled/`, list them,
+  then move them back and turn them off (Q16 B); occupied destinations are reported.
+  - Rules: none (arch §4.5 rule 7; Q16 B)
+  - Depends: M6.01
+  - Done when: the list, the migration and an occupied destination are tested.
+
+- [ ] **M6.03 Accounts page.** In the header beside Catalogs: per host, the account (login, scopes),
+  Sign in (GitHub's code with a restart on `SIGN_IN_EXPIRED`; Bitbucket's redirect bringing the window
+  forward and saying the tab can close), Check, Disconnect; the deep-link listener moves into a store.
+  - Rules: none (arch §5.5; spikes.md S12)
+  - Depends: M5.16
+  - Done when: each state and outcome (connected, denied, expired, cancelled, unavailable) is tested.
+
+- [ ] **M6.04 Authoring on shared catalogs.** Add, edit and remove on remote catalogs (UI-40
+  rebuild): PR mode shows the PR or compare link; direct mode asks before pushing (Q3 A); a PR-mode
+  write with no account offers "Connect {host} to open the PR here, or continue and get a link";
+  `STALE_PLAN` re-plans.
+  - Rules: none (open-questions.md Q3 A; behaviors.md §0.1)
+  - Depends: M6.03, M5.15
+  - Done when: PR (API and manual), direct (confirm and refusal) and the account offer are tested.
+
+- [ ] **M6.05 Content Loadout didn't install.** Per item "Replace with the catalog's copy" that asks
+  first, in the install preview, the entry page and doctor's unmanaged findings (Q8 A).
+  - Rules: none (open-questions.md Q8 A)
+  - Depends: M5.16
+  - Done when: replace is offered only for unmanaged destinations and applies only after consent.
+
+- [ ] **M6.06 Milestone check (manual).** On a fresh app-data folder, from a Finder-launched build:
+  first run (add the shared catalog), sign in to Bitbucket and GitHub, install, toggle, and one PR
+  on the shared catalog; record it in PROGRESS.md.
+  - Rules: none
+  - Depends: M6.01, M6.02, M6.03, M6.04, M6.05
+  - Done when: every M6 task is checked and the run is recorded.
+
+---
+
+Potentially next (not planned yet): R, the first release to teammates (arch §7: CI build with the
+OAuth clients as Actions secrets, Homebrew cask with the quarantine caveat, a manual smoke run of the
+signed `.app` on a clean user account). Roadmap: infrastructure to record workflows in the native app
+(Q13 c).
