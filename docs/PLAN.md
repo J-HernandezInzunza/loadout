@@ -831,7 +831,7 @@ connected account, an installed skill and a PR on the shared catalog without the
   - Depends: M5.16
   - Done when: replace is offered only for unmanaged destinations and applies only after consent.
 
-- [ ] **M6.07 Catalog from a connected account.** Adding a shared catalog (first run and
+- [x] **M6.07 Catalog from a connected account.** Adding a shared catalog (first run and
   RegisterCatalog's shared mode) asks where it lives. GitHub or Bitbucket connects that account in
   place (M6.03's sign-in, as M6.04's write gate does), then picks the repository from the repos the
   account can read, owned or not (GitHub `/user/repos` with every affiliation; Bitbucket the
