@@ -481,7 +481,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.06, M2.14
   - Done when: local and remote pushes have tests, and the copy reads `installed` after each.
 
-- [ ] **M3.12 Pin and unpin.** `planPin` / `applyPin({ switchInstalled })` with the switch
+- [x] **M3.12 Pin and unpin.** `planPin` / `applyPin({ switchInstalled })` with the switch
   assessment, and `unpin`.
   - Rules: RES-13, RES-14, RES-15, RES-16, RES-17
   - Depends: M2.20
