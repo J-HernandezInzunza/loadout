@@ -695,7 +695,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: each rule has a test; the old `tokens`, `contrast`, `buttons`, `theme`, `toasts`,
     `statusFeedback`, `pageChrome` and `AppearanceToggle` specs are ported.
 
-- [ ] **M5.04 App shell and view stack.** `App.vue` over the stores: launch (M4.05) then load,
+- [x] **M5.04 App shell and view stack.** `App.vue` over the stores: launch (M4.05) then load,
   reload without pulling after writes, Refresh pulls; first-load Busy, dimmed reloads, freshness cue,
   error banner in place of the list; the view stack with its back trail, pruned after reloads;
   launch warnings shown once (per-catalog, A3). Replaces `DebugView.vue` and the M4 `main.ts` wiring.
