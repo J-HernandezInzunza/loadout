@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import type { Library } from "@loadout/core";
 import { storeToRefs } from "pinia";
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import ActivityBar from "./components/ActivityBar.vue";
 import AddEntry from "./components/AddEntry.vue";
 import CatalogsView from "./components/CatalogsView.vue";
@@ -10,8 +11,10 @@ import DoctorView from "./components/DoctorView.vue";
 import EntryDetail from "./components/EntryDetail.vue";
 import FirstRun from "./components/FirstRun.vue";
 import InstallView from "./components/InstallView.vue";
+import ParkedSkills from "./components/ParkedSkills.vue";
 import SyncView from "./components/SyncView.vue";
 import ToastStack from "./components/ToastStack.vue";
+import { useLibrary } from "./services.ts";
 import { useCatalogStore } from "./stores/catalog.ts";
 import { useViewStore } from "./stores/views.ts";
 
@@ -19,8 +22,17 @@ const catalog = useCatalogStore();
 const views = useViewStore();
 const { current } = storeToRefs(views);
 const { unregistered } = storeToRefs(catalog);
+const library = useLibrary();
 
-onMounted(() => catalog.launch());
+type MigratePlan = Extract<Awaited<ReturnType<Library["planMigrateParked"]>>, { ok: true }>["value"];
+/** what the Python CLI parked, shown before it moves back; only while at least one copy can */
+const parked = ref<MigratePlan | null>(null);
+
+onMounted(async () => {
+  await catalog.launch();
+  const planned = await library.planMigrateParked();
+  if (planned.ok && planned.value.items.some((item) => !item.occupied)) parked.value = planned.value;
+});
 </script>
 
 <template>
@@ -28,6 +40,11 @@ onMounted(() => catalog.launch());
     <ActivityBar />
     <!-- Nothing registered: nothing below has anything to show until one catalog is. -->
     <FirstRun v-if="unregistered" />
+    <ParkedSkills
+      v-else-if="parked"
+      :plan="parked"
+      @done="parked = null"
+    />
     <CatalogView v-else-if="current.kind === 'list'" />
     <DoctorView
       v-else-if="current.kind === 'doctor'"
