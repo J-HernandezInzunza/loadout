@@ -12,7 +12,7 @@ import { createPullRequest } from "../git/pullRequests.ts";
 import type { Host } from "../host.ts";
 import { err, ok, type Result, type Warning } from "../model/model.ts";
 import type { CatalogState } from "../registry/registry.ts";
-import { remoteWeb } from "../source/source.ts";
+import { accountHostOf, remoteWeb } from "../source/source.ts";
 import { editCopy } from "./copy.ts";
 import { applyCatalogEdit, planCatalogEdit, type CatalogEdit, type EditPlan, type WriteResult } from "./edit.ts";
 
@@ -135,7 +135,7 @@ export async function pushAndOpenPr(
   const compare = compareUrl(repo, base, branch);
   const manual = { method: "manual" as const, branch, compareUrl: compare };
   const web = remoteWeb(repo);
-  const kind = web?.[0] === "github.com" ? "github" : web?.[0] === "bitbucket.org" ? "bitbucket" : null;
+  const kind = accountHostOf(repo);
   if (!kind || !web || !ctx.accounts) return ok(manual);
 
   const opened = await createPullRequest(

@@ -40,7 +40,7 @@ import { err, LibraryError, ok, type CatalogRef, type Entry, type Result, type W
 import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type EntryRecord, type Registry, type ResolveErr } from "../registry/registry.ts";
 import { destFor, destState, readLegacyInstalls, scanInstallDirs, type ScanReport } from "../scan/scan.ts";
-import { cloneUrls, parseSource } from "../source/source.ts";
+import { accountHostOf, cloneUrls, parseSource } from "../source/source.ts";
 import { isStale } from "../update/update.ts";
 import { applyAdd, planAdd, type AddPlan, type AddRequest } from "../write/add.ts";
 import type { WriteResult } from "../write/edit.ts";
@@ -352,6 +352,7 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
           kind: c.ref.kind,
           location: c.ref.kind === "remote" ? `${c.ref.repo} (${c.ref.branch}, ${c.ref.yamlPath})` : c.file,
           writeMode: c.ref.kind === "local" ? "local" : c.ref.protected ? "pr" : "direct",
+          accountHost: c.ref.kind === "remote" ? accountHostOf(c.ref.repo) : null,
           writable: c.ref.writable !== false,
           editable: writeTarget(reg, { op: "add", catalog: c.ref.id }).ok,
           entries: c.skipped === undefined ? c.entries.length : null,

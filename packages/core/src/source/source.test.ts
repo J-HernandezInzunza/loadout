@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadGolden } from "../../test/golden.ts";
 import { createSandbox } from "../../test/sandbox.ts";
-import { cloneUrls, parseSource, remoteWeb } from "./source.ts";
+import { accountHostOf, cloneUrls, parseSource, remoteWeb } from "./source.ts";
 
 const fixture = loadGolden("source");
 const GOLDEN_HOME = fixture.meta.home;
@@ -25,6 +25,17 @@ describe("parseSource", () => {
   it("FETCH-01: expands ~ against a home with a trailing slash as Python does", () => {
     expect(parseSource("~/x.md", "/h/")).toEqual({ kind: "local", path: "/h/x.md" });
     expect(parseSource("~", "/")).toEqual({ kind: "local", path: "/" });
+  });
+});
+
+describe("accountHostOf", () => {
+  it("names GitHub and Bitbucket (its SSH host too) for every URL form, and nothing else", () => {
+    expect(accountHostOf("git@github.com:o/r.git")).toBe("github");
+    expect(accountHostOf("https://github.com/o/r")).toBe("github");
+    expect(accountHostOf("ssh://git@bitbucket.org/o/r.git")).toBe("bitbucket");
+    expect(accountHostOf("git@ssh.bitbucket.org:o/r.git")).toBe("bitbucket");
+    expect(accountHostOf("git@gitlab.com:o/r.git")).toBeNull();
+    expect(accountHostOf("/Users/dev/repo")).toBeNull();
   });
 });
 

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { AccountHost } from "@loadout/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { storeToRefs } from "pinia";
 import { onMounted } from "vue";
 import { HOST_NAMES, useAccountStore } from "../stores/accounts.ts";
 import { useViewStore } from "../stores/views.ts";
 import PageHeader from "./PageHeader.vue";
+import SignInProgress from "./SignInProgress.vue";
 import StatusBanner from "./StatusBanner.vue";
 
 const HOSTS: AccountHost[] = ["github", "bitbucket"];
@@ -42,55 +42,10 @@ onMounted(() => store.load());
           {{ HOST_NAMES[on] }}
         </h3>
 
-        <template v-if="pending[on]?.on === 'github'">
-          <p class="accounts__line">
-            Enter this code on GitHub's page, which opened in your browser:
-          </p>
-          <p class="accounts__code">
-            {{ pending[on].userCode }}
-          </p>
-          <p class="accounts__note">
-            Loadout finishes on its own once you approve there.
-          </p>
-          <div class="accounts__actions">
-            <button
-              type="button"
-              class="ghost"
-              @click="openUrl(pending[on].verificationUri)"
-            >
-              Open GitHub again
-            </button>
-            <button
-              type="button"
-              class="ghost"
-              @click="store.cancel(on)"
-            >
-              Cancel
-            </button>
-          </div>
-        </template>
-
-        <template v-else-if="pending[on]?.on === 'bitbucket'">
-          <p class="accounts__line">
-            Approve Loadout on Bitbucket's page in your browser; Loadout comes forward when you do.
-          </p>
-          <div class="accounts__actions">
-            <button
-              type="button"
-              class="ghost"
-              @click="openUrl(pending[on].authorizeUrl)"
-            >
-              Open Bitbucket again
-            </button>
-            <button
-              type="button"
-              class="ghost"
-              @click="store.cancel(on)"
-            >
-              Cancel
-            </button>
-          </div>
-        </template>
+        <SignInProgress
+          v-if="pending[on]"
+          :on="on"
+        />
 
         <template v-else-if="accounts[on]">
           <p class="accounts__line accounts__who">
@@ -165,13 +120,6 @@ onMounted(() => store.load());
   margin: 0 0 0.75rem;
   font-size: 0.78rem;
   opacity: 0.7;
-}
-.accounts__code {
-  margin: 0 0 0.5rem;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 1.4rem;
-  letter-spacing: 0.1em;
-  user-select: all;
 }
 .accounts__actions {
   display: flex;

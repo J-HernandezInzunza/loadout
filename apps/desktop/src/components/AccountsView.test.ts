@@ -106,7 +106,7 @@ describe("GitHub sign-in", () => {
     });
     await press(wrapper, "Disconnect");
     await press(wrapper, "Sign in to GitHub");
-    expect(host(wrapper, "github").find(".accounts__code").text()).toBe("WDJB-MJHT");
+    expect(host(wrapper, "github").find(".sign-in__code").text()).toBe("WDJB-MJHT");
     expect(opened()).toEqual(["https://github.com/login/device"]);
     await press(wrapper, "Open GitHub again");
     expect(opened()).toEqual(["https://github.com/login/device", "https://github.com/login/device"]);

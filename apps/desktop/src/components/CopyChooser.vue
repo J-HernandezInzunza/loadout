@@ -35,8 +35,7 @@ const pinnedTo = computed(() => props.detail.copies.find((c) => c.pinned)?.catal
 const hueOf = (id: string) => catalogHue(catalogs.value.find((c) => c.id === id)?.precedence ?? 1);
 /** each copy's source string, from the catalog it sits in */
 const sourceOf = (catalog: string) => entries.value.find((e) => e.catalog === catalog && e.name === name.value)?.source ?? "";
-/** Where Loadout writes in this milestone: editable, and a file on this machine. */
-const editable = (id: string) => catalogs.value.some((c) => c.id === id && c.editable && c.kind === "local");
+const editable = (id: string) => catalogs.value.some((c) => c.id === id && c.editable);
 
 /**
  * Every copy has a verb, the winner included: pinning it changes nothing today and everything the day the

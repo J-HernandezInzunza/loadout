@@ -31,6 +31,8 @@ export const useAccountStore = defineStore("accounts", () => {
   /** a sign-in started and not yet finished: GitHub's code being entered, or Bitbucket's consent page open */
   const pending = ref<Partial<Record<AccountHost, IssuedSignIn>>>({});
   const outcomes = ref<Partial<Record<AccountHost, AccountOutcome>>>({});
+  /** sign-ins started from a page that shows them itself, so the redirect doesn't take the user to Accounts */
+  const shownInPlace = new Set<AccountHost>();
   let githubPoll: AbortController | null = null;
 
   const failed = (on: AccountHost, error: CoreError) => {
@@ -48,8 +50,10 @@ export const useAccountStore = defineStore("accounts", () => {
     await load();
   }
 
-  async function signIn(on: AccountHost) {
+  async function signIn(on: AccountHost, opts: { inPlace?: boolean } = {}) {
     delete outcomes.value[on];
+    if (opts.inPlace) shownInPlace.add(on);
+    else shownInPlace.delete(on);
     const started = await library.beginSignIn(on);
     if (!started.ok) return failed(on, started.error);
     pending.value[on] = started.value;
@@ -78,7 +82,7 @@ export const useAccountStore = defineStore("accounts", () => {
     if (redirectUrl === undefined) return;
     // The browser tab stays on Bitbucket's page, so Loadout comes forward to say how it went.
     await getCurrentWindow().setFocus();
-    views.accounts = true;
+    if (!shownInPlace.has("bitbucket")) views.accounts = true;
     const started = pending.value.bitbucket;
     delete pending.value.bitbucket;
     if (started === undefined) {

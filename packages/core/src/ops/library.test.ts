@@ -69,19 +69,20 @@ describe("createLibrary", () => {
     expect(ops.list.output.parse(list.value)).toEqual(list.value);
   });
 
-  it("catalogs reports catalog-level fields, skipped ones included, offline; editable = WRITE-01 accepts it", async () => {
-    const { sb, library } = await setup([{ id: "team", kind: "remote", repo: "git@x:o/r.git", yamlPath: "library.yaml", branch: "main", protected: true }]);
+  it("catalogs reports catalog-level fields, skipped ones included, offline; editable = WRITE-01 accepts it; accountHost names the PR host", async () => {
+    const { sb, library } = await setup([{ id: "team", kind: "remote", repo: "git@ssh.bitbucket.org:o/r.git", yamlPath: "library.yaml", branch: "main", protected: true }]);
     const rows = await library.catalogs();
     if (!rows.ok) throw new Error(rows.error.message);
     expect(rows.value).toEqual([
-      { precedence: 1, id: "A", kind: "local", location: join(sb.root, "a.yaml"), writeMode: "local", writable: true, editable: true, entries: 3, skipped: null },
-      { precedence: 2, id: "B", kind: "local", location: join(sb.root, "b.yaml"), writeMode: "local", writable: false, editable: false, entries: 1, skipped: null },
+      { precedence: 1, id: "A", kind: "local", location: join(sb.root, "a.yaml"), writeMode: "local", accountHost: null, writable: true, editable: true, entries: 3, skipped: null },
+      { precedence: 2, id: "B", kind: "local", location: join(sb.root, "b.yaml"), writeMode: "local", accountHost: null, writable: false, editable: false, entries: 1, skipped: null },
       {
         precedence: 3,
         id: "team",
         kind: "remote",
-        location: "git@x:o/r.git (main, library.yaml)",
+        location: "git@ssh.bitbucket.org:o/r.git (main, library.yaml)",
         writeMode: "pr",
+        accountHost: "bitbucket",
         writable: true,
         editable: false,
         entries: null,

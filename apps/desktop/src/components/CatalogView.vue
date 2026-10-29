@@ -24,8 +24,7 @@ const hideOverridden = ref(false);
 const activeCatalog = computed(() => (tab.value.kind === "catalog" ? tab.value.id : null));
 const selectedCatalog = computed(() => catalogs.value.find((c) => c.id === activeCatalog.value) ?? null);
 const multiCatalog = computed(() => catalogs.value.length > 1);
-/** Where Loadout writes in this milestone: editable, and a file on this machine. */
-const writable = (id: string) => catalogs.value.some((c) => c.id === id && c.editable && c.kind === "local");
+const writable = (id: string) => catalogs.value.some((c) => c.id === id && c.editable);
 
 const rows = computed(() => rowsFor(tab.value, entries.value, hideOverridden.value));
 const filtered = computed(() => searchRows(rows.value, query.value));

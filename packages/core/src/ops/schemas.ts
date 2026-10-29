@@ -50,6 +50,8 @@ const CatalogRow = z.strictObject({
   kind: z.enum(["local", "remote"]),
   location: z.string(),
   writeMode: z.enum(["local", "direct", "pr"]),
+  /** the host whose account opens this catalog's pull requests; null for a local catalog or another host */
+  accountHost: z.enum(["github", "bitbucket"]).nullable(),
   writable: z.boolean(),
   /** an add, edit or remove can name it: registered writable and not skipped (WRITE-01) */
   editable: z.boolean(),

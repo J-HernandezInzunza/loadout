@@ -1,5 +1,6 @@
 // Entry sources (behaviors.md §1.5, FETCH-01): the four GitHub and Bitbucket URL forms, or a local
 // path. `~` expands against the host's home, which the caller passes in.
+import type { AccountHost } from "../accounts/accounts.ts";
 import { strip } from "../catalog/python.ts";
 import { LibraryError, type Source } from "../model/model.ts";
 
@@ -56,6 +57,14 @@ const REMOTES = [
 
 /** SSH-only hosts and the web host they stand for: Bitbucket Cloud is moving SSH to its own host. */
 const WEB_HOSTS: Record<string, string> = { "ssh.bitbucket.org": "bitbucket.org" };
+
+/** The host Loadout has accounts for that a git remote lives on, or null for any other. */
+export function accountHostOf(url: string): AccountHost | null {
+  const web = remoteWeb(url)?.[0];
+  if (web === "github.com") return "github";
+  if (web === "bitbucket.org") return "bitbucket";
+  return null;
+}
 
 /** `[host, org, repo]` of a git remote URL, for linking to it in a browser; anything else is null. */
 export function remoteWeb(url: string): [string, string, string] | null {
