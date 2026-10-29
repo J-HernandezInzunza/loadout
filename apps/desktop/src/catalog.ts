@@ -1,6 +1,6 @@
 // Wording, ranking and colour for the catalog list; what the rows are (winners, provenance, install state)
 // is decided in the core and read off its records.
-import { groupByName, type CatalogRow, type EntryRecord, type Library } from "@loadout/core";
+import { groupByName, type CatalogRow, type EntryRecord, type Library, type PlanItem } from "@loadout/core";
 
 const HUES = [211, 275, 25, 320];
 
@@ -122,4 +122,52 @@ export function describePush(result: PushResult): PushOutcome {
       : "Opening the pull request is the next step.",
     link: pr?.compareUrl ? { url: pr.compareUrl, label: "Open a pull request" } : null,
   };
+}
+
+export type { PlanItem };
+
+/** What sits at a destination before an install, in words. */
+export function describeDestState(state: PlanItem["state"]): string {
+  switch (state) {
+    case "installed":
+      return "already installed";
+    case "drifted":
+      return "edited locally";
+    case "unmanaged":
+      return "installed outside Loadout";
+    case "absent":
+      return "new";
+  }
+}
+
+/** One line for what an install changed, as the CLI words it. */
+export function summarizeChanges(preview: PlanItem["preview"]): string {
+  if (preview.kind === "destination-only") return "installed";
+  if (preview.newInstall) return "new install";
+  const parts = (
+    [
+      [preview.modified.length, "modified"],
+      [preview.added.length, "added"],
+      [preview.removed.length, "removed"],
+    ] as const
+  )
+    .filter(([n]) => n > 0)
+    .map(([n, label]) => `${n} ${label}`);
+  return parts.length ? parts.join(", ") : "no changes";
+}
+
+/**
+ * The install button, described by the plan rather than by "is it installed somewhere", and a caution
+ * per state rather than one blanket warning: a clean copy has no edits to lose, so saying it does would
+ * train people to click through. Drift has its own acknowledgement.
+ */
+export function describeInstallAction(items: PlanItem[]): { label: string; caution: string | null } {
+  const present = items.filter((i) => i.state !== "absent");
+  if (!present.length) return { label: "Install", caution: null };
+  const everything = present.length === items.length;
+  const label = everything ? "Reinstall" : "Install";
+  if (everything && present.every((i) => i.state === "installed")) {
+    return { label, caution: "Every copy already matches its source, so this only changes anything if the source has moved on since." };
+  }
+  return { label, caution: null };
 }
