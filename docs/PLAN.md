@@ -946,9 +946,9 @@ token; Q2 B: ad-hoc signing, the quarantine step is in the cask's caveats):
 5. Publishing triggers the tap workflow, which updates `Casks/loadout.rb` in the tap repository;
    teammates install or upgrade from there.
 
-Decided 2026-10-29: the first version is `0.1.0` (0.x: early, anything may change); releases are drafts
-until a person publishes them; a release candidate (`v0.1.0-rc.1`) is published as a pre-release and
-never reaches the tap.
+Proposed 2026-10-29, for the owner to confirm: the first version is `0.1.0` (0.x: early, anything may
+change); releases are drafts until a person publishes them; a release candidate (`v0.1.0-rc.1`) is
+published as a pre-release and never reaches the tap.
 
 - [ ] **R.01 One version, visible.** The version lives in `apps/desktop/package.json`; `tauri.conf.json`
   reads it from there (`"version": "../package.json"`), and a script sets it in the other
