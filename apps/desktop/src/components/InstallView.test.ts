@@ -135,10 +135,66 @@ describe("UI-34: the preview", () => {
     expect(wrapper.find(".install-preview__files").exists()).toBe(false);
   });
 
-  it("reports a destination holding a copy Loadout didn't install, and doesn't offer to install over it", async () => {
-    const { wrapper } = await mountInstall([[item("tidy", { state: "unmanaged", needsConsent: true })]]);
+});
+
+describe("content Loadout didn't install (Q8 A)", () => {
+  const unmanaged = [item("lint", { requiredBy: ["tidy"], state: "installed" }), item("tidy", { state: "unmanaged", needsConsent: true })];
+  const mountWithOverwrite = () => {
+    const overwrites: unknown[] = [];
+    const mounted = mountInstall([unmanaged], {
+      applyInstall: async (plan, o) => (overwrites.push(o?.overwrite), ok({ installed: plan.items.map((i) => ({ type: i.type, name: i.name, dest: i.dest, preview: i.preview })), stopped: null, aborted: false })),
+    });
+    return { mounted, overwrites };
+  };
+  const replaceOffers = (w: Wrapper) => w.findAll(".install-preview__item").map((li) => li.findAll("button").some((b) => b.text() === "Replace with the catalog's copy"));
+
+  it("offers the catalog's copy in its place only where Loadout didn't install, and blocks Install until then", async () => {
+    const { mounted } = mountWithOverwrite();
+    const { wrapper } = await mounted;
     await press(wrapper, "Preview install");
-    expect(wrapper.find(".install-preview__item").text()).toContain("This holds a copy Loadout didn't install, so Loadout leaves it alone.");
+    expect(wrapper.findAll(".install-preview__item")[1]!.text()).toContain("This holds a copy Loadout didn't install, so Loadout leaves it alone unless you replace it.");
+    expect(replaceOffers(wrapper)).toEqual([false, true]);
+    expect(go(wrapper).attributes("disabled")).toBeDefined();
+  });
+
+  it("asks first, and installs over it only after Replace it, naming that destination alone", async () => {
+    const { mounted, overwrites } = mountWithOverwrite();
+    const { wrapper, calls } = await mounted;
+    await press(wrapper, "Preview install");
+    await press(wrapper, "Replace with the catalog's copy");
+    expect(wrapper.find(".install-preview__consent").text()).toContain("This deletes what is at /Users/dev/.claude/skills/tidy, which Loadout didn't install");
+    expect(go(wrapper).attributes("disabled")).toBeDefined();
+    expect(calls.some(([op]) => op === "applyInstall")).toBe(false);
+
+    await press(wrapper, "Replace it");
+    expect(wrapper.find(".install-preview__consent").text()).toContain("Installing deletes what is here now and puts the catalog's copy in its place.");
+    expect(go(wrapper).attributes("disabled")).toBeUndefined();
+    await go(wrapper).trigger("click");
+    await flushPromises();
+    expect(overwrites).toEqual([{ unmanaged: ["/Users/dev/.claude/skills/tidy"] }]);
+  });
+
+  it("Keep it, asked or after agreeing, leaves the copy alone and Install blocked", async () => {
+    const { mounted } = mountWithOverwrite();
+    const { wrapper } = await mounted;
+    await press(wrapper, "Preview install");
+    await press(wrapper, "Replace with the catalog's copy");
+    await press(wrapper, "Keep it");
+    expect(replaceOffers(wrapper)).toEqual([false, true]);
+    await press(wrapper, "Replace with the catalog's copy");
+    await press(wrapper, "Replace it");
+    await press(wrapper, "Keep it");
+    expect(go(wrapper).attributes("disabled")).toBeDefined();
+  });
+
+  it("forgets the agreement when it previews again", async () => {
+    const { mounted } = mountWithOverwrite();
+    const { wrapper } = await mounted;
+    await press(wrapper, "Preview install");
+    await press(wrapper, "Replace with the catalog's copy");
+    await press(wrapper, "Replace it");
+    await press(wrapper, "Re-check");
+    expect(replaceOffers(wrapper)).toEqual([false, true]);
     expect(go(wrapper).attributes("disabled")).toBeDefined();
   });
 });

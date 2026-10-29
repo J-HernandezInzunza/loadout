@@ -165,7 +165,12 @@ const Finding = z.strictObject({
   catalog: z.string().nullable(),
   entry: z.string().nullable(),
   message: z.string(),
-  action: z.strictObject({ kind: z.literal("reclone"), catalog: z.string() }).exactOptional(),
+  action: z
+    .discriminatedUnion("kind", [
+      z.strictObject({ kind: z.literal("reclone"), catalog: z.string() }),
+      z.strictObject({ kind: z.literal("replace"), name: z.string(), dest: z.string() }),
+    ])
+    .exactOptional(),
 });
 const DoctorReport = z.strictObject({
   status: z.enum(["ok", "problems"]),

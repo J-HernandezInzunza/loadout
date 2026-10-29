@@ -270,8 +270,8 @@ describe("doctor: catalog content", () => {
 });
 
 describe("doctor: install dirs and settings", () => {
-  it("29: drifted copies; 30: unmanaged copies of catalog entries; 31: receipts whose destination is gone", async () => {
-    const { sb, ctx, register, checks, home, local } = await setup();
+  it("29: drifted copies; 30: unmanaged copies of catalog entries, with a replace action; 31: receipts whose destination is gone", async () => {
+    const { sb, ctx, register, checks, run, home, local } = await setup();
     await put(local("p.md"));
     const p = (n: string) => item(n, local("p.md"));
     await register({ team: yaml({ prompts: [p("edited"), p("hand"), p("gone")] }) });
@@ -290,6 +290,10 @@ describe("doctor: install dirs and settings", () => {
     has(found, "30", "warning", `${destFor(home, "prompt", "hand")} wasn't installed by Loadout (foreign); installing 'hand' asks before replacing it`);
     has(found, "31", "warning", `receipt points at ${destFor(home, "prompt", "gone")}, which no longer exists`);
     expect(found.some(([, , m]) => m.includes("not-in-catalog"))).toBe(false);
+    // Only the unmanaged copy offers the catalog's copy in its place.
+    const report = await run();
+    const replaceable = report.warnings.filter((f) => f.action?.kind === "replace");
+    expect(replaceable).toEqual([expect.objectContaining({ check: "30", entry: "hand", action: { kind: "replace", name: "hand", dest: destFor(home, "prompt", "hand") } })]);
   });
 
   it("managed (arch §4.5 rule 4): managed settings that override a catalog skill", async () => {

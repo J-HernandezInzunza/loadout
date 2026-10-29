@@ -3,6 +3,7 @@ import type { EntryRecord } from "@loadout/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { computed, ref, watch } from "vue";
 import type { PushOutcome } from "../catalog.ts";
+import { useViewStore } from "../stores/views.ts";
 import PushControl from "./PushControl.vue";
 import StatusBanner from "./StatusBanner.vue";
 import UninstallControl from "./UninstallControl.vue";
@@ -14,6 +15,8 @@ const props = defineProps<{
   affected: string[];
 }>();
 const emit = defineEmits<{ changed: [] }>();
+
+const views = useViewStore();
 
 /** One panel at a time, held as one value so two open forms aren't representable. */
 type Panel = { dest: string; mode: "push" | "remove" };
@@ -138,6 +141,15 @@ const copies = computed(() =>
             from {{ copy.fromCatalog }}, not {{ entry.catalog }}
           </span>
           <span class="copies__actions">
+            <!-- The install page asks before anything is replaced. -->
+            <button
+              v-if="!copy.managed"
+              type="button"
+              class="ghost btn-sm"
+              @click="views.installFor = entry.name"
+            >
+              Replace with the catalog's copy
+            </button>
             <button
               type="button"
               class="ghost btn-sm"
