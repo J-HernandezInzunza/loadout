@@ -51,6 +51,13 @@ async function reclone(id: string) {
   await Promise.all([run(), catalog.reload()]);
 }
 
+/** Over to the install page for that name, which asks before replacing anything. */
+function replace(name: string) {
+  views.doctor = false;
+  views.manage = null;
+  views.installFor = name;
+}
+
 onMounted(run);
 </script>
 
@@ -128,13 +135,22 @@ onMounted(run);
                 >{{ subject(item) }}</span>
                 <span class="doctor__message">{{ item.message }}</span>
                 <button
-                  v-if="item.action"
+                  v-if="item.action?.kind === 'reclone'"
                   type="button"
                   class="ghost btn-xs"
                   :disabled="!!recloning"
                   @click="reclone(item.action.catalog)"
                 >
                   {{ recloning === item.action.catalog ? "Re-cloning…" : `Re-clone ${item.action.catalog}` }}
+                </button>
+                <!-- The install page asks before anything is replaced. -->
+                <button
+                  v-else-if="item.action?.kind === 'replace'"
+                  type="button"
+                  class="ghost btn-xs"
+                  @click="replace(item.action.name)"
+                >
+                  Replace with the catalog's copy
                 </button>
               </li>
             </ul>

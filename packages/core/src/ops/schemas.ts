@@ -50,6 +50,8 @@ const CatalogRow = z.strictObject({
   kind: z.enum(["local", "remote"]),
   location: z.string(),
   writeMode: z.enum(["local", "direct", "pr"]),
+  /** the host whose account opens this catalog's pull requests; null for a local catalog or another host */
+  accountHost: z.enum(["github", "bitbucket"]).nullable(),
   writable: z.boolean(),
   /** an add, edit or remove can name it: registered writable and not skipped (WRITE-01) */
   editable: z.boolean(),
@@ -163,7 +165,12 @@ const Finding = z.strictObject({
   catalog: z.string().nullable(),
   entry: z.string().nullable(),
   message: z.string(),
-  action: z.strictObject({ kind: z.literal("reclone"), catalog: z.string() }).exactOptional(),
+  action: z
+    .discriminatedUnion("kind", [
+      z.strictObject({ kind: z.literal("reclone"), catalog: z.string() }),
+      z.strictObject({ kind: z.literal("replace"), name: z.string(), dest: z.string() }),
+    ])
+    .exactOptional(),
 });
 const DoctorReport = z.strictObject({
   status: z.enum(["ok", "problems"]),
@@ -305,6 +312,14 @@ export const ops = {
   connect: { input: z.strictObject({ on: AccountHost, tokens: TokenSet }), output: AccountInfo },
   disconnect: { input: z.strictObject({ on: AccountHost }), output: z.undefined() },
   checkAccount: { input: z.strictObject({ on: AccountHost }), output: z.strictObject({ login: z.string(), scopes: z.array(z.string()).nullable() }) },
+  listRepos: {
+    input: z.strictObject({ on: AccountHost }),
+    output: z.array(z.strictObject({ org: z.string(), name: z.string(), private: z.boolean(), repo: z.string() })),
+  },
+  checkCatalogRepo: {
+    input: z.strictObject({ on: AccountHost, org: z.string(), name: z.string(), branch: z.string().exactOptional(), yamlPath: z.string().exactOptional() }),
+    output: z.strictObject({ defaultBranch: z.string(), branch: z.string(), yamlPath: z.string(), found: z.boolean() }),
+  },
   beginSignIn: { input: z.strictObject({ on: AccountHost }), output: SignIn },
   completeSignIn: { input: z.strictObject({ started: SignIn, redirectUrl: z.string().exactOptional() }), output: AccountInfo },
   planAdd: {

@@ -44,14 +44,14 @@ describe("UI-41: the registry", () => {
     expect(rows[1]!.find(".catalogs__why").text()).toBe("Entries here are changed in the repository itself, where the change opens a pull request there, so it gets the same review as any other change.");
     expect(rows.map((r) => r.findAll("button").map((b) => b.text()))).toEqual([
       ["Manage entries", "Unregister"],
-      ["Unregister"],
+      ["Manage entries", "Unregister"],
     ]);
   });
 
   it("offers a personal catalog when none is on this machine, and no Unregister for the only catalog", async () => {
     const { wrapper } = await mountCatalogs([catalogRow({ ...team, precedence: 1 })]);
     expect(wrapper.find(".catalogs__own-title").text()).toBe("You don't have a personal catalog yet");
-    expect(wrapper.findAll(".catalogs__row button").map((b) => b.text())).toEqual([]);
+    expect(wrapper.findAll(".catalogs__row button").map((b) => b.text())).toEqual(["Manage entries"]);
     await press(wrapper, "Create a personal catalog");
     expect(wrapper.find(".page-title__heading").text()).toBe("Add a catalog");
     expect(wrapper.find("input[value=create]").element).toHaveProperty("checked", true);

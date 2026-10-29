@@ -1,6 +1,7 @@
 import type { Library } from "@loadout/core";
 import { flushPromises } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
+import { useViewStore } from "../stores/views.ts";
 import { mountView } from "../testing/mountView.ts";
 import DoctorView from "./DoctorView.vue";
 
@@ -68,5 +69,28 @@ describe("UI-39: doctor", () => {
     await flushPromises();
     expect(calls).toEqual([["doctor", false], ["reclone", "team"], ["doctor", false]]);
     expect(wrapper.find(".doctor__clean").exists()).toBe(true);
+  });
+});
+
+describe("doctor: content Loadout didn't install (Q8 A)", () => {
+  it("offers the catalog's copy on an unmanaged finding only, over on the install page that asks first", async () => {
+    const dest = "/Users/dev/.claude/skills/tidy";
+    const { wrapper } = await mountDoctor([
+      {
+        status: "problems",
+        entries: 2,
+        errors: [],
+        warnings: [
+          finding({ check: "30", severity: "warning", catalog: null, entry: "tidy", message: `${dest} wasn't installed by Loadout (foreign)`, action: { kind: "replace", name: "tidy", dest } }),
+          finding({ check: "29", severity: "warning", entry: "lint", message: "has local edits" }),
+        ],
+      },
+    ]);
+    const views = useViewStore();
+    views.manage = { catalog: null, entry: null };
+    views.doctor = true;
+    expect(wrapper.findAll(".doctor__item").map((li) => li.findAll("button").map((b) => b.text()))).toEqual([["Replace with the catalog's copy"], []]);
+    await wrapper.find(".doctor__item button").trigger("click");
+    expect(views.current).toEqual({ kind: "install", name: "tidy" });
   });
 });

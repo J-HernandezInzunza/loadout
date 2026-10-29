@@ -156,7 +156,7 @@ describe("UI-29: copies and pins", () => {
     ]);
 
     const edit = wrapper.findAll(".entry-detail__edit");
-    expect(edit.map((b) => b.text())).toEqual(["Edit this entry in personal"]);
+    expect(edit.map((b) => b.text())).toEqual(["Edit this entry in personal", "Edit this entry in team"]);
     await edit[0]!.trigger("click");
     expect(useViewStore().current).toEqual({ kind: "catalogs", catalog: "personal", entry: "tidy" });
   });

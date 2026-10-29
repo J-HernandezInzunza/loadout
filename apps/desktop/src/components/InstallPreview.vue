@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { discardsEdits, type Library } from "@loadout/core";
 import { storeToRefs } from "pinia";
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { describeDestState, describeInstallAction, summarizeChanges } from "../catalog.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
@@ -26,6 +26,11 @@ const installing = ref(false);
 const failure = ref<string | null>(null);
 const notice = ref<string | null>(null);
 const acknowledged = ref(false);
+/** destinations holding content Loadout didn't install that the user agreed to replace, each asked on its own */
+const replacing = ref<string[]>([]);
+/** the destination whose replacement is being asked about */
+const asking = ref<string | null>(null);
+const confirmReplace = useTemplateRef<HTMLButtonElement[]>("confirmReplace");
 
 /** "" installs whatever resolves; another catalog installs that copy, once. */
 const source = ref("");
@@ -40,12 +45,13 @@ const installed = computed(() => sources.value.some((e) => e.installed));
 
 const items = computed(() => plan.value?.items ?? []);
 const drifted = computed(() => (plan.value ? discardsEdits(plan.value) : []));
-/** content Loadout didn't install sits at a destination; replacing it needs consent this version doesn't ask for */
+/** content Loadout didn't install sits at a destination; installing there needs the user's say-so for each */
 const unmanaged = computed(() => items.value.filter((i) => i.status === "ready" && i.needsConsent));
+const unconsented = computed(() => unmanaged.value.filter((i) => !replacing.value.includes(i.dest)));
 const action = computed(() => describeInstallAction(items.value));
 const destinationOnly = computed(() => items.value.some((i) => i.preview.kind === "destination-only"));
 const canInstall = computed(
-  () => !!plan.value && !installing.value && !unmanaged.value.length && items.value.some((i) => i.status === "ready") && (!drifted.value.length || acknowledged.value),
+  () => !!plan.value && !installing.value && !unconsented.value.length && items.value.some((i) => i.status === "ready") && (!drifted.value.length || acknowledged.value),
 );
 
 async function discard() {
@@ -60,6 +66,8 @@ async function preview() {
   failure.value = null;
   report.value = null;
   acknowledged.value = false;
+  replacing.value = [];
+  asking.value = null;
   const planned = await activity.withActivity(`checking what installing ${props.name} would change…`, (signal) =>
     library.planInstall({ names: [props.name], ...(overriding.value && { catalog: source.value }), signal }),
   );
@@ -87,7 +95,8 @@ async function install() {
       }
       remember.value = false;
     }
-    const applied = await activity.withActivity(`installing ${props.name}…`, (signal) => library.applyInstall(issued, { signal }));
+    const overwrite = replacing.value.length ? { overwrite: { unmanaged: replacing.value } } : {};
+    const applied = await activity.withActivity(`installing ${props.name}…`, (signal) => library.applyInstall(issued, { signal, ...overwrite }));
     if (!applied.ok && applied.error.code === "STALE_PLAN") {
       notice.value = "Something changed since the preview, so here is a fresh one.";
       await preview();
@@ -103,6 +112,17 @@ async function install() {
   } finally {
     installing.value = false;
   }
+}
+
+async function ask(dest: string) {
+  asking.value = dest;
+  await nextTick();
+  confirmReplace.value?.[0]?.focus();
+}
+
+function answer(dest: string, replace: boolean) {
+  asking.value = null;
+  replacing.value = replace ? [...replacing.value, dest] : replacing.value.filter((d) => d !== dest);
 }
 
 watch(source, () => {
@@ -237,13 +257,56 @@ onUnmounted(() => void discard());
             >
               Can't install: {{ item.reason }}
             </p>
-            <p
+            <div
               v-else-if="item.needsConsent"
-              class="install-preview__warning"
+              class="install-preview__consent"
             >
-              This holds a copy Loadout didn't install, so Loadout leaves it alone. Remove it yourself to install the
-              catalog's copy here.
-            </p>
+              <template v-if="replacing.includes(item.dest)">
+                <p class="install-preview__warning">
+                  Installing deletes what is here now and puts the catalog's copy in its place.
+                </p>
+                <button
+                  type="button"
+                  class="ghost btn-sm"
+                  @click="answer(item.dest, false)"
+                >
+                  Keep it
+                </button>
+              </template>
+              <template v-else-if="asking === item.dest">
+                <p class="install-preview__warning">
+                  This deletes what is at {{ item.dest }}, which Loadout didn't install, and puts the catalog's copy
+                  there. Anything in it that the catalog's copy doesn't have is lost.
+                </p>
+                <button
+                  ref="confirmReplace"
+                  type="button"
+                  class="danger btn-sm"
+                  @click="answer(item.dest, true)"
+                >
+                  Replace it
+                </button>
+                <button
+                  type="button"
+                  class="ghost btn-sm"
+                  @click="answer(item.dest, false)"
+                >
+                  Keep it
+                </button>
+              </template>
+              <template v-else>
+                <p class="install-preview__warning">
+                  This holds a copy Loadout didn't install, so Loadout leaves it alone unless you replace it.
+                </p>
+                <button
+                  type="button"
+                  class="ghost btn-sm"
+                  @click="ask(item.dest)"
+                >
+                  Replace with the catalog's copy
+                </button>
+              </template>
+            </div>
             <ul
               v-else-if="item.preview.kind === 'files' && !item.preview.newInstall"
               class="install-preview__files"
@@ -372,6 +435,15 @@ onUnmounted(() => void discard());
   font-size: 0.78rem;
   line-height: 1.45;
   opacity: 0.75;
+}
+.install-preview__consent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.install-preview__consent .install-preview__warning {
+  flex-basis: 100%;
 }
 .install-preview__warning {
   margin: 0.75rem 0 0;

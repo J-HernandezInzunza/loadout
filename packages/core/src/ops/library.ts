@@ -4,6 +4,7 @@
 import type { z } from "zod";
 import { createAccounts, type AccountHost, type TokenSet } from "../accounts/accounts.ts";
 import { defaultApiBases, type ApiBases } from "../accounts/apiBases.ts";
+import { checkCatalogRepo, listRepos, type CatalogRepo, type HostedRepo } from "../git/repos.ts";
 import {
   beginBitbucketSignIn,
   beginGitHubSignIn,
@@ -40,7 +41,7 @@ import { err, LibraryError, ok, type CatalogRef, type Entry, type Result, type W
 import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type EntryRecord, type Registry, type ResolveErr } from "../registry/registry.ts";
 import { destFor, destState, readLegacyInstalls, scanInstallDirs, type ScanReport } from "../scan/scan.ts";
-import { cloneUrls, parseSource } from "../source/source.ts";
+import { accountHostOf, cloneUrls, parseSource } from "../source/source.ts";
 import { isStale } from "../update/update.ts";
 import { applyAdd, planAdd, type AddPlan, type AddRequest } from "../write/add.ts";
 import type { WriteResult } from "../write/edit.ts";
@@ -142,6 +143,10 @@ export interface Library {
    * SIGN_IN_EXPIRED or CANCELLED otherwise.
    */
   completeSignIn(started: IssuedSignIn, opts?: { signal?: AbortSignal; redirectUrl?: string }): Promise<Result<AccountInfo>>;
+  /** Every repository the host's connected account can read, owned or not, to pick a shared catalog from. */
+  listRepos(on: AccountHost, opts?: { signal?: AbortSignal }): Promise<Result<HostedRepo[]>>;
+  /** A repo's default branch and whether its catalog file is there, before planAddCatalog clones it. */
+  checkCatalogRepo(req: { on: AccountHost; org: string; name: string; branch?: string; yamlPath?: string; signal?: AbortSignal }): Promise<Result<CatalogRepo>>;
 
   /** One entry or a batch, landing as one write in the target catalog's write mode. */
   planAdd(req: AddRequest & { signal?: AbortSignal }): Promise<Result<IssuedCatalogEditPlan, WriteTargetErr>>;
@@ -352,6 +357,7 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
           kind: c.ref.kind,
           location: c.ref.kind === "remote" ? `${c.ref.repo} (${c.ref.branch}, ${c.ref.yamlPath})` : c.file,
           writeMode: c.ref.kind === "local" ? "local" : c.ref.protected ? "pr" : "direct",
+          accountHost: c.ref.kind === "remote" ? accountHostOf(c.ref.repo) : null,
           writable: c.ref.writable !== false,
           editable: writeTarget(reg, { op: "add", catalog: c.ref.id }).ok,
           entries: c.skipped === undefined ? c.entries.length : null,
@@ -478,6 +484,14 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
       const token = await accounts.tokenFor(on);
       if (!token.ok) return token;
       return accounts.whoami(on, token.value);
+    },
+
+    async listRepos(on, o = {}) {
+      return listRepos({ host, accounts, apiBases }, on, o);
+    },
+
+    async checkCatalogRepo(req) {
+      return checkCatalogRepo({ host, accounts, apiBases }, req);
     },
 
     async beginSignIn(on) {

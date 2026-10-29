@@ -38,7 +38,8 @@ export interface Finding {
   entry: string | null;
   message: string;
   /** A4: what fixes it, when Loadout can */
-  action?: { kind: "reclone"; catalog: string };
+  /** what fixes it: re-cloning a catalog, or replacing content Loadout didn't install with the catalog's copy (Q8 A) */
+  action?: { kind: "reclone"; catalog: string } | { kind: "replace"; name: string; dest: string };
 }
 
 export interface DoctorReport {
@@ -262,7 +263,11 @@ export async function doctor(ctx: DoctorCtx, opts: { deep?: boolean; noPull?: bo
         const what = [...modified.map((f) => `~${f}`), ...added.map((f) => `+${f}`), ...deleted.map((f) => `-${f}`)].join(" ");
         add("29", "warning", item.state.receipt.catalog.id, item.name, `${item.path} has local edits (${what}); installing or syncing it shows them before overwriting`);
       } else if (item.state.state === "unmanaged" && item.inCatalog && item.state.origin !== "symlink") {
-        add("30", "warning", null, item.name, `${item.path} wasn't installed by Loadout (${item.state.origin}); installing '${item.name}' asks before replacing it`);
+        add("30", "warning", null, item.name, `${item.path} wasn't installed by Loadout (${item.state.origin}); installing '${item.name}' asks before replacing it`, {
+          kind: "replace",
+          name: item.name,
+          dest: item.path,
+        });
       }
     }
     for (const r of scan.value.missing) add("31", "warning", r.catalog.id, r.name, `receipt points at ${r.dest}, which no longer exists`);

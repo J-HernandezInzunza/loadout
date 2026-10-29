@@ -3,6 +3,7 @@ import type { CatalogRow, Library } from "@loadout/core";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { catalogHue, describeCatalog } from "../catalog.ts";
+import type { WriteLanding as Landing } from "../catalogWrite.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
@@ -12,6 +13,7 @@ import EntryRemove from "./EntryRemove.vue";
 import PageHeader from "./PageHeader.vue";
 import RegisterCatalog, { type RegisterMode } from "./RegisterCatalog.vue";
 import StatusBanner from "./StatusBanner.vue";
+import WriteLanding from "./WriteLanding.vue";
 
 type Pin = Extract<Awaited<ReturnType<Library["pins"]>>, { ok: true }>["value"][number];
 type Removed = Extract<Awaited<ReturnType<Library["removeCatalog"]>>, { ok: true }>["value"] & { id: string; askedToPurge: boolean; cloneKeptAt: string | null };
@@ -34,8 +36,7 @@ const arrivedAtCatalog = ref(props.at !== null);
 const registerAs = ref<RegisterMode | null>(null);
 
 const open = computed(() => catalogs.value.find((c) => c.id === props.at) ?? null);
-/** Where Loadout writes in this milestone: editable, and a file on this machine. */
-const editable = (c: CatalogRow) => c.editable && c.kind === "local";
+const editable = (c: CatalogRow) => c.editable;
 const nothingEditable = computed(() => !catalogs.value.some(editable));
 const noOwnCatalog = computed(() => catalogs.value.length > 0 && !catalogs.value.some((c) => c.kind === "local"));
 const held = computed(() => entries.value.filter((e) => e.catalog === props.at).sort((a, b) => a.name.localeCompare(b.name)));
@@ -62,7 +63,7 @@ watch(catalogs, () => {
 type Panel = { key: string; mode: "edit" | "remove" };
 const panel = ref<Panel | null>(null);
 /** what the last removal did, said here because its row is gone */
-const entryOutcome = ref<string | null>(null);
+const entryOutcome = ref<{ text: string; landing: Landing | null } | null>(null);
 const keyOf = (e: { type: string; name: string }) => `${e.type}:${e.name}`;
 
 function show(key: string, mode: Panel["mode"]) {
@@ -72,9 +73,9 @@ function show(key: string, mode: Panel["mode"]) {
 }
 const isOpen = (key: string, mode: Panel["mode"]) => panel.value?.key === key && panel.value.mode === mode;
 
-function afterRemove(text: string) {
+function afterRemove(text: string, landing: Landing | null) {
   panel.value = null;
-  entryOutcome.value = text;
+  entryOutcome.value = { text, landing };
 }
 
 // Arriving from an entry page lands on that entry's edit form, scrolled into view.
@@ -273,8 +274,8 @@ async function unregister() {
         v-else-if="nothingEditable"
         class="catalogs__lead"
       >
-        None of these is a catalog you can edit from here. The ones on this machine are read-only or were not loaded,
-        and each row below says which. <strong>Check catalog health</strong> above is where that gets diagnosed.
+        None of these is a catalog you can edit from here: each is read-only or was not loaded, and each row below says
+        which. <strong>Check catalog health</strong> above is where that gets diagnosed.
       </p>
       <p class="catalogs__lead">
         Where your entries come from, in precedence order: when two catalogs define the same name, the one nearer the top
@@ -437,7 +438,11 @@ async function unregister() {
         v-if="entryOutcome"
         kind="success"
       >
-        {{ entryOutcome }}
+        <p>{{ entryOutcome.text }}</p>
+        <WriteLanding
+          v-if="entryOutcome.landing"
+          :landing="entryOutcome.landing"
+        />
       </StatusBanner>
       <p class="catalogs__lead">
         {{ open?.location }}

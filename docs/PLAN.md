@@ -797,27 +797,27 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
 Exit: every M6 task checked; a teammate with nothing set up can go from first launch to a
 connected account, an installed skill and a PR on the shared catalog without the Python CLI.
 
-- [ ] **M6.01 First run.** With no catalogs registered: import from the Python CLI (its `planImport`
+- [x] **M6.01 First run.** With no catalogs registered: import from the Python CLI (its `planImport`
   report shown first, `notImported` included) or add a catalog: paste a repo URL or create a
   personal one (Q12 A). Replaces the old FirstRun's bootstrap half (UI-06 rebuild).
   - Rules: none (open-questions.md Q12 A; arch §4.2)
   - Depends: M5.16
   - Done when: both paths land on a loaded list, tested against the fake.
 
-- [ ] **M6.02 Parked skills.** On the first launch that finds copies in `skills-disabled/`, list them,
+- [x] **M6.02 Parked skills.** On the first launch that finds copies in `skills-disabled/`, list them,
   then move them back and turn them off (Q16 B); occupied destinations are reported.
   - Rules: none (arch §4.5 rule 7; Q16 B)
   - Depends: M6.01
   - Done when: the list, the migration and an occupied destination are tested.
 
-- [ ] **M6.03 Accounts page.** In the header beside Catalogs: per host, the account (login, scopes),
+- [x] **M6.03 Accounts page.** In the header beside Catalogs: per host, the account (login, scopes),
   Sign in (GitHub's code with a restart on `SIGN_IN_EXPIRED`; Bitbucket's redirect bringing the window
   forward and saying the tab can close), Check, Disconnect; the deep-link listener moves into a store.
   - Rules: none (arch §5.5; spikes.md S12)
   - Depends: M5.16
   - Done when: each state and outcome (connected, denied, expired, cancelled, unavailable) is tested.
 
-- [ ] **M6.04 Authoring on shared catalogs.** Add, edit and remove on remote catalogs (UI-40
+- [x] **M6.04 Authoring on shared catalogs.** Add, edit and remove on remote catalogs (UI-40
   rebuild): PR mode shows the PR or compare link; direct mode asks before pushing (Q3 A); a PR-mode
   write with no account offers "Connect {host} to open the PR here, or continue and get a link";
   `STALE_PLAN` re-plans.
@@ -825,17 +825,41 @@ connected account, an installed skill and a PR on the shared catalog without the
   - Depends: M6.03, M5.15
   - Done when: PR (API and manual), direct (confirm and refusal) and the account offer are tested.
 
-- [ ] **M6.05 Content Loadout didn't install.** Per item "Replace with the catalog's copy" that asks
+- [x] **M6.05 Content Loadout didn't install.** Per item "Replace with the catalog's copy" that asks
   first, in the install preview, the entry page and doctor's unmanaged findings (Q8 A).
   - Rules: none (open-questions.md Q8 A)
   - Depends: M5.16
   - Done when: replace is offered only for unmanaged destinations and applies only after consent.
 
-- [ ] **M6.06 Milestone check (manual).** On a fresh app-data folder, from a Finder-launched build:
-  first run (add the shared catalog), sign in to Bitbucket and GitHub, install, toggle, and one PR
-  on the shared catalog; record it in PROGRESS.md.
+- [x] **M6.07 Catalog from a connected account.** Adding a shared catalog (first run and
+  RegisterCatalog's shared mode) asks where it lives. GitHub or Bitbucket connects that account in
+  place (M6.03's sign-in, as M6.04's write gate does), then picks the repository from the repos the
+  account can read, owned or not (GitHub `/user/repos` with every affiliation; Bitbucket the
+  workspaces' repos with the member role; every page, type to filter), or "Other": paste a link. The
+  link can be a repo page, a deeper browser link (`/tree/<branch>/…`, `/src/<branch>/…`) or a clone
+  URL; it is reduced to host/org/repo (clone URLs are rebuilt from that, so no `.git` is needed) and
+  a branch or `library.yaml` path in it is taken. The branch defaults to the repo's default
+  (editable), and `library.yaml` is checked through the API before anything is cloned; a 404 says
+  either the file or access is missing (an org that restricts OAuth apps hides its repos until an
+  owner approves Loadout). "Somewhere else" (another host) keeps pasting a clone URL. With the
+  account connected, clones go https first with its token (FETCH-02), so a new machine needs no SSH
+  key; first run says so. Core: read-only `listRepos(on, { query, signal })`, `repoInfo(on, repo)`
+  (default branch), a file-exists check over `Host.http` and `parseRepoLink(url)`, with stub
+  endpoints for each (M2.03). Check Bitbucket's current listing endpoint first: its cross-workspace
+  listings have been deprecated in stages.
+  - Rules: none (arch §5.5; open-questions Q12 A)
+  - Depends: M6.01, M6.03
+  - Done when: both hosts list, filter (across pages) and pick a repo the user doesn't own against
+    the stub; Other accepts a repo page, a deep link (branch and path taken) and a clone URL for
+    each host; the branch defaults to the repo's default; a repo without `library.yaml` (or not
+    readable) is refused before cloning; a denied, expired or cancelled sign-in leaves pasting
+    available; the pasted-URL path still works.
+
+- [x] **M6.06 Milestone check (manual).** On a fresh app-data folder, from a Finder-launched build:
+  first run (connect the host and pick the shared catalog), sign in to the other host, install,
+  toggle, and one PR on the shared catalog from an add, edit or remove; record it in PROGRESS.md.
   - Rules: none
-  - Depends: M6.01, M6.02, M6.03, M6.04, M6.05
+  - Depends: M6.01, M6.02, M6.03, M6.04, M6.05, M6.07
   - Done when: every M6 task is checked and the run is recorded.
 
 ---

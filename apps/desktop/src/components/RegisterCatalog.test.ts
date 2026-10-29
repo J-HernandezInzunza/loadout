@@ -85,6 +85,7 @@ describe("UI-44: registering a catalog", () => {
 
   it("adds a shared repository through pull requests by default; direct pushes need an explicit acknowledgement", async () => {
     const { wrapper, calls } = mountRegister("remote");
+    await wrapper.find("input[value=elsewhere]").setValue(true);
     const [id, url, branch] = wrapper.findAll("input[type=text]");
     await id!.setValue("team2");
     await url!.setValue("git@bitbucket.org:acme/other.git");
@@ -99,5 +100,17 @@ describe("UI-44: registering a catalog", () => {
     await wrapper.find("form").trigger("submit");
     await flushPromises();
     expect(calls[0]).toEqual(["planAddCatalog", { kind: "remote", id: "team2", repo: "git@bitbucket.org:acme/other.git", branch: "trunk", protected: false, position: "first", signal: undefined }]);
+  });
+
+  it("reduces a pasted browser link to the repository, keeping the file path it points at", async () => {
+    const { wrapper, calls } = mountRegister("remote");
+    await wrapper.find("input[value=elsewhere]").setValue(true);
+    const [id, url, branch] = wrapper.findAll("input[type=text]");
+    await id!.setValue("team2");
+    await url!.setValue("https://bitbucket.org/acme/other/src/main/catalog/library.yaml");
+    await branch!.setValue("main");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(calls[0]).toEqual(["planAddCatalog", expect.objectContaining({ repo: "https://bitbucket.org/acme/other.git", branch: "main", yamlPath: "catalog/library.yaml" })]);
   });
 });

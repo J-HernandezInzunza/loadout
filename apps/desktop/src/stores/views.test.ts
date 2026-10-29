@@ -15,16 +15,17 @@ describe("UI-08: the view stack", () => {
     views.installFor = "tidy";
     views.manage = { catalog: "team", entry: null };
     views.addingTo = "personal";
+    views.accounts = true;
     views.sync = true;
     views.doctor = true;
 
     const seen = [];
-    for (const close of [() => (views.doctor = false), () => (views.sync = false), () => (views.addingTo = null), () => (views.manage = null), () => (views.installFor = null), () => views.trail.pop()]) {
+    for (const close of [() => (views.doctor = false), () => (views.sync = false), () => (views.accounts = false), () => (views.addingTo = null), () => (views.manage = null), () => (views.installFor = null), () => views.trail.pop()]) {
       seen.push(views.current.kind);
       close();
     }
     seen.push(views.current.kind);
-    expect(seen).toEqual(["doctor", "sync", "add", "catalogs", "install", "entry", "list"]);
+    expect(seen).toEqual(["doctor", "sync", "accounts", "add", "catalogs", "install", "entry", "list"]);
   });
 
   it("keeps a back trail of entry pages, each with its catalog", () => {

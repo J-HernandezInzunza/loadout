@@ -2,17 +2,18 @@
 import { entryEdits, requirableRefs, type EntryRecord } from "@loadout/core";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
+import { describeWrite, useCatalogWrite, type WriteLanding as Landing } from "../catalogWrite.ts";
 import { useLibrary } from "../services.ts";
-import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
+import WriteGate from "./WriteGate.vue";
+import WriteLanding from "./WriteLanding.vue";
 
 const props = defineProps<{ entry: EntryRecord }>();
 const emit = defineEmits<{ close: [] }>();
 
 const library = useLibrary();
-const activity = useActivityStore();
 const catalog = useCatalogStore();
 const { entries } = storeToRefs(catalog);
 
@@ -21,7 +22,8 @@ const source = ref(props.entry.source);
 const requires = ref([...props.entry.requires]);
 const saving = ref(false);
 const failure = ref<string | null>(null);
-const saved = ref<{ changed: boolean } | null>(null);
+const saved = ref<{ changed: boolean; landing: Landing | null } | null>(null);
+const { gate, row: target, run, confirm, decline } = useCatalogWrite(() => props.entry.catalog);
 
 const available = computed(() => requirableRefs(entries.value, props.entry.catalog, `${props.entry.type}:${props.entry.name}`));
 /** only the fields that change, so an untouched one keeps whatever the file holds now */
@@ -38,16 +40,14 @@ async function save() {
   failure.value = null;
   saved.value = null;
   const { name, catalog: id, type } = props.entry;
-  const result = await activity.withActivity(`updating ${name}…`, async (signal) => {
-    const planned = await library.planUpdate({ name, catalog: id, type, ...changes, signal });
-    return planned.ok ? library.applyCatalogEdit(planned.value, { signal }) : planned;
-  });
+  const result = await run(`updating ${name}…`, (signal) => library.planUpdate({ name, catalog: id, type, ...changes, signal }));
   saving.value = false;
+  if (result === null) return;
   if (!result.ok) {
     failure.value = result.error.message;
     return;
   }
-  saved.value = { changed: result.value.changed };
+  saved.value = { changed: result.value.changed, landing: describeWrite(result.value, result.warnings) };
   await catalog.reload();
 }
 </script>
@@ -69,6 +69,10 @@ async function save() {
       >
         Updated <strong>{{ entry.name }}</strong> in <strong>{{ entry.catalog }}</strong>.
       </p>
+      <WriteLanding
+        v-if="saved.landing"
+        :landing="saved.landing"
+      />
       <p
         v-else
         class="editor__saved"
@@ -144,8 +148,15 @@ async function save() {
           {{ dismissLabel }}
         </button>
       </div>
+      <WriteGate
+        v-if="gate && target"
+        :gate="gate"
+        :catalog="target"
+        @confirm="confirm"
+        @decline="decline"
+      />
       <BusyIndicator
-        v-if="saving"
+        v-else-if="saving"
         inline
         label="Writing the catalog…"
       />

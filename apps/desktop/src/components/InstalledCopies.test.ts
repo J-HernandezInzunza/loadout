@@ -4,6 +4,7 @@ import { flushPromises } from "@vue/test-utils";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useCatalogStore } from "../stores/catalog.ts";
+import { useViewStore } from "../stores/views.ts";
 import { mountView } from "../testing/mountView.ts";
 import EntryDetail from "./EntryDetail.vue";
 
@@ -53,6 +54,18 @@ describe("UI-25: actions on the copy", () => {
     expect(wrapper.find(".uninstall").exists()).toBe(false);
     expect(wrapper.find(".push").exists()).toBe(true);
     expect(wrapper.find(".copies__actions button").attributes("aria-expanded")).toBe("true");
+  });
+});
+
+describe("a copy Loadout didn't install (Q8 A)", () => {
+  it("offers the catalog's copy in its place, on the install page that asks first; a copy Loadout installed doesn't", async () => {
+    const { wrapper } = await mountPage({}, [detail(installedRecord("unmanaged", { name: "tidy", catalog: "team" }))]);
+    expect(wrapper.findAll(".copies__actions button").map((b) => b.text())).toEqual(["Replace with the catalog's copy", "Send edits back", "Remove"]);
+    await press(wrapper, "Replace with the catalog's copy");
+    expect(useViewStore().current).toEqual({ kind: "install", name: "tidy" });
+
+    const managed = await mountPage({});
+    expect(managed.wrapper.findAll(".copies__actions button").map((b) => b.text())).not.toContain("Replace with the catalog's copy");
   });
 });
 

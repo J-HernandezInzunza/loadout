@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { CatalogRow } from "@loadout/core";
+import { parseRepoLink, type AccountHost, type CatalogRow } from "@loadout/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { computed, ref, watch } from "vue";
 import { ordinal } from "../catalog.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import BusyIndicator from "./BusyIndicator.vue";
+import RepoPicker, { type RepoPick } from "./RepoPicker.vue";
 import StatusBanner from "./StatusBanner.vue";
 
 export type RegisterMode = "existing" | "create" | "remote";
@@ -24,6 +25,9 @@ const id = ref(props.start === "create" && !props.catalogs.some((c) => c.id === 
 const path = ref("");
 const repo = ref("");
 const branch = ref("");
+/** where a shared catalog lives: a host whose account lists and checks it, or anywhere else by clone URL */
+const where = ref<AccountHost | "elsewhere" | null>(null);
+const repoPick = ref<RepoPick | null>(null);
 /** registered first, so its copies win a name collision */
 const wins = ref(true);
 const protectedRemote = ref(true);
@@ -35,7 +39,10 @@ const done = ref<{ id: string; created: boolean; entries: number; location: stri
 const isRemote = computed(() => mode.value === "remote");
 const needsDirectPushAck = computed(() => isRemote.value && !protectedRemote.value);
 const takenId = computed(() => props.catalogs.some((c) => c.id === id.value.trim()));
-const filled = computed(() => !!id.value.trim() && (isRemote.value ? !!repo.value.trim() && !!branch.value.trim() : !!path.value));
+const hosted = computed(() => where.value === "github" || where.value === "bitbucket");
+const remoteFilled = computed(() => (hosted.value ? repoPick.value !== null : where.value === "elsewhere" && !!repo.value.trim() && !!branch.value.trim()));
+const filled = computed(() => !!id.value.trim() && (isRemote.value ? remoteFilled.value : !!path.value));
+const remoteBranch = computed(() => (hosted.value ? repoPick.value?.branch : branch.value.trim()) || "the branch");
 const canSubmit = computed(() => filled.value && !takenId.value && !submitting.value && (!needsDirectPushAck.value || directPushAck.value));
 /** create refused because the file is there: registering it is the way forward */
 const fileExists = computed(() => mode.value === "create" && failure.value?.code === "DUPLICATE");
@@ -43,6 +50,11 @@ const fileExists = computed(() => mode.value === "create" && failure.value?.code
 watch(protectedRemote, (on) => {
   if (on) directPushAck.value = false;
 });
+// A picked repository names the catalog until the user names it otherwise.
+watch(repoPick, (picked) => {
+  if (picked && !id.value.trim()) id.value = picked.name;
+});
+watch(where, () => (repoPick.value = null));
 watch(mode, () => {
   path.value = "";
   failure.value = null;
@@ -71,6 +83,16 @@ async function pickPath() {
   if (typeof picked === "string") path.value = picked;
 }
 
+/** The picked repository as checked, or a typed URL reduced to its repository (a deep link's file path kept). */
+function remoteTarget(): { repo: string; branch: string; yamlPath?: string } {
+  const picked = repoPick.value;
+  if (hosted.value && picked) {
+    return { repo: picked.repo, branch: picked.branch, ...(picked.yamlPath !== "library.yaml" && { yamlPath: picked.yamlPath }) };
+  }
+  const link = parseRepoLink(repo.value);
+  return { repo: link?.repo ?? repo.value.trim(), branch: branch.value.trim(), ...(link?.yamlPath && { yamlPath: link.yamlPath }) };
+}
+
 async function submit() {
   submitting.value = true;
   failure.value = null;
@@ -82,9 +104,7 @@ async function submit() {
       const created = await library.initCatalog({ path: path.value, id: name, position });
       return created.ok ? { ...created, value: { catalogs: created.value.catalogs, created: true, location: created.value.created, entries: 0 } } : created;
     }
-    const request = isRemote.value
-      ? { kind: "remote" as const, id: name, repo: repo.value.trim(), branch: branch.value.trim(), protected: protectedRemote.value, position, signal }
-      : { kind: "local" as const, id: name, path: path.value, position, signal };
+    const request = isRemote.value ? { ...remoteTarget(), kind: "remote" as const, id: name, protected: protectedRemote.value, position, signal } : { kind: "local" as const, id: name, path: path.value, position, signal };
     const planned = await library.planAddCatalog(request);
     if (!planned.ok) return planned;
     const applied = await library.applyAddCatalog(planned.value);
@@ -106,6 +126,7 @@ function registerAnother() {
   path.value = "";
   repo.value = "";
   branch.value = "";
+  where.value = null;
   directPushAck.value = false;
 }
 </script>
@@ -246,31 +267,63 @@ function registerAnother() {
         </div>
 
         <template v-else>
-          <label class="register__field">
-            <span>Clone URL</span>
-            <input
-              v-model="repo"
-              type="text"
-              placeholder="git@github.com:acme/agentics.git"
-              autocomplete="off"
-              autocorrect="off"
-              spellcheck="false"
-            >
-          </label>
-          <label class="register__field">
-            <span>Branch</span>
-            <input
-              v-model="branch"
-              type="text"
-              placeholder="main"
-              autocomplete="off"
-              autocorrect="off"
-              spellcheck="false"
-            >
-            <span class="register__hint">
-              The repository's own default branch may not be called <code>main</code> — check before typing it.
-            </span>
-          </label>
+          <div
+            class="register__field"
+            role="radiogroup"
+            aria-label="Where the repository lives"
+          >
+            <span>Where it lives</span>
+            <div class="register__where">
+              <label><input
+                v-model="where"
+                type="radio"
+                value="github"
+              > GitHub</label>
+              <label><input
+                v-model="where"
+                type="radio"
+                value="bitbucket"
+              > Bitbucket</label>
+              <label><input
+                v-model="where"
+                type="radio"
+                value="elsewhere"
+              > Somewhere else</label>
+            </div>
+          </div>
+          <RepoPicker
+            v-if="where === 'github' || where === 'bitbucket'"
+            :key="where"
+            v-model="repoPick"
+            :on="where"
+          />
+          <template v-else-if="where === 'elsewhere'">
+            <label class="register__field">
+              <span>Clone URL</span>
+              <input
+                v-model="repo"
+                type="text"
+                placeholder="git@github.com:acme/agentics.git"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+              >
+            </label>
+            <label class="register__field">
+              <span>Branch</span>
+              <input
+                v-model="branch"
+                type="text"
+                placeholder="main"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+              >
+              <span class="register__hint">
+                The repository's own default branch may not be called <code>main</code> — check before typing it.
+              </span>
+            </label>
+          </template>
           <label class="register__check">
             <input
               v-model="protectedRemote"
@@ -278,7 +331,7 @@ function registerAnother() {
             >
             <span>
               Changes to this catalog go through a pull request. Leave this on for anything your team shares; turning it
-              off means a write commits straight to {{ branch || "the branch" }}, with no review.
+              off means a write commits straight to {{ remoteBranch }}, with no review.
             </span>
           </label>
           <label
@@ -291,14 +344,18 @@ function registerAnother() {
             >
             <span>
               I understand: with the box above unchecked, edits to this catalog push directly to
-              {{ branch || "the branch" }} — no pull request, no review step. This has to be checked to register with
+              {{ remoteBranch }} — no pull request, no review step. This has to be checked to register with
               direct pushes on.
             </span>
           </label>
           <span class="register__hint">Registering clones the repository, so this one needs the network.</span>
         </template>
 
-        <label class="register__check">
+        <!-- The first catalog has nothing to collide with. -->
+        <label
+          v-if="catalogs.length > 0"
+          class="register__check"
+        >
           <input
             v-model="wins"
             type="checkbox"
@@ -359,6 +416,17 @@ function registerAnother() {
 }
 .register__mode-hint {
   margin: -0.5rem 0 0.9rem;
+}
+.register__where {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+.register__where label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 .register__form {
   display: flex;

@@ -1,5 +1,6 @@
 // A local stand-in for the GitHub and Bitbucket endpoints Loadout calls (architecture.md §6): current
-// user, GitHub's device flow, Bitbucket token refresh, PR create and list. It records every request and can be told to
+// user, GitHub's device flow, Bitbucket token refresh, PR create and list, and the repositories an
+// account can read with their default branch and files. It records every request and can be told to
 // fail. Response shapes follow the hosts' docs; Bitbucket's duplicate-PR answer is not documented,
 // so it is a plain 400 here and M3.01 finds the existing PR by listing, not by parsing that error.
 import { createServer, type IncomingMessage } from "node:http";
@@ -29,6 +30,18 @@ export interface StubPull {
   open: boolean;
 }
 
+export interface StubRepo {
+  /** GitHub owner or Bitbucket workspace */
+  org: string;
+  name: string;
+  defaultBranch: string;
+  private?: boolean;
+  /** logins that can read it, owners or not */
+  readers: string[];
+  /** paths present on each branch */
+  files: Record<string, string[]>;
+}
+
 export interface ApiStub {
   bases: ApiBases;
   requests: RecordedRequest[];
@@ -49,6 +62,9 @@ export interface ApiStub {
   expireDevice(userCode: string): void;
   /** GitHub device flow: the next poll of `userCode` is told to slow down */
   slowDownDevice(userCode: string): void;
+  addRepo(api: "github" | "bitbucket", repo: StubRepo): void;
+  /** list pages hold this many items, whatever the request asks for, so paging can be tested */
+  setPageSize(size: number): void;
   /** The next request matching `match` gets this answer instead of the normal one. */
   failNext(match: { api: Api; method?: string; path?: string }, status: number, body?: unknown): void;
 }
@@ -67,6 +83,15 @@ export async function createApiStub(): Promise<ApiStub> {
   const refreshTokens = new Map<string, string>();
   const authCodes = new Map<string, string>();
   const pulls: Record<"github" | "bitbucket", StubPull[]> = { github: [], bitbucket: [] };
+  const repos: Record<"github" | "bitbucket", StubRepo[]> = { github: [], bitbucket: [] };
+  let pageSize: number | null = null;
+  let origin = "";
+  const page = <T>(all: T[], asked: number, n: number) => {
+    const size = pageSize ?? asked;
+    return { items: all.slice((n - 1) * size, n * size), more: n * size < all.length };
+  };
+  const readable = (api: "github" | "bitbucket", login: string) => repos[api].filter((r) => r.readers.includes(login));
+  const findRepo = (api: "github" | "bitbucket", login: string, full: string) => readable(api, login).find((r) => `${r.org}/${r.name}` === full);
   const failures: { match: { api: Api; method?: string; path?: string }; answer: Answer }[] = [];
   type Device = { userCode: string; state: "pending" | "slow" | "denied" | "expired" | { login: string; scopes: string[] } };
   const devices = new Map<string, Device>();
@@ -94,6 +119,28 @@ export async function createApiStub(): Promise<ApiStub> {
     const url = new URL(r.path, "http://x");
     if (r.method === "GET" && url.pathname === "/user") {
       return { status: 200, body: { login: auth.login, id: 1 }, headers: { "x-oauth-scopes": auth.scopes.join(", ") } };
+    }
+    const notFound: Answer = { status: 404, body: { message: "Not Found", documentation_url: githubDocs, status: "404" } };
+    if (r.method === "GET" && url.pathname === "/user/repos") {
+      const n = Number(url.searchParams.get("page") ?? "1");
+      const { items, more } = page(readable("github", auth.login), Number(url.searchParams.get("per_page") ?? "30"), n);
+      const next = new URL(`${origin}/github${url.pathname}`);
+      url.searchParams.forEach((v, k) => next.searchParams.set(k, v));
+      next.searchParams.set("page", String(n + 1));
+      return {
+        status: 200,
+        body: items.map((x) => ({ name: x.name, full_name: `${x.org}/${x.name}`, owner: { login: x.org }, private: !!x.private, default_branch: x.defaultBranch })),
+        ...(more && { headers: { link: `<${next.toString()}>; rel="next"` } }),
+      };
+    }
+    const contents = /^\/repos\/([^/]+\/[^/]+)(?:\/contents\/(.+))?$/.exec(url.pathname);
+    if (r.method === "GET" && contents) {
+      const found = findRepo("github", auth.login, contents[1]!);
+      if (!found) return notFound;
+      if (contents[2] === undefined) return { status: 200, body: { full_name: contents[1], default_branch: found.defaultBranch, private: !!found.private } };
+      const ref = url.searchParams.get("ref") ?? found.defaultBranch;
+      const path = decodeURIComponent(contents[2]);
+      return found.files[ref]?.includes(path) ? { status: 200, body: { type: "file", path, content: "" } } : notFound;
     }
     const m = /^\/repos\/([^/]+\/[^/]+)\/pulls$/.exec(url.pathname);
     if (!m) return { status: 404, body: { message: "Not Found", documentation_url: githubDocs, status: "404" } };
@@ -144,6 +191,34 @@ export async function createApiStub(): Promise<ApiStub> {
     const url = new URL(r.path, "http://x");
     if (r.method === "GET" && url.pathname === "/user") {
       return { status: 200, body: { username: auth.login, display_name: auth.login, uuid: `{${auth.login}}` } };
+    }
+    // Absolute, as Bitbucket's own `next` links are.
+    const paged = <T>(all: T[], path: string) => {
+      const n = Number(url.searchParams.get("page") ?? "1");
+      const pagelen = Number(url.searchParams.get("pagelen") ?? "10");
+      const { items, more } = page(all, pagelen, n);
+      const next = new URL(`${origin}/bitbucket${path}`);
+      url.searchParams.forEach((v, k) => next.searchParams.set(k, v));
+      next.searchParams.set("page", String(n + 1));
+      return { status: 200, body: { values: items, page: n, pagelen, size: all.length, ...(more && { next: next.toString() }) } };
+    };
+    if (r.method === "GET" && url.pathname === "/user/workspaces") {
+      const slugs = [...new Set(readable("bitbucket", auth.login).map((x) => x.org))].sort();
+      return paged(slugs.map((slug) => ({ type: "workspace_access", administrator: false, workspace: { slug, type: "workspace_base" } })), url.pathname);
+    }
+    const inWorkspace = /^\/repositories\/([^/]+)$/.exec(url.pathname);
+    if (r.method === "GET" && inWorkspace) {
+      if (url.searchParams.get("role") !== "member") return bitbucketError(400, "the stub lists by role=member only");
+      const listed = readable("bitbucket", auth.login).filter((x) => x.org === decodeURIComponent(inWorkspace[1]!));
+      return paged(listed.map((x) => ({ slug: x.name, full_name: `${x.org}/${x.name}`, is_private: !!x.private, workspace: { slug: x.org } })), url.pathname);
+    }
+    const src = /^\/repositories\/([^/]+\/[^/]+)(?:\/src\/([^/]+)\/(.+))?$/.exec(url.pathname);
+    if (r.method === "GET" && src) {
+      const found = findRepo("bitbucket", auth.login, src[1]!);
+      if (!found) return bitbucketError(404, "Repository not found");
+      if (src[2] === undefined) return { status: 200, body: { full_name: src[1], is_private: !!found.private, mainbranch: { type: "branch", name: found.defaultBranch } } };
+      const path = decodeURIComponent(src[3]!);
+      return found.files[decodeURIComponent(src[2])]?.includes(path) ? { status: 200, body: "" } : bitbucketError(404, "No such file or directory");
     }
     const m = /^\/repositories\/([^/]+\/[^/]+)\/pullrequests$/.exec(url.pathname);
     if (!m) return bitbucketError(404, "Resource not found");
@@ -280,7 +355,7 @@ export async function createApiStub(): Promise<ApiStub> {
     await new Promise((resolve) => server.close(resolve));
   });
 
-  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   return {
     bases: {
       github: `${origin}/github`,
@@ -314,6 +389,12 @@ export async function createApiStub(): Promise<ApiStub> {
     },
     slowDownDevice(userCode) {
       deviceOf(userCode).state = "slow";
+    },
+    addRepo(api, repo) {
+      repos[api].push(repo);
+    },
+    setPageSize(size) {
+      pageSize = size;
     },
     failNext(match, status, body) {
       failures.push({ match, answer: { status, body } });

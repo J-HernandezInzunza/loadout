@@ -16,6 +16,8 @@ export interface MountViewOptions<C> {
   /** already in the log when the component mounts */
   audit?: AuditEvent[];
   props?: ComponentMountingOptions<C>["props"];
+  /** in the document, so focus can be tested */
+  attachTo?: HTMLElement;
 }
 
 export function mountView<C extends Component>(component: C, options: MountViewOptions<C> = {}) {
@@ -24,6 +26,7 @@ export function mountView<C extends Component>(component: C, options: MountViewO
   for (const event of options.audit ?? []) log.record(event);
   const wrapper = mount(component, {
     props: options.props,
+    attachTo: options.attachTo,
     global: { plugins: [createPinia()], provide: { [libraryKey]: library, [auditLogKey]: log } },
   } as ComponentMountingOptions<C>);
   return { wrapper, library, log };

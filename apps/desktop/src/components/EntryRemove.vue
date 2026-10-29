@@ -2,17 +2,19 @@
 import type { EntryRecord } from "@loadout/core";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, ref } from "vue";
+import { describeWrite, useCatalogWrite, type WriteLanding } from "../catalogWrite.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
+import WriteGate from "./WriteGate.vue";
 
 const props = defineProps<{ entry: EntryRecord }>();
 const emit = defineEmits<{
   close: [];
   /** what was removed, for the catalog page to say once this row is gone */
-  removed: [text: string];
+  removed: [text: string, landing: WriteLanding | null];
 }>();
 
 const library = useLibrary();
@@ -24,6 +26,7 @@ const preview = ref<{ diff: string; dependents: string[] } | null>(null);
 const running = ref(false);
 const failure = ref<string | null>(null);
 const purge = ref(false);
+const { gate, row: target, run, confirm: go, decline } = useCatalogWrite(() => props.entry.catalog);
 
 const request = computed(() => ({ name: props.entry.name, catalog: props.entry.catalog, type: props.entry.type }));
 /**
@@ -51,17 +54,17 @@ onMounted(async () => {
 async function confirm() {
   running.value = true;
   failure.value = null;
-  const result = await activity.withActivity(`removing ${props.entry.name} from ${props.entry.catalog}…`, async (signal) => {
-    const planned = await library.planRemove({ ...request.value, purge: purge.value, signal });
-    return planned.ok ? library.applyCatalogEdit(planned.value, { signal }) : planned;
-  });
+  const result = await run(`removing ${props.entry.name} from ${props.entry.catalog}…`, (signal) =>
+    library.planRemove({ ...request.value, purge: purge.value, signal }),
+  );
   running.value = false;
+  if (result === null) return;
   if (!result.ok) {
     failure.value = result.error.message;
     return;
   }
   const deleted = result.value.op === "remove" && result.value.deleted.length ? ` Deleted ${result.value.deleted.join(", ")}.` : "";
-  emit("removed", `Removed ${props.entry.name} from ${props.entry.catalog}, out of ${props.entry.type}s.${deleted}`);
+  emit("removed", `Removed ${props.entry.name} from ${props.entry.catalog}, out of ${props.entry.type}s.${deleted}`, describeWrite(result.value, result.warnings));
   await catalog.reload();
 }
 </script>
@@ -139,8 +142,15 @@ async function confirm() {
           {{ purge ? "Remove and delete the copy" : "Remove the entry" }}
         </button>
       </div>
+      <WriteGate
+        v-if="gate && target"
+        :gate="gate"
+        :catalog="target"
+        @confirm="go"
+        @decline="decline"
+      />
       <BusyIndicator
-        v-if="running"
+        v-else-if="running"
         inline
         label="Writing the catalog…"
       />

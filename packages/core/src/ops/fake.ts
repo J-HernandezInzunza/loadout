@@ -70,7 +70,8 @@ export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Part
       return ok({ status: "ok" as const, entries: state.entries.length, errors: [], warnings: [] });
     },
     async accounts() {
-      return ok(state.accounts);
+      // A fresh object per call, as the real one reads config.json each time.
+      return ok({ ...state.accounts });
     },
     planInstall: refused,
     applyInstall: refused,
@@ -93,6 +94,8 @@ export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Part
     checkAccount: refused,
     beginSignIn: refused,
     completeSignIn: refused,
+    listRepos: refused,
+    checkCatalogRepo: refused,
     planAdd: refused,
     planUpdate: refused,
     planRemove: refused,

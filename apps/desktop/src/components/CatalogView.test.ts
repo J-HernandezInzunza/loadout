@@ -22,12 +22,12 @@ const tab = (w: Wrapper, text: string) => w.findAll(".catalog-tabs__tab").find((
 const two = [catalogRow({ id: "personal" }), catalogRow({ id: "team", precedence: 2, kind: "remote", writeMode: "pr", location: "git@bitbucket.org:acme/catalog.git (main, library.yaml)" })];
 
 describe("UI-10: the list header", () => {
-  it("has a labelled search, and Refresh, Catalogs and Sync; Enter in the search does nothing", async () => {
+  it("has a labelled search, and Refresh, Catalogs, Accounts and Sync; Enter in the search does nothing", async () => {
     const { wrapper } = await mountList();
     const search = wrapper.find("input[type=search]");
     expect(search.attributes("aria-label")).toBe("Search skills, agents and prompts");
     expect(search.attributes("placeholder")).toBe("Search skills, agents, prompts…");
-    expect(wrapper.findAll(".searchbar button").map((b) => b.text())).toEqual(["Refresh", "Catalogs", "Sync"]);
+    expect(wrapper.findAll(".searchbar button").map((b) => b.text())).toEqual(["Refresh", "Catalogs", "Accounts", "Sync"]);
 
     await wrapper.find("form").trigger("submit");
     expect(useViewStore().current.kind).toBe("list");
@@ -96,7 +96,7 @@ describe("UI-13: tabs", () => {
 });
 
 describe("UI-15: the catalog strip", () => {
-  it("says precedence, kind, write mode and location, and offers Manage entries only on a local catalog Loadout writes", async () => {
+  it("says precedence, kind, write mode and location, and offers Manage entries on a catalog Loadout writes, a shared one too", async () => {
     const { wrapper } = await mountList({ catalogs: two, entries: [entryRecord({ name: "a" }), entryRecord({ name: "b", catalog: "team" })] });
     await tab(wrapper, "team").trigger("click");
     expect(wrapper.findAll(".catalog-summary__meta span").map((s) => s.text())).toEqual([
@@ -105,11 +105,8 @@ describe("UI-15: the catalog strip", () => {
       "writes via pull request",
       "git@bitbucket.org:acme/catalog.git (main, library.yaml)",
     ]);
-    expect(button(wrapper, "Manage entries")).toBeUndefined();
-
-    await tab(wrapper, "personal").trigger("click");
     await button(wrapper, "Manage entries")!.trigger("click");
-    expect(useViewStore().current).toEqual({ kind: "catalogs", catalog: "personal", entry: null });
+    expect(useViewStore().current).toEqual({ kind: "catalogs", catalog: "team", entry: null });
   });
 
   it("calls a read-only catalog read-only and says why a skipped one contributes nothing", async () => {
@@ -152,7 +149,7 @@ describe("UI-17: empty states", () => {
   });
 
   it("blames an empty catalog rather than the search, offering the first entry only where Loadout writes", async () => {
-    const catalogs = [...two, catalogRow({ id: "fresh", precedence: 3, entries: 0 })];
+    const catalogs = [two[0]!, { ...two[1]!, editable: false }, catalogRow({ id: "fresh", precedence: 3, entries: 0 })];
     const { wrapper } = await mountList({ catalogs, entries: [entryRecord({ name: "a" })] });
     await tab(wrapper, "team").trigger("click");
     expect(wrapper.find(".state").text()).toBe("team has no entries yet.");

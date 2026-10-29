@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, ref, useTemplateRef } from "vue";
+import { describeWrite, useCatalogWrite, type WriteLanding as Landing } from "../catalogWrite.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
@@ -11,6 +12,8 @@ import { useViewStore } from "../stores/views.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
+import WriteGate from "./WriteGate.vue";
+import WriteLanding from "./WriteLanding.vue";
 
 type Pin = Extract<Awaited<ReturnType<Library["pins"]>>, { ok: true }>["value"][number];
 type Suggestion = Extract<Awaited<ReturnType<Library["suggestSource"]>>, { ok: true }>["value"];
@@ -33,8 +36,9 @@ const requires = ref<string[]>([]);
 const submitting = ref(false);
 const suggestion = ref<Suggestion | null>(null);
 const failure = ref<string | null>(null);
-const added = ref<{ name: string; section: string; path: string | null } | null>(null);
+const added = ref<{ name: string; section: string; path: string | null; landing: Landing | null } | null>(null);
 const pins = ref<Pin[]>([]);
+const { gate, row: target, run, confirm, decline } = useCatalogWrite(() => props.catalogId);
 
 onMounted(async () => {
   const listed = await library.pins();
@@ -90,13 +94,14 @@ async function submit() {
   failure.value = null;
   added.value = null;
   const entry = { name: name.value.trim(), type: type.value, description: description.value.trim(), source: source.value.trim(), requires: requires.value };
-  const result = await activity.withActivity(`adding ${entry.name}…`, async (signal) => {
-    const planned = await library.planAdd({ entries: [entry], catalog: props.catalogId, signal });
-    return planned.ok ? library.applyCatalogEdit(planned.value, { signal }) : planned;
-  });
+  const result = await run(`adding ${entry.name}…`, (signal) => library.planAdd({ entries: [entry], catalog: props.catalogId, signal }));
   submitting.value = false;
+  // Declined at the push or pull-request question: the form stays as it was.
+  if (result === null) return;
   if (result.ok) {
-    added.value = { name: entry.name, section: `${entry.type}s`, path: result.value.mode === "pr" ? null : result.value.path };
+    // Only a local catalog's file is the user's to open; a remote's is Loadout's clone.
+    const path = result.value.mode === "local" ? result.value.path : null;
+    added.value = { name: entry.name, section: `${entry.type}s`, path, landing: describeWrite(result.value, result.warnings) };
     name.value = "";
     description.value = "";
     source.value = "";
@@ -138,6 +143,10 @@ async function reveal(path: string) {
         <p class="add-entry__added-line">
           Added <strong>{{ added.name }}</strong> to <strong>{{ catalogId }}</strong>, under {{ added.section }}.
         </p>
+        <WriteLanding
+          v-if="added.landing"
+          :landing="added.landing"
+        />
         <p
           v-if="added.path"
           class="add-entry__added-where"
@@ -286,8 +295,15 @@ async function reveal(path: string) {
         >
           Add to {{ catalogId }}
         </button>
+        <WriteGate
+          v-if="gate && target"
+          :gate="gate"
+          :catalog="target"
+          @confirm="confirm"
+          @decline="decline"
+        />
         <BusyIndicator
-          v-if="submitting"
+          v-else-if="submitting"
           inline
           label="Writing the catalog…"
         />
