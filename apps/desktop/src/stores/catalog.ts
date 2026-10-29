@@ -23,6 +23,8 @@ export const useCatalogStore = defineStore("catalog", () => {
   const lastPulled = ref<Date | null>(null);
   /** what the last pull said about individual catalogs (one skipped or offline doesn't fail the rest) */
   const pullWarnings = ref<string[]>([]);
+  /** the last launch found no catalog registered, so the app has to be set up before it can list anything */
+  const unregistered = ref(false);
 
   const firstLoad = computed(() => loading.value && entries.value.length === 0);
 
@@ -67,12 +69,17 @@ export const useCatalogStore = defineStore("catalog", () => {
     }
   }
 
-  /** Once, when the app opens: sweep, load the config, pull every catalog, then read. */
-  const launch = () => run("refreshing the catalog…", async (signal) => pulled(await library.launch({ signal })));
+  /** When the app opens, and again once first run registers something: sweep, load the config, pull every catalog, then read. */
+  const launch = () =>
+    run("refreshing the catalog…", async (signal) => {
+      const launched = await library.launch({ signal });
+      unregistered.value = launched.ok && launched.value.state === "no-catalogs";
+      await pulled(launched);
+    });
   /** Refresh: the user asked for fresh, so pull first. */
   const refresh = () => run("refreshing the catalog…", async () => pulled(await library.refresh()));
   /** After a write: read what is on disk now. */
   const reload = () => run("reading the catalog…", async () => void (await read()));
 
-  return { entries, catalogs, loading, failure, lastPulled, pullWarnings, firstLoad, launch, refresh, reload };
+  return { entries, catalogs, loading, failure, lastPulled, pullWarnings, unregistered, firstLoad, launch, refresh, reload };
 });

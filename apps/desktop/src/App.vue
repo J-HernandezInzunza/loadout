@@ -8,6 +8,7 @@ import CatalogView from "./components/CatalogView.vue";
 import CommandLog from "./components/CommandLog.vue";
 import DoctorView from "./components/DoctorView.vue";
 import EntryDetail from "./components/EntryDetail.vue";
+import FirstRun from "./components/FirstRun.vue";
 import InstallView from "./components/InstallView.vue";
 import SyncView from "./components/SyncView.vue";
 import ToastStack from "./components/ToastStack.vue";
@@ -17,6 +18,7 @@ import { useViewStore } from "./stores/views.ts";
 const catalog = useCatalogStore();
 const views = useViewStore();
 const { current } = storeToRefs(views);
+const { unregistered } = storeToRefs(catalog);
 
 onMounted(() => catalog.launch());
 </script>
@@ -24,7 +26,9 @@ onMounted(() => catalog.launch());
 <template>
   <main class="app">
     <ActivityBar />
-    <CatalogView v-if="current.kind === 'list'" />
+    <!-- Nothing registered: nothing below has anything to show until one catalog is. -->
+    <FirstRun v-if="unregistered" />
+    <CatalogView v-else-if="current.kind === 'list'" />
     <DoctorView
       v-else-if="current.kind === 'doctor'"
       :back="views.manage ? 'Catalogs' : 'Loadout'"

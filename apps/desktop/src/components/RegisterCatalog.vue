@@ -298,7 +298,11 @@ function registerAnother() {
           <span class="register__hint">Registering clones the repository, so this one needs the network.</span>
         </template>
 
-        <label class="register__check">
+        <!-- The first catalog has nothing to collide with. -->
+        <label
+          v-if="catalogs.length > 0"
+          class="register__check"
+        >
           <input
             v-model="wins"
             type="checkbox"
