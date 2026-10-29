@@ -731,7 +731,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: each rule has a test; `EntryDetail.spec.ts` and `InstalledCopies.spec.ts` are ported;
     dependency pills use one "installed" test (§4.10).
 
-- [ ] **M5.09 Uninstall and push from the entry page.** Two-step uninstall naming the override it
+- [x] **M5.09 Uninstall and push from the entry page.** Two-step uninstall naming the override it
   removes (Q17 A); push with its provenance note and the PR or compare link. Success banners stay
   visible after the control unmounts (§4.10).
   - Rules: UI-26, UI-27
