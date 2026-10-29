@@ -34,6 +34,15 @@ import { loadRegistry, type EntryRecord, type Registry, type ResolveErr } from "
 import { destFor, destState, readLegacyInstalls, scanInstallDirs, type ScanReport } from "../scan/scan.ts";
 import { cloneUrls, parseSource } from "../source/source.ts";
 import { isStale } from "../update/update.ts";
+import { applyAdd, planAdd, type AddPlan, type AddRequest } from "../write/add.ts";
+import type { WriteResult } from "../write/edit.ts";
+import { applyPin, planPin, unpin, type PinPlan, type PinResult } from "../write/pin.ts";
+import { applyPush, discardPush, planPush, type PushPlan, type PushRequest, type PushResult } from "../write/push.ts";
+import { applyRemove, planRemove, type RemovePlan, type RemoveRequest } from "../write/remove.ts";
+import { suggestSource, type SourceSuggestion } from "../write/suggest.ts";
+import type { WriteTargetErr } from "../write/target.ts";
+import { applyUpdate, planUpdate, type UpdatePlan, type UpdateRequest } from "../write/update.ts";
+import { discardWrite } from "../write/write.ts";
 import type { CatalogRow, EntryDetail, PinRecord } from "./schemas.ts";
 
 /** A plan as the facade hands it out (architecture.md §8.3): readable, but only a Library makes one, and it comes back unedited. */
@@ -43,6 +52,18 @@ export type IssuedSyncPlan = Issued<SyncPlan, "SyncPlan">;
 export type IssuedMigratePlan = Issued<{ items: ParkedSkill[] }, "MigratePlan">;
 export type IssuedAddCatalogPlan = Issued<AddCatalogPlan, "AddCatalogPlan">;
 export type IssuedImportPlan = Issued<ImportPlan, "ImportPlan">;
+export type IssuedPushPlan = Issued<PushPlan, "PushPlan">;
+export type IssuedPinPlan = Issued<PinPlan, "PinPlan">;
+
+/** An add, update or remove, carrying its op so one apply serves all three (architecture.md §2.3). */
+export type CatalogEditPlan = ({ op: "add" } & AddPlan) | ({ op: "update" } & UpdatePlan) | ({ op: "remove" } & RemovePlan);
+export type IssuedCatalogEditPlan = Issued<CatalogEditPlan, "CatalogEditPlan">;
+export type CatalogEditResult = WriteResult &
+  (
+    | { op: "add"; added: AddPlan["added"] }
+    | { op: "update"; name: string }
+    | { op: "remove"; removed: RemovePlan["removed"]; dependents: string[]; deleted: string[] }
+  );
 
 export interface Library {
   /** Every copy of every entry, in resolution order; `checkRemote` asks each installed remote source whether it moved (UPD-06). */
@@ -89,6 +110,24 @@ export interface Library {
   /** What a sign-in flow ends with: validates the token, then keeps it in Host.secrets. */
   connect(on: AccountHost, tokens: TokenSet): Promise<Result<AccountInfo>>;
   disconnect(on: AccountHost): Promise<Result<void>>;
+
+  /** One entry or a batch, landing as one write in the target catalog's write mode. */
+  planAdd(req: AddRequest & { signal?: AbortSignal }): Promise<Result<IssuedCatalogEditPlan, WriteTargetErr>>;
+  planUpdate(req: UpdateRequest & { signal?: AbortSignal }): Promise<Result<IssuedCatalogEditPlan, WriteTargetErr>>;
+  planRemove(req: RemoveRequest & { signal?: AbortSignal }): Promise<Result<IssuedCatalogEditPlan, WriteTargetErr>>;
+  applyCatalogEdit(plan: IssuedCatalogEditPlan, opts?: { signal?: AbortSignal }): Promise<Result<CatalogEditResult>>;
+  /** Removes a PR-mode plan's temp clone; other modes hold nothing. */
+  discardCatalogEdit(plan: IssuedCatalogEditPlan): Promise<Result<void>>;
+  /** Sends an installed copy's edits back to its source (behaviors.md §3.16). */
+  planPush(req: PushRequest & { signal?: AbortSignal }): Promise<Result<IssuedPushPlan, ResolveErr>>;
+  applyPush(plan: IssuedPushPlan, opts?: { message?: string; signal?: AbortSignal }): Promise<Result<PushResult>>;
+  discardPush(plan: IssuedPushPlan): Promise<Result<void>>;
+  /** RES-13 refusals, and the switch assessment for what is installed (RES-15). */
+  planPin(req: { name: string; catalog: string }): Promise<Result<IssuedPinPlan>>;
+  applyPin(plan: IssuedPinPlan, opts: { switchInstalled: boolean; signal?: AbortSignal }): Promise<Result<PinResult>>;
+  unpin(name: string): Promise<Result<{ name: string; was: string; resolvesTo: string | null }>>;
+  /** WRITE-05's hint: the browser URL of a local file in a GitHub or Bitbucket repo. */
+  suggestSource(path: string): Promise<Result<SourceSuggestion>>;
 }
 
 export interface LibraryOptions {
@@ -122,6 +161,11 @@ interface InstallView {
   legacy: Map<string, string>;
   overrides: Map<string, string>;
   warnings: Warning[];
+}
+
+/** Tags a successful result's value with its op. */
+function withOp<O extends string, T extends object>(op: O, r: Result<T>): Result<T & { op: O }> {
+  return r.ok ? { ...r, value: { ...r.value, op } } : r;
 }
 
 export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
@@ -372,6 +416,58 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
 
     async disconnect(on) {
       return accounts.disconnect(on);
+    },
+
+    async planAdd(req) {
+      return withOp("add", await planAdd(ctx, req, req)) as Result<IssuedCatalogEditPlan, WriteTargetErr>;
+    },
+
+    async planUpdate(req) {
+      return withOp("update", await planUpdate(ctx, req, req)) as Result<IssuedCatalogEditPlan, WriteTargetErr>;
+    },
+
+    async planRemove(req) {
+      return withOp("remove", await planRemove(ctx, req, req)) as Result<IssuedCatalogEditPlan, WriteTargetErr>;
+    },
+
+    async applyCatalogEdit(plan, o = {}) {
+      if (plan.op === "add") return withOp("add", await applyAdd(ctx, plan, o));
+      if (plan.op === "update") return withOp("update", await applyUpdate(ctx, plan, o));
+      return withOp("remove", await applyRemove(ctx, plan, o));
+    },
+
+    async discardCatalogEdit(plan) {
+      await discardWrite(plan.write);
+      return ok(undefined);
+    },
+
+    async planPush(req) {
+      return (await planPush(ctx, req, req)) as Result<IssuedPushPlan, ResolveErr>;
+    },
+
+    async applyPush(plan, o = {}) {
+      return applyPush(ctx, plan, o);
+    },
+
+    async discardPush(plan) {
+      await discardPush(plan);
+      return ok(undefined);
+    },
+
+    async planPin(req) {
+      return (await planPin(ctx, req)) as Result<IssuedPinPlan>;
+    },
+
+    async applyPin(plan, o) {
+      return applyPin(ctx, plan, o);
+    },
+
+    async unpin(name) {
+      return unpin(ctx, name);
+    },
+
+    async suggestSource(path) {
+      return ok(await suggestSource(host, git, path));
     },
   };
 }

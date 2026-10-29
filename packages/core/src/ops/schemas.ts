@@ -95,6 +95,9 @@ const SyncPlan = plan<"SyncPlan">("items");
 const MigratePlan = plan<"MigratePlan">("items");
 const AddCatalogPlan = plan<"AddCatalogPlan">("ref");
 const ImportPlan = plan<"ImportPlan">("config");
+const CatalogEditPlan = plan<"CatalogEditPlan">("op");
+const PushPlan = plan<"PushPlan">("files");
+const PinPlan = plan<"PinPlan">("switch");
 
 const Ref = z.strictObject({ type: EntryType, name: z.string(), catalog: z.string() });
 const files = z.array(z.string());
@@ -179,6 +182,72 @@ const AddCatalogRequest = z.discriminatedUnion("kind", [
 const Registered = z.array(CatalogRef);
 const AccountHost = z.enum(["github", "bitbucket"]);
 
+const strings = z.array(z.string());
+const dryRun = { dryRun: z.boolean().exactOptional() };
+
+/** WRITE-18; loose so it can carry each op's own fields (CatalogEditResult). */
+const WriteResult = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.enum(["local", "direct"]),
+    catalog: z.string(),
+    changed: z.boolean(),
+    path: z.string(),
+    committed: z.boolean(),
+    pushed: z.boolean(),
+    branch: z.string().nullable(),
+    diff: z.string().exactOptional(),
+  }),
+  z.object({
+    mode: z.literal("pr"),
+    catalog: z.string(),
+    changed: z.boolean(),
+    method: z.enum(["api", "manual"]),
+    branch: z.string().nullable(),
+    prUrl: z.string().exactOptional(),
+    compareUrl: z.string().nullable().exactOptional(),
+    diff: z.string().exactOptional(),
+  }),
+]);
+const typed = z.object({ type: EntryType, name: z.string() });
+const CatalogEditResult = WriteResult.and(
+  z.discriminatedUnion("op", [
+    z.object({ op: z.literal("add"), added: z.array(typed) }),
+    z.object({ op: z.literal("update"), name: z.string() }),
+    z.object({ op: z.literal("remove"), removed: typed, dependents: strings, deleted: strings }),
+  ]),
+);
+
+const OpenedPr = z.strictObject({
+  method: z.enum(["api", "manual"]),
+  branch: z.string(),
+  prUrl: z.string().exactOptional(),
+  compareUrl: z.string().nullable(),
+});
+const pushed = { name: z.string(), catalog: z.string(), dest: z.string(), note: z.string().nullable(), changed: z.boolean() };
+const PushResult = z.discriminatedUnion("kind", [
+  z.strictObject({ ...pushed, kind: z.literal("local"), target: z.string() }),
+  z.strictObject({ ...pushed, kind: z.literal("remote"), pr: OpenedPr.nullable() }),
+]);
+
+const SwitchAssessment = z.strictObject({
+  switchable: z.boolean(),
+  simple: z.boolean(),
+  stale: z.array(z.strictObject({ dest: z.string(), state: z.enum(["installed", "drifted", "unmanaged"]), from: z.string().nullable() })),
+  blockers: strings,
+  unresolvedRequires: z.array(z.strictObject({ ref: z.string(), requiredBy: z.string() })),
+  newDependencies: strings,
+  dependents: z.array(z.strictObject({ name: z.string(), catalog: z.string(), direct: z.boolean() })),
+});
+const PinResult = z.strictObject({
+  name: z.string(),
+  catalog: z.string(),
+  previous: z.string().nullable(),
+  holders: strings,
+  onlyHolder: z.boolean(),
+  switch: SwitchAssessment,
+  installed: ApplyReport.nullable(),
+});
+
 export const ops = {
   list: { input: z.strictObject({ ...catalogOption, checkRemote: z.boolean().exactOptional() }), output: z.array(EntryRecord) },
   search: { input: z.strictObject({ query: z.string(), ...catalogOption }), output: z.array(EntryRecord) },
@@ -222,4 +291,46 @@ export const ops = {
   accounts: { input: z.strictObject({}), output: z.strictObject({ github: AccountInfo.exactOptional(), bitbucket: AccountInfo.exactOptional() }) },
   connect: { input: z.strictObject({ on: AccountHost, tokens: TokenSet }), output: AccountInfo },
   disconnect: { input: z.strictObject({ on: AccountHost }), output: z.undefined() },
+  planAdd: {
+    input: z.strictObject({
+      entries: z.array(
+        z.strictObject({ name: z.string(), description: z.string(), source: z.string(), type: EntryType.exactOptional(), requires: strings.exactOptional() }),
+      ),
+      ...catalogOption,
+      allowLocal: z.boolean().exactOptional(),
+      ...dryRun,
+    }),
+    output: CatalogEditPlan,
+  },
+  planUpdate: {
+    input: z.strictObject({
+      name: z.string(),
+      ...catalogOption,
+      type: EntryType.exactOptional(),
+      setDescription: z.string().exactOptional(),
+      setSource: z.string().exactOptional(),
+      setRequires: strings.exactOptional(),
+      addRequires: strings.exactOptional(),
+      removeRequires: strings.exactOptional(),
+      allowLocal: z.boolean().exactOptional(),
+      ...dryRun,
+    }),
+    output: CatalogEditPlan,
+  },
+  planRemove: {
+    input: z.strictObject({ name: z.string(), ...catalogOption, type: EntryType.exactOptional(), purge: z.boolean().exactOptional(), ...dryRun }),
+    output: CatalogEditPlan,
+  },
+  applyCatalogEdit: { input: z.strictObject({ plan: CatalogEditPlan }), output: CatalogEditResult },
+  discardCatalogEdit: { input: z.strictObject({ plan: CatalogEditPlan }), output: z.undefined() },
+  planPush: { input: z.strictObject({ name: z.string(), ...catalogOption }), output: PushPlan },
+  applyPush: { input: z.strictObject({ plan: PushPlan, message: z.string().exactOptional() }), output: PushResult },
+  discardPush: { input: z.strictObject({ plan: PushPlan }), output: z.undefined() },
+  planPin: { input: z.strictObject({ name: z.string(), catalog: z.string() }), output: PinPlan },
+  applyPin: { input: z.strictObject({ plan: PinPlan, switchInstalled: z.boolean() }), output: PinResult },
+  unpin: {
+    input: z.strictObject({ name: z.string() }),
+    output: z.strictObject({ name: z.string(), was: z.string(), resolvesTo: z.string().nullable() }),
+  },
+  suggestSource: { input: z.strictObject({ path: z.string() }), output: z.strictObject({ url: z.string().nullable(), why: z.string() }) },
 };
