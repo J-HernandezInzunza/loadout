@@ -4,6 +4,7 @@
 import type { z } from "zod";
 import { createAccounts, type AccountHost, type TokenSet } from "../accounts/accounts.ts";
 import { defaultApiBases, type ApiBases } from "../accounts/apiBases.ts";
+import { beginGitHubSignIn, completeGitHubSignIn, type GitHubSignIn } from "../accounts/signIn.ts";
 import { refreshCatalogs, type CatalogRefresh } from "../catalogs/catalogs.ts";
 import {
   applyAddCatalog,
@@ -28,7 +29,7 @@ import { applyInstall, type ApplyOpts, type ApplyReport } from "../install/apply
 import { discardPlan, planInstall, type InstallPlan } from "../install/plan.ts";
 import { applySync, planSync, type SyncPlan, type SyncReport } from "../install/sync.ts";
 import { uninstall, type UninstallItem } from "../install/uninstall.ts";
-import { LibraryError, ok, type CatalogRef, type Entry, type Result, type Warning } from "../model/model.ts";
+import { err, LibraryError, ok, type CatalogRef, type Entry, type Result, type Warning } from "../model/model.ts";
 import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type EntryRecord, type Registry, type ResolveErr } from "../registry/registry.ts";
 import { destFor, destState, readLegacyInstalls, scanInstallDirs, type ScanReport } from "../scan/scan.ts";
@@ -54,6 +55,8 @@ export type IssuedAddCatalogPlan = Issued<AddCatalogPlan, "AddCatalogPlan">;
 export type IssuedImportPlan = Issued<ImportPlan, "ImportPlan">;
 export type IssuedPushPlan = Issued<PushPlan, "PushPlan">;
 export type IssuedPinPlan = Issued<PinPlan, "PinPlan">;
+/** A sign-in in progress: show its code and URL, then hand it back to completeSignIn. */
+export type IssuedSignIn = Issued<GitHubSignIn, "SignIn">;
 
 /** An add, update or remove, carrying its op so one apply serves all three (architecture.md §2.3). */
 export type CatalogEditPlan = ({ op: "add" } & AddPlan) | ({ op: "update" } & UpdatePlan) | ({ op: "remove" } & RemovePlan);
@@ -122,6 +125,10 @@ export interface Library {
   /** What a sign-in flow ends with: validates the token, then keeps it in Host.secrets. */
   connect(on: AccountHost, tokens: TokenSet): Promise<Result<AccountInfo>>;
   disconnect(on: AccountHost): Promise<Result<void>>;
+  /** Starts a browser sign-in (S12); SIGN_IN_UNAVAILABLE when the build lacks the host's OAuth client. */
+  beginSignIn(on: AccountHost): Promise<Result<IssuedSignIn>>;
+  /** Waits for the user to finish in the browser, then connects the account; SIGN_IN_DENIED, SIGN_IN_EXPIRED or CANCELLED otherwise. */
+  completeSignIn(started: IssuedSignIn, opts?: { signal?: AbortSignal }): Promise<Result<AccountInfo>>;
 
   /** One entry or a batch, landing as one write in the target catalog's write mode. */
   planAdd(req: AddRequest & { signal?: AbortSignal }): Promise<Result<IssuedCatalogEditPlan, WriteTargetErr>>;
@@ -152,6 +159,8 @@ export interface LibraryOptions {
   managedSettingsFile?: string;
   /** the Bitbucket OAuth consumer, injected into release builds */
   bitbucketClient?: { id: string; secret: string };
+  /** the GitHub OAuth app's client ID (device flow needs no secret) */
+  githubClientId?: string;
 }
 
 const ref = (e: Entry) => ({ type: e.type, name: e.name, catalog: e.catalog, description: e.description });
@@ -197,6 +206,7 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
     accounts,
     apiBases,
     ...(opts.managedSettingsFile !== undefined && { managedSettingsFile: opts.managedSettingsFile }),
+    ...(opts.githubClientId !== undefined && { githubClientId: opts.githubClientId }),
   };
   const home = host.paths.home;
 
@@ -437,6 +447,15 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
 
     async disconnect(on) {
       return accounts.disconnect(on);
+    },
+
+    async beginSignIn(on) {
+      if (on === "bitbucket") return err({ code: "SIGN_IN_UNAVAILABLE", message: "Bitbucket sign-in isn't built yet" });
+      return (await beginGitHubSignIn(ctx)) as Result<IssuedSignIn>;
+    },
+
+    async completeSignIn(started, o = {}) {
+      return completeGitHubSignIn(ctx, started, o);
     },
 
     async planAdd(req) {

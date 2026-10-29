@@ -166,6 +166,27 @@ async function editDescription() {
   });
 }
 
+// Not wrapped in act(): the panel's Discard must stay clickable to cancel while it waits.
+async function githubSignIn() {
+  const started = await props.library.beginSignIn("github");
+  if (!started.ok) return show(failure("GitHub sign-in", started.error));
+  const { userCode, verificationUri } = started.value;
+  const controller = new AbortController();
+  await show({
+    title: "GitHub sign-in",
+    lines: [`Enter ${userCode} at ${verificationUri} (opening in your browser).`],
+    discard: async () => controller.abort(),
+  });
+  await openUrl(verificationUri);
+  const done = await props.library.completeSignIn(started.value, { signal: controller.signal });
+  if (done.ok) {
+    const scopes = done.value.scopes.join(", ") || "no scopes";
+    await show({ title: "GitHub sign-in", lines: [`Signed in to GitHub as ${done.value.login} (${scopes}). You can close the browser tab.`] });
+  } else if (done.error.code !== "CANCELLED") {
+    await show(failure("GitHub sign-in", done.error));
+  }
+}
+
 // Spike S12: does Bitbucket's redirect reach the app through loadout://? The code shows only as its length.
 const bitbucketState = ref<string | null>(null);
 
@@ -333,6 +354,13 @@ onUnmounted(() => {
         @click="act(bitbucketRedirect)"
       >
         Bitbucket redirect (S12 spike)
+      </button>
+      <button
+        :disabled="busy"
+        data-test="github-sign-in"
+        @click="githubSignIn"
+      >
+        Sign in to GitHub
       </button>
     </p>
     <p class="debug-view__actions">

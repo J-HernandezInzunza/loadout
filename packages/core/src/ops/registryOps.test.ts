@@ -35,6 +35,7 @@ async function setup(catalogs: Record<string, string[]> = { A: ["x", "y"], B: ["
     git: createGitClient(sb.host),
     apiBases: stub.bases,
     managedSettingsFile: join(sb.root, "managed-settings.json"),
+    githubClientId: "gh-client",
   }));
   return { sb, stub, library, configFile: join(sb.host.paths.appData, "config.json") };
 }
@@ -126,5 +127,15 @@ describe("facade: registry, accounts and maintenance", () => {
     value(await library.disconnect("github"), ops.disconnect.output);
     expect(value(await library.accounts(), ops.accounts.output)).toEqual({});
     expect(await sb.host.secrets.get("github")).toBeNull();
+  });
+
+  it("beginSignIn/completeSignIn connect a GitHub account through the device flow; Bitbucket isn't available yet", async () => {
+    const { stub, library } = await setup({ A: ["x"] });
+    const started = value(await library.beginSignIn("github"), ops.beginSignIn.output);
+    expect(started).toMatchObject({ on: "github", userCode: "CODE-0001", verificationUri: "https://github.com/login/device" });
+    stub.approveDevice("CODE-0001", "octo");
+    expect(value(await library.completeSignIn(started), ops.completeSignIn.output)).toMatchObject({ login: "octo" });
+    expect(value(await library.accounts(), ops.accounts.output)).toMatchObject({ github: { login: "octo" } });
+    expect(await library.beginSignIn("bitbucket")).toMatchObject({ ok: false, error: { code: "SIGN_IN_UNAVAILABLE" } });
   });
 });

@@ -19,7 +19,11 @@ async function claudeConfigDir(host: Host): Promise<string | undefined> {
 const log = createAuditLog();
 const host = createTauriHost(await tauriPaths(), log);
 const configDir = await claudeConfigDir(host);
-const library = createLibrary(host, configDir === undefined ? {} : { claudeConfigDir: configDir });
+const githubClientId = import.meta.env.LOADOUT_GITHUB_CLIENT_ID;
+const library = createLibrary(host, {
+  ...(configDir !== undefined && { claudeConfigDir: configDir }),
+  ...(githubClientId && { githubClientId }),
+});
 const launched = library.launch();
 
 createApp(DebugView, { library, log, launched }).use(createPinia()).mount("#app");

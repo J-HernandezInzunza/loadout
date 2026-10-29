@@ -181,6 +181,10 @@ const AddCatalogRequest = z.discriminatedUnion("kind", [
 ]);
 const Registered = z.array(CatalogRef);
 const AccountHost = z.enum(["github", "bitbucket"]);
+/** What the user sees of a sign-in in progress; the rest travels back unread. */
+const SignIn = z
+  .looseObject({ on: z.literal("github"), userCode: z.string(), verificationUri: z.string(), expiresAt: z.string() })
+  .brand<"SignIn">();
 
 const strings = z.array(z.string());
 const dryRun = { dryRun: z.boolean().exactOptional() };
@@ -291,6 +295,8 @@ export const ops = {
   accounts: { input: z.strictObject({}), output: z.strictObject({ github: AccountInfo.exactOptional(), bitbucket: AccountInfo.exactOptional() }) },
   connect: { input: z.strictObject({ on: AccountHost, tokens: TokenSet }), output: AccountInfo },
   disconnect: { input: z.strictObject({ on: AccountHost }), output: z.undefined() },
+  beginSignIn: { input: z.strictObject({ on: AccountHost }), output: SignIn },
+  completeSignIn: { input: z.strictObject({ started: SignIn }), output: AccountInfo },
   planAdd: {
     input: z.strictObject({
       entries: z.array(

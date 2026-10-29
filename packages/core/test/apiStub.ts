@@ -1,5 +1,5 @@
 // A local stand-in for the GitHub and Bitbucket endpoints Loadout calls (architecture.md §6): current
-// user, Bitbucket token refresh, PR create and list. It records every request and can be told to
+// user, GitHub's device flow, Bitbucket token refresh, PR create and list. It records every request and can be told to
 // fail. Response shapes follow the hosts' docs; Bitbucket's duplicate-PR answer is not documented,
 // so it is a plain 400 here and M3.01 finds the existing PR by listing, not by parsing that error.
 import { createServer, type IncomingMessage } from "node:http";
@@ -39,6 +39,14 @@ export interface ApiStub {
   /** a Bitbucket refresh token; each refresh mints a fresh access token for `login` */
   addRefreshToken(refresh: string, login: string): void;
   pulls(api: "github" | "bitbucket"): StubPull[];
+  /** GitHub device flow: the user approves `userCode` as `login`, which mints a token with `scopes` */
+  approveDevice(userCode: string, login: string, scopes?: string[]): void;
+  /** GitHub device flow: the user declines `userCode` */
+  denyDevice(userCode: string): void;
+  /** GitHub device flow: `userCode` lapses, as after its 15 minutes */
+  expireDevice(userCode: string): void;
+  /** GitHub device flow: the next poll of `userCode` is told to slow down */
+  slowDownDevice(userCode: string): void;
   /** The next request matching `match` gets this answer instead of the normal one. */
   failNext(match: { api: Api; method?: string; path?: string }, status: number, body?: unknown): void;
 }
@@ -57,6 +65,9 @@ export async function createApiStub(): Promise<ApiStub> {
   const refreshTokens = new Map<string, string>();
   const pulls: Record<"github" | "bitbucket", StubPull[]> = { github: [], bitbucket: [] };
   const failures: { match: { api: Api; method?: string; path?: string }; answer: Answer }[] = [];
+  type Device = { userCode: string; state: "pending" | "slow" | "denied" | "expired" | { login: string; scopes: string[] } };
+  const devices = new Map<string, Device>();
+  const deviceOf = (userCode: string) => [...devices.values()].find((d) => d.userCode === userCode)!;
   let minted = 0;
 
   const bearer = (api: Api, r: RecordedRequest) => {
@@ -195,11 +206,40 @@ export async function createApiStub(): Promise<ApiStub> {
     };
   }
 
-  const handlers: Record<Api, (r: RecordedRequest) => Answer> = { github, bitbucket, bitbucketAuth };
+  // GitHub answers device-flow polls with 200 and an `error` until the user decides; interval 0 keeps tests fast.
+  function githubLogin(r: RecordedRequest): Answer {
+    const form = new URLSearchParams(r.body);
+    if (r.method === "POST" && r.path === "/login/device/code") {
+      if (form.get("client_id") !== "gh-client") return { status: 200, body: { error: "incorrect_client_credentials" } };
+      const n = devices.size + 1;
+      devices.set(`device-${n}`, { userCode: `CODE-000${n}`, state: "pending" });
+      return {
+        status: 200,
+        body: { device_code: `device-${n}`, user_code: `CODE-000${n}`, verification_uri: "https://github.com/login/device", expires_in: 900, interval: 0 },
+      };
+    }
+    if (r.method === "POST" && r.path === "/login/oauth/access_token") {
+      const device = devices.get(form.get("device_code") ?? "");
+      if (device === undefined) return { status: 200, body: { error: "incorrect_device_code" } };
+      if (device.state === "pending") return { status: 200, body: { error: "authorization_pending" } };
+      if (device.state === "slow") {
+        device.state = "pending";
+        return { status: 200, body: { error: "slow_down", interval: 0 } };
+      }
+      if (device.state === "denied") return { status: 200, body: { error: "access_denied" } };
+      if (device.state === "expired") return { status: 200, body: { error: "expired_token" } };
+      const access = `gh-access-${++minted}`;
+      tokens.set(access, { api: "github", login: device.state.login, scopes: device.state.scopes, expired: false });
+      return { status: 200, body: { access_token: access, token_type: "bearer", scope: device.state.scopes.join(",") } };
+    }
+    return { status: 404, body: { error: "not_found" } };
+  }
+
+  const handlers: Record<Api, (r: RecordedRequest) => Answer> = { github, githubLogin, bitbucket, bitbucketAuth };
 
   const server = createServer((req, res) => {
     void readBody(req).then((body) => {
-      const [, api, path = "/"] = /^\/(github|bitbucketAuth|bitbucket)(\/.*)?$/.exec(req.url ?? "") ?? [];
+      const [, api, path = "/"] = /^\/(githubLogin|github|bitbucketAuth|bitbucket)(\/.*)?$/.exec(req.url ?? "") ?? [];
       const headers = Object.fromEntries(
         Object.entries(req.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(", ") : (v ?? "")]),
       );
@@ -228,7 +268,12 @@ export async function createApiStub(): Promise<ApiStub> {
 
   const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   return {
-    bases: { github: `${origin}/github`, bitbucket: `${origin}/bitbucket`, bitbucketAuth: `${origin}/bitbucketAuth` },
+    bases: {
+      github: `${origin}/github`,
+      githubLogin: `${origin}/githubLogin`,
+      bitbucket: `${origin}/bitbucket`,
+      bitbucketAuth: `${origin}/bitbucketAuth`,
+    },
     requests,
     addToken(api, token, login, scopes = []) {
       tokens.set(token, { api, login, scopes, expired: false });
@@ -241,6 +286,18 @@ export async function createApiStub(): Promise<ApiStub> {
       refreshTokens.set(refresh, login);
     },
     pulls: (api) => pulls[api],
+    approveDevice(userCode, login, scopes = ["repo"]) {
+      deviceOf(userCode).state = { login, scopes };
+    },
+    denyDevice(userCode) {
+      deviceOf(userCode).state = "denied";
+    },
+    expireDevice(userCode) {
+      deviceOf(userCode).state = "expired";
+    },
+    slowDownDevice(userCode) {
+      deviceOf(userCode).state = "slow";
+    },
     failNext(match, status, body) {
       failures.push({ match, answer: { status, body } });
     },

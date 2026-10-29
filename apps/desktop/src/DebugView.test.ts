@@ -202,3 +202,51 @@ describe("DebugView Bitbucket redirect spike", () => {
     expect(wrapper.text()).not.toContain("secretcode123");
   });
 });
+
+describe("DebugView GitHub sign-in", () => {
+  afterEach(() => clearMocks());
+
+  it("shows the code, opens GitHub's page, and reports the account once signed in", async () => {
+    const opened: string[] = [];
+    mockIPC((cmd, payload) => {
+      if (cmd === "plugin:opener|open_url") opened.push((payload as { url: string }).url);
+    });
+    let finish: (() => void) | undefined;
+    const started = { on: "github", userCode: "WDJB-MJHT", verificationUri: "https://github.com/login/device", expiresAt: "2026-10-29T12:15:00Z" };
+    const { wrapper } = setup(ready, {
+      beginSignIn: async () => ok(started as never),
+      completeSignIn: () =>
+        new Promise((resolve) => (finish = () => resolve(ok({ login: "octo", scopes: ["repo"], connectedAt: "2026-10-29T12:01:00Z" })))),
+    });
+    await flushPromises();
+    await wrapper.find("[data-test=github-sign-in]").trigger("click");
+    await flushPromises();
+    expect(panelLines(wrapper)).toEqual(["Enter WDJB-MJHT at https://github.com/login/device (opening in your browser)."]);
+    expect(opened).toEqual(["https://github.com/login/device"]);
+    expect(wrapper.find("[data-test=discard]").attributes("disabled")).toBeUndefined();
+
+    finish!();
+    await flushPromises();
+    expect(panelLines(wrapper)).toEqual(["Signed in to GitHub as octo (repo). You can close the browser tab."]);
+  });
+
+  it("Discard cancels a sign-in that is still waiting", async () => {
+    mockIPC(() => null);
+    let signal: AbortSignal | undefined;
+    const { wrapper } = setup(ready, {
+      beginSignIn: async () => ok({ on: "github", userCode: "C", verificationUri: "https://github.com/login/device", expiresAt: "x" } as never),
+      completeSignIn: (_started, o) =>
+        new Promise((resolve) => {
+          signal = o?.signal;
+          o?.signal?.addEventListener("abort", () => resolve({ ok: false, error: { code: "CANCELLED", message: "cancelled" }, warnings: [] }));
+        }),
+    });
+    await flushPromises();
+    await wrapper.find("[data-test=github-sign-in]").trigger("click");
+    await flushPromises();
+    await wrapper.find("[data-test=discard]").trigger("click");
+    await flushPromises();
+    expect(signal?.aborted).toBe(true);
+    expect(wrapper.find("[data-test=panel]").exists()).toBe(false);
+  });
+});
