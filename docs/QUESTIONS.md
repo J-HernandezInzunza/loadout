@@ -48,7 +48,7 @@ M4: cache the probed PATH in app data, use it at once, refresh it in the backgro
 
 **Answer: cache sounds good**
 
-## Q5. Who registers the OAuth apps? (blocks M4.12–M4.15)
+## Q5. Who registers the OAuth apps? (resolved 2026-10-29: the owner registered both; M4.12–M4.15 unblocked)
 
 Browser sign-in (architecture.md §5.5) needs two registrations outside the code:
 
@@ -85,7 +85,7 @@ Follow-up (2026-10-29), what to register:
   client-credentials grant); it lets someone pose as Loadout and redeem an authorization code they
   manage to intercept, so M4.12 prefers the redirect that is hardest to intercept and M4.14 sends
   and checks a `state` value. Rotate it if it is abused.
-- Q5 stays open until both apps are registered.
+- Both apps registered 2026-10-29 (spikes.md S12).
 
 ## Q6. A fourth Rust command for `realPath` (resolved 2026-10-29: A confirmed)
 

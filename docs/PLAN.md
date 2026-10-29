@@ -22,7 +22,7 @@ Conventions every task follows: code in `packages/core/src/<module>/`, tests nex
 prompts (arch §8.4); no module-level state (arch §8.7); every mutation is a plan/apply pair with a
 fingerprint (arch §2.3); error codes come from the one closed enum (M1.02).
 
-Questions for the owner live in `docs/QUESTIONS.md`; Q5 blocks M4.12–M4.15.
+Questions for the owner live in `docs/QUESTIONS.md`.
 
 ---
 
@@ -602,13 +602,12 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: a dev build launched from Finder lists the registered catalogs and their entries, and
     the audit log shows the launch's git calls.
 
-- [ ] **M4.12 OAuth redirect spike.** Can both hosts redirect to `loadout://oauth/…` through
+- [x] **M4.12 OAuth redirect spike.** Can both hosts redirect to `loadout://oauth/…` through
   `tauri-plugin-deep-link`, or does one need a one-shot loopback listener? GitHub device flow needs
   no redirect; check whether it is enough on its own. Record the answer as S12 in
   `docs/spec/spikes.md`.
   - Rules: none (arch §5.5)
   - Depends: M4.11
-  - Blocked: (Q5) needs registered OAuth apps
   - Done when: S12 is written with the chosen redirect per host.
 
 - [ ] **M4.13 GitHub sign-in.** The flow S12 chose (device flow by default), ending in
@@ -616,7 +615,6 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   a typed error.
   - Rules: none (arch §5.5)
   - Depends: M4.12
-  - Blocked: (Q5)
   - Done when: the flow's HTTP exchanges are tested against an extended API stub (M2.03); a manual
     sign-in connects a real account.
 
@@ -626,7 +624,6 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   tokenSet)` with the refresh token, which M2.04 already uses.
   - Rules: none (arch §5.5)
   - Depends: M4.12
-  - Blocked: (Q5)
   - Done when: the exchange and a refresh are tested against the stub; a build without the
     variables reports Bitbucket sign-in as unavailable instead of failing; a manual sign-in connects
     a real account.
@@ -635,7 +632,6 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   hosts, through the facade (M4.02).
   - Rules: none (arch §5.5)
   - Depends: M4.13, M4.14
-  - Blocked: (Q5)
   - Done when: a manual run connects and disconnects each host, and `config.json` and the audit log
     never hold a token.
 
