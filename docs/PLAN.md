@@ -855,7 +855,7 @@ connected account, an installed skill and a PR on the shared catalog without the
     readable) is refused before cloning; a denied, expired or cancelled sign-in leaves pasting
     available; the pasted-URL path still works.
 
-- [ ] **M6.06 Milestone check (manual).** On a fresh app-data folder, from a Finder-launched build:
+- [x] **M6.06 Milestone check (manual).** On a fresh app-data folder, from a Finder-launched build:
   first run (connect the host and pick the shared catalog), sign in to the other host, install,
   toggle, and one PR on the shared catalog from an add, edit or remove; record it in PROGRESS.md.
   - Rules: none
