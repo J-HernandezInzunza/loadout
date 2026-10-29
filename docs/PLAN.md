@@ -382,12 +382,12 @@ cover arch §4.5 rules 1–7.
   - Depends: M2.20, M2.21
   - Done when: each kept check has a test that triggers it.
 
-- [ ] **M2.23 Bitbucket and real-remote smoke (manual).** Run install, sync and doctor against the
+- [x] **M2.23 Bitbucket and real-remote smoke (manual).** Run install, sync and doctor against the
   team catalog on Bitbucket from a Finder-launched dev build; record results in
   `docs/spec/spikes.md` as S11.
   - Rules: none (S1 gap)
   - Depends: M2.22
-  - Blocked: (manual; the owner runs it) moved to M4.16: a Finder-launched build needs the Tauri host
+  - Done via M4.16: spikes.md S11.
   - Done when: S11 is written.
 
 ---
@@ -639,12 +639,11 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: a manual run connects and disconnects each host, and `config.json` and the audit log
     never hold a token.
 
-- [ ] **M4.16 Real-remote smoke (manual; replaces M2.23).** From a Finder-launched dev build: install,
+- [x] **M4.16 Real-remote smoke (manual; replaces M2.23).** From a Finder-launched dev build: install,
   sync and doctor against the team catalog on Bitbucket, and one PR-mode write (with an account
   connected if M4.15 is done, else the compare URL); record results in `docs/spec/spikes.md` as S11.
   - Rules: none (S1 gap)
   - Depends: M4.11
-  - Blocked: (manual; the owner runs it)
   - Done when: S11 is written and M2.23 is checked with a pointer to it.
 
 - [ ] **M4.17 Milestone check.** `npm run check` green; the facade contract test passes; the

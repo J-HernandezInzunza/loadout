@@ -226,3 +226,26 @@ has a differing frontmatter name, and creating one was outside what the owner ap
 Loadout installs a skill into `~/.claude/skills/<entry name>/`, the folder name is always the
 catalog entry name, so the rule is simple: **toggle by entry name**. Re-check on Claude Code
 upgrades (doctor can compare the init list's spelling if it ever changes).
+
+## S11. Real-remote smoke from a Finder launch (M4.16; closes S1's Bitbucket gap)
+
+The M4.11 debug build (`target/debug/bundle/macos/Loadout.app`), opened from Finder on 2026-10-29,
+with the registry imported from the Python CLI: `my-engineering-library` (local, its sources on
+GitHub over ssh) and `shared` (`git@bitbucket.org:sedteam/agent-library.git`, branch `develop`,
+protected). No account connected. The owner reported every step as expected; the audit log, by step:
+
+| Step | git calls | Notes |
+|---|---|---|
+| Launch | origin check ×2, `pull --ff-only` (0.9 s) | the clone from the import's first launch was reused |
+| Install planning | `clone --depth 1 --single-branch` (0.9–1.1 s), then `rev-parse HEAD`, `HEAD:<path>` per item | `triage-bug` planned its closure (`bug-triager`, `bug-investigator`, `atlassian-toolkit`) from one GitHub clone; each plan left for another had its `tmp/op-*` deleted |
+| Install `intent-review` from `shared` | one clone, then move into `~/.claude/skills/intent-review`, `receipts.json` written, op dir deleted | |
+| Sync plan | `ls-remote … refs/heads/develop` (0.8 s) | up to date from the head alone; no clone |
+| Doctor | `git --version`, origin checks, `ls-remote`, `pull --ff-only`, `fetch origin develop` + `rev-list --left-right --count` | the debug view runs doctor without `noPull`, hence the pull |
+| PR-mode write (`grilling` description) | temp clone `pr-0`, `ls-remote` for the branch name (free), `checkout -b library/update-grilling-20261029T075931`, `add`, `commit -m "library: updated skill grilling"`, `push -u` (2.1 s) | no account, so no PR API call; the result carried the compare URL; op dir deleted |
+
+**Result:** ssh to Bitbucket and GitHub works from a Finder launch with the cached PATH (S1, S2),
+including `push`. Every operation's temp dir was removed. Cost worth knowing for M5: each install
+plan clones its source afresh (~1 s), since the clone cache lives for one operation; a UI that plans
+on every click may want to keep the plan, or the clone, around. The branch
+`library/update-grilling-20261029T075931` was pushed to `sedteam/agent-library`; delete it if no PR
+is wanted.
