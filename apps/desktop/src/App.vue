@@ -4,6 +4,7 @@ import { onMounted } from "vue";
 import ActivityBar from "./components/ActivityBar.vue";
 import CatalogView from "./components/CatalogView.vue";
 import CommandLog from "./components/CommandLog.vue";
+import EntryDetail from "./components/EntryDetail.vue";
 import PageHeader from "./components/PageHeader.vue";
 import ToastStack from "./components/ToastStack.vue";
 import { useCatalogStore } from "./stores/catalog.ts";
@@ -20,6 +21,11 @@ onMounted(() => catalog.launch());
   <main class="app">
     <ActivityBar />
     <CatalogView v-if="current.kind === 'list'" />
+    <EntryDetail
+      v-else-if="current.kind === 'entry'"
+      :stop="current.stop"
+      :back="current.back?.name ?? 'Loadout'"
+    />
     <!-- A stand-in for the views still to come, so opening one never strands the window. -->
     <section
       v-else

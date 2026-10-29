@@ -15,6 +15,8 @@ const ALLOWED = new Set([
   // The on/off switch: a track with a knob, not a button-shaped button.
   "components/EntryList.vue: .entry-list__switch",
   "components/EntryList.vue: .entry-list__switch::after",
+  // A card that happens to be a button, sized as one of the page's cards.
+  "components/EntryDetail.vue: .entry-detail__dep",
   // The invisible hit target stretched over an entry card.
   "components/EntryList.vue: .entry-list__open",
   // Icon buttons, sized by their icon.
