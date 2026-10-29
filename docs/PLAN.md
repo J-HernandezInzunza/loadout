@@ -810,7 +810,7 @@ connected account, an installed skill and a PR on the shared catalog without the
   - Depends: M6.01
   - Done when: the list, the migration and an occupied destination are tested.
 
-- [ ] **M6.03 Accounts page.** In the header beside Catalogs: per host, the account (login, scopes),
+- [x] **M6.03 Accounts page.** In the header beside Catalogs: per host, the account (login, scopes),
   Sign in (GitHub's code with a restart on `SIGN_IN_EXPIRED`; Bitbucket's redirect bringing the window
   forward and saying the tab can close), Check, Disconnect; the deep-link listener moves into a store.
   - Rules: none (arch §5.5; spikes.md S12)
