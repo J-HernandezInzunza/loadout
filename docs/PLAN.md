@@ -541,7 +541,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Depends: M4.03
   - Done when: removing any schema export fails the test; the fake type-checks against `Library`.
 
-- [ ] **M4.05 Launch.** `library.launch({ signal })`: `sweepTemp`, load config (the typed
+- [x] **M4.05 Launch.** `library.launch({ signal })`: `sweepTemp`, load config (the typed
   "no catalogs registered" state), refresh catalogs (warnings per catalog, A3), and report what it
   did; reads before it finishes use the clones on disk (W14).
   - Rules: none (arch §2.5 refresh policy, §5.4; M2.06's launch sweep)
