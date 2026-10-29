@@ -59,7 +59,7 @@ describe("capabilities", () => {
   it("grants only the app commands no plugin covers", () => {
     // App permissions carry no plugin prefix; build.rs's app manifest denies any command not granted here.
     const app = permissions.filter((p): p is string => typeof p === "string" && !p.includes(":"));
-    expect(app).toEqual(["allow-real-path"]);
+    expect(app).toEqual(["allow-real-path", "allow-secret-get", "allow-secret-set", "allow-secret-delete"]);
   });
 
   it("never grants fs permissions with their own wider scope", () => {

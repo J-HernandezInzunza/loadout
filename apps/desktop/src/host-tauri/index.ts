@@ -1,10 +1,11 @@
 // Host implemented with Tauri plugins (architecture.md §2.1), one file per port. Ports not built yet
 // reject every call, so nothing in the webview reaches the system before its adapter and mockIPC tests exist.
 import { appDataDir, homeDir } from "@tauri-apps/api/path";
-import type { Host, HostHttp, HostSecrets } from "@loadout/core";
+import type { Host, HostHttp } from "@loadout/core";
 import type { AuditLog } from "./audit.ts";
 import { createTauriFs } from "./fs.ts";
 import { createTauriProc } from "./proc.ts";
+import { createTauriSecrets } from "./secrets.ts";
 
 function notImplemented(name: string) {
   return () => Promise.reject(new Error(`host-tauri: ${name} is not implemented yet (M4)`));
@@ -22,17 +23,12 @@ async function sha256(data: Uint8Array): Promise<string> {
 }
 
 export function createTauriHost(paths: Host["paths"], log: AuditLog): Host {
-  const secrets: HostSecrets = {
-    get: notImplemented("secrets.get"),
-    set: notImplemented("secrets.set"),
-    delete: notImplemented("secrets.delete"),
-  };
   const http: HostHttp = { request: notImplemented("http.request") };
 
   return {
     fs: createTauriFs(paths.appData),
     proc: createTauriProc(log.record),
-    secrets,
+    secrets: createTauriSecrets(),
     http,
     paths,
     now: () => new Date(),

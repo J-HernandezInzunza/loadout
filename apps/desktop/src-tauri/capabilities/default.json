@@ -47,6 +47,9 @@
       ]
     },
     "shell:allow-kill",
-    "allow-real-path"
+    "allow-real-path",
+    "allow-secret-get",
+    "allow-secret-set",
+    "allow-secret-delete"
   ]
 }
