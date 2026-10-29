@@ -559,7 +559,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: each method has a `mockIPC` test; the capabilities test fails if a deny is dropped or
     the scope widens past `$HOME`/`$APPDATA`.
 
-- [ ] **M4.07 Tauri host: proc, paths, hashing, audit.** `HostProc` over the shell plugin's
+- [x] **M4.07 Tauri host: proc, paths, hashing, audit.** `HostProc` over the shell plugin's
   `Command` for `git` only: cwd, env, timeout and `AbortSignal` both kill the child, `durationMs`;
   `paths.home`/`appData` from `@tauri-apps/api/path`; `sha256` via `crypto.subtle`; `audit` into an
   in-memory ring buffer the UI will subscribe to (arch §2.5), with proc start/end events.
