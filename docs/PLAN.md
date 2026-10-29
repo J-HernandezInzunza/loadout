@@ -549,7 +549,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: a killed operation's temp dir is gone after `launch`, and an offline launch returns
     warnings, not an error.
 
-- [ ] **M4.06 Tauri host: fs.** `HostFs` over `@tauri-apps/plugin-fs`: `writeTextAtomic` (temp in
+- [x] **M4.06 Tauri host: fs.** `HostFs` over `@tauri-apps/plugin-fs`: `writeTextAtomic` (temp in
   the same dir + rename), `rename` rejecting `{ code: "EXDEV" }` across volumes, `lstat` that
   doesn't follow links, `makeTempDir` under `<appData>/tmp`. Capability: arch §2.4 option 1
   (`$HOME/**` with the eight denies, `$APPDATA` and `$APPDATA/**`,
@@ -574,7 +574,8 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Rules: none (arch §5.5)
   - Depends: M4.07
   - Done when: `cargo test` covers the three commands against keyring's mock store; a `mockIPC`
-    test covers the TS side; the capabilities file allows only these three commands.
+    test covers the TS side; the capabilities file allows only these three commands (and M4.06's
+    `real_path`, Q6).
 
 - [ ] **M4.09 HTTP.** Add `tauri-plugin-http`; `HostHttp` over its `fetch` with timeout and
   `AbortSignal`; scope exactly `https://api.github.com/*`, `https://github.com/login/*`,
