@@ -37,7 +37,7 @@ export interface PrPlan {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** WRITE-08 (rebuild): `library/<op>-<name>-<local %Y%m%dT%H%M%S>`. */
+/** WRITE-08 (rebuild) for a catalog edit. */
 export function prBranchName(edit: CatalogEdit, now: Date): string {
   const [op, name] =
     edit.op === "add"
@@ -45,6 +45,11 @@ export function prBranchName(edit: CatalogEdit, now: Date): string {
         ? ["add", edit.entries[0]!.name]
         : ["add-batch", `${edit.entries.length}-entries`]
       : [edit.op, edit.name];
+  return branchName(op, name, now);
+}
+
+/** WRITE-08 (rebuild): `library/<op>-<name>-<local %Y%m%dT%H%M%S>`. */
+export function branchName(op: string, name: string, now: Date): string {
   const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}T${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
   return `library/${op}-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}-${stamp}`;
 }
@@ -78,7 +83,7 @@ export async function planPrWrite(ctx: PrCtx, catalog: CatalogState, edit: Catal
 }
 
 /** WRITE-08 (A15 fix): a branch name not yet on the remote, adding -2, -3, … when taken. */
-async function freeBranch(git: GitClient, clone: string, wanted: string): Promise<string> {
+export async function freeBranch(git: GitClient, clone: string, wanted: string): Promise<string> {
   const origin = [await git.originUrl(clone)];
   for (let n = 1; ; n++) {
     const name = n === 1 ? wanted : `${wanted}-${n}`;
@@ -103,25 +108,43 @@ export async function applyPrWrite(ctx: PrCtx, catalog: CatalogState, pr: PrPlan
     // WRITE-17: a dry run shows the commit it would push, and pushes nothing.
     if (pr.dryRun) return ok({ mode: "pr", catalog: id, changed: true, method: "manual", branch, diff: await ctx.git.showHead(pr.clone) });
 
-    const pushed = await ctx.git.push(pr.clone, branch, { ...opts, args: ["-u"] });
-    if (!pushed.ok) return pushed;
-
-    const compare = compareUrl(ref.repo, ref.branch, branch);
-    const manual = { mode: "pr" as const, catalog: id, changed: true, method: "manual" as const, branch, compareUrl: compare };
-    const web = remoteWeb(ref.repo);
-    const kind = web?.[0] === "github.com" ? "github" : web?.[0] === "bitbucket.org" ? "bitbucket" : null;
-    if (!kind || !web || !ctx.accounts) return ok(manual);
-
-    const opened = await createPullRequest(
-      { host: ctx.host, accounts: ctx.accounts, ...(ctx.apiBases && { apiBases: ctx.apiBases }) },
-      { kind, org: web[1], repo: web[2] },
-      { base: ref.branch, head: branch, title: copy.title, body: copy.body },
-    );
-    if (opened.ok) return ok({ mode: "pr", catalog: id, changed: true, method: "api", branch, prUrl: opened.value.url, compareUrl: compare });
-    if (opened.error.code === "NOT_CONNECTED") return ok(manual);
-    const warning: Warning = { message: `the branch is pushed, but the pull request couldn't be opened (${opened.error.message}); open it from ${compare ?? "the host"}` };
-    return ok(manual, [warning]);
+    const opened = await pushAndOpenPr(ctx, pr.clone, { repo: ref.repo, base: ref.branch, branch, title: copy.title, body: copy.body }, opts);
+    return opened.ok ? { ...opened, value: { mode: "pr", catalog: id, changed: true, ...opened.value } } : opened;
   } finally {
     await pr.op.dispose();
   }
+}
+
+export type OpenedPr = { method: "api" | "manual"; branch: string; prUrl?: string; compareUrl: string | null };
+
+/**
+ * WRITE-09..11: pushes the checked-out `branch` of `clone` (`-u`), then opens its PR into `base` through
+ * the host's API when an account is connected; otherwise, or when the API fails (a warning), the
+ * result is manual with the compare URL.
+ */
+export async function pushAndOpenPr(
+  ctx: PrCtx,
+  clone: string,
+  pr: { repo: string; base: string; branch: string; title: string; body: string },
+  opts: CallOpts = {},
+): Promise<Result<OpenedPr>> {
+  const { repo, base, branch } = pr;
+  const pushed = await ctx.git.push(clone, branch, { ...opts, args: ["-u"] });
+  if (!pushed.ok) return pushed;
+
+  const compare = compareUrl(repo, base, branch);
+  const manual = { method: "manual" as const, branch, compareUrl: compare };
+  const web = remoteWeb(repo);
+  const kind = web?.[0] === "github.com" ? "github" : web?.[0] === "bitbucket.org" ? "bitbucket" : null;
+  if (!kind || !web || !ctx.accounts) return ok(manual);
+
+  const opened = await createPullRequest(
+    { host: ctx.host, accounts: ctx.accounts, ...(ctx.apiBases && { apiBases: ctx.apiBases }) },
+    { kind, org: web[1], repo: web[2] },
+    { base, head: branch, title: pr.title, body: pr.body },
+  );
+  if (opened.ok) return ok({ method: "api", branch, prUrl: opened.value.url, compareUrl: compare });
+  if (opened.error.code === "NOT_CONNECTED") return ok(manual);
+  const warning: Warning = { message: `the branch is pushed, but the pull request couldn't be opened (${opened.error.message}); open it from ${compare ?? "the host"}` };
+  return ok(manual, [warning]);
 }

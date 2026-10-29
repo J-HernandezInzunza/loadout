@@ -48,6 +48,8 @@ export interface GitClient {
   repoOf(dir: string): Promise<{ root: string; origin: string; branch: string } | null>;
   /** Local: stages `paths` and commits them with `message`; the new commit's sha. */
   commit(dir: string, paths: string[], message: string): Promise<Result<string>>;
+  /** Local: stages `paths` (deletions included) and returns `git diff --cached`; "" when nothing changed. */
+  stagedDiff(dir: string, paths: string[]): Promise<Result<string>>;
   /** Local: creates `name` at HEAD and checks it out. */
   checkoutBranch(dir: string, name: string): Promise<Result<void>>;
   /** Local: `git show HEAD`, the last commit with its patch. */
@@ -216,6 +218,12 @@ export function createGitClient(host: Host, opts: GitClientOptions = {}): GitCli
       if (committed.code !== 0) return err({ code: "GIT_FAILED", message: `git commit failed: ${gitErrorSummary(committed.stderr || committed.stdout)}` });
       const sha = await revParse(dir, "HEAD");
       return sha === null ? err({ code: "GIT_FAILED", message: "git commit left no HEAD" }) : ok(sha);
+    },
+
+    async stagedDiff(dir, paths) {
+      const added = await local(dir, ["add", "--", ...paths]);
+      if (added.code !== 0) return err({ code: "GIT_FAILED", message: `git add failed: ${gitErrorSummary(added.stderr)}` });
+      return ok((await local(dir, ["diff", "--cached", "--no-color"])).stdout);
     },
 
     async checkoutBranch(dir, name) {
