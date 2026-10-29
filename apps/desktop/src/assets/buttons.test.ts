@@ -10,6 +10,10 @@ const ALLOWED = new Set([
   // The log's own bar: its height is locked to the strip it opens, so padding is horizontal only.
   "components/CommandLog.vue: .command-log__toggle",
   "components/CommandLog.vue: .command-log__more",
+  // The catalog tab: its padding and square top corners join it to the panel below.
+  "components/CatalogTabs.vue: .catalog-tabs__tab",
+  // The invisible hit target stretched over an entry card.
+  "components/EntryList.vue: .entry-list__open",
   // Icon buttons, sized by their icon.
   "components/AppearanceToggle.vue: .appearance-toggle",
   "components/ToastStack.vue: .toasts__close",
