@@ -898,7 +898,7 @@ on each card, below the switch; the window gets a minimum size instead of a coll
   - Depends: M7.01
   - Done when: a test checks the order on a card with a switch and one without.
 
-- [ ] **M7.03 Minimum window size.** `minWidth`/`minHeight` on the main window in
+- [x] **M7.03 Minimum window size.** `minWidth`/`minHeight` on the main window in
   `tauri.conf.json`, wide enough for the sidebar plus a list card without wrapping its badges.
   - Rules: none
   - Depends: M7.01
