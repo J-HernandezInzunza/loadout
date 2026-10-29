@@ -48,7 +48,7 @@ M4: cache the probed PATH in app data, use it at once, refresh it in the backgro
 
 **Answer: cache sounds good**
 
-## Q5. Who registers the OAuth apps? (not blocking; needed for M4)
+## Q5. Who registers the OAuth apps? (blocks M4.12–M4.15)
 
 Browser sign-in (architecture.md §5.5) needs two registrations outside the code:
 
