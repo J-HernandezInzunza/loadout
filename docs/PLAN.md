@@ -738,7 +738,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Depends: M5.08
   - Done when: each rule has a test; `UninstallControl.spec.ts` is ported.
 
-- [ ] **M5.10 Pin.** Two-step pin with the switch assessment, switching the installed copy when
+- [x] **M5.10 Pin.** Two-step pin with the switch assessment, switching the installed copy when
   nothing needs a decision; unpin from the entry page.
   - Rules: UI-30
   - Depends: M5.08
