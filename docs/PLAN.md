@@ -825,7 +825,7 @@ connected account, an installed skill and a PR on the shared catalog without the
   - Depends: M6.03, M5.15
   - Done when: PR (API and manual), direct (confirm and refusal) and the account offer are tested.
 
-- [ ] **M6.05 Content Loadout didn't install.** Per item "Replace with the catalog's copy" that asks
+- [x] **M6.05 Content Loadout didn't install.** Per item "Replace with the catalog's copy" that asks
   first, in the install preview, the entry page and doctor's unmanaged findings (Q8 A).
   - Rules: none (open-questions.md Q8 A)
   - Depends: M5.16
