@@ -506,7 +506,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
 `@tauri-apps/api/mocks` (`mockIPC`) asserting the plugin calls (arch §6); Rust stays glue (arch
 §2.4); `test/capabilities.test.ts` grows with every scope added.
 
-- [ ] **M4.01 Facade: install lifecycle.** `createLibrary` gains `planInstall`/`applyInstall`,
+- [x] **M4.01 Facade: install lifecycle.** `createLibrary` gains `planInstall`/`applyInstall`,
   `uninstall`, `setSkillState`, `planMigrateParked`/`applyMigrateParked`, `planSync`/`applySync` and
   `discardPlan`, with the signatures of arch §2.3. One context per instance (git client, receipts,
   settings, accounts, API bases) built in `createLibrary`; nothing module-level (arch §8.7). Input
