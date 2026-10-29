@@ -52,4 +52,31 @@ describe("UI-09, UI-55: page chrome", () => {
     expect(offenders).toEqual([]);
     expect(appCss).not.toMatch(/\.view__body\s*\{[^}]*max-width/);
   });
+
+  describe("every full-screen view", () => {
+    const views = () => components().filter(([path, src]) => !path.endsWith("/PageHeader.vue") && src.includes("<PageHeader"));
+
+    it("is found, so the checks below aren't passing over nothing", () => {
+      expect(views().map(([path]) => path)).toEqual(
+        expect.arrayContaining(["components/EntryDetail.vue", "components/CatalogsView.vue", "components/DoctorView.vue", "components/SyncView.vue", "components/InstallView.vue"]),
+      );
+    });
+
+    it("roots in the shared .view and sets no padding of its own on it", () => {
+      expect(views().filter(([, src]) => !/class="view[ "]/.test(src)).map(([p]) => p)).toEqual([]);
+      expect(views().filter(([, src]) => /^\.view\s*\{/m.test(src)).map(([p]) => p)).toEqual([]);
+    });
+
+    it("builds no rows of its own and pins none of its chrome: PageHeader draws them", () => {
+      for (const [path, src] of views()) {
+        expect(src, path).not.toMatch(/class="[^"]*\bview__(head|body)\b/);
+        expect(src, path).not.toMatch(/position:\s*(fixed|sticky)/);
+      }
+    });
+
+    it("puts its own actions in the actions slot, not among the title's badges", () => {
+      const offenders = views().filter(([, src]) => /<template #badges>[\s\S]*?<button[\s\S]*?<\/template>/.test(src.match(/<template #badges>[\s\S]*?<\/template>/)?.[0] ?? ""));
+      expect(offenders.map(([p]) => p)).toEqual([]);
+    });
+  });
 });

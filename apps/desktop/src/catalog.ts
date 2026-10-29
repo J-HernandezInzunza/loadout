@@ -171,3 +171,25 @@ export function describeInstallAction(items: PlanItem[]): { label: string; cauti
   }
   return { label, caution: null };
 }
+
+/** What a catalog is and what writing to it costs, in words rather than field values. */
+export function describeCatalog(catalog: CatalogRow): { what: string; note: string } {
+  const what = catalog.kind === "local" ? "a file on this machine" : "a shared git repository";
+  if (catalog.skipped) return { what, note: `Not loaded — ${catalog.skipped}` };
+  if (!catalog.writable) return { what, note: "Registered as read-only, so nothing can be written to it." };
+  if (catalog.kind !== "local") {
+    const how =
+      catalog.writeMode === "pr"
+        ? "opens a pull request there, so it gets the same review as any other change"
+        : "is committed and pushed to that repository";
+    return { what, note: `Entries here are changed in the repository itself, where the change ${how}.` };
+  }
+  return { what, note: "Edits are saved straight to the file." };
+}
+
+/** "1st", "2nd", "3rd", "11th"… */
+export function ordinal(n: number): string {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const mod100 = n % 100;
+  return `${n}${suffixes[(mod100 - 20) % 10] ?? suffixes[mod100] ?? suffixes[0]}`;
+}

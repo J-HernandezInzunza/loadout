@@ -2,6 +2,7 @@
 import { storeToRefs } from "pinia";
 import { onMounted } from "vue";
 import ActivityBar from "./components/ActivityBar.vue";
+import CatalogsView from "./components/CatalogsView.vue";
 import CatalogView from "./components/CatalogView.vue";
 import CommandLog from "./components/CommandLog.vue";
 import DoctorView from "./components/DoctorView.vue";
@@ -29,6 +30,11 @@ onMounted(() => catalog.launch());
       :back="views.manage ? 'Catalogs' : 'Loadout'"
     />
     <SyncView v-else-if="current.kind === 'sync'" />
+    <CatalogsView
+      v-else-if="current.kind === 'catalogs'"
+      :at="current.catalog"
+      :back="views.trail.at(-1)?.name ?? 'Loadout'"
+    />
     <EntryDetail
       v-else-if="current.kind === 'entry'"
       :stop="current.stop"
