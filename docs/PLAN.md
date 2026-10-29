@@ -753,7 +753,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Done when: each rule has a test; `InstallPreview.spec.ts`'s global-scope cases are ported; a
     destination-only preview renders when the fake's fetch fails.
 
-- [ ] **M5.12 Bulk install and remove.** Selection on a catalog tab, one preview for all ticked names,
+- [x] **M5.12 Bulk install and remove.** Selection on a catalog tab, one preview for all ticked names,
   one drift gate, uninstall of the ticked installed ones.
   - Rules: UI-21, UI-37
   - Depends: M5.11
