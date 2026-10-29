@@ -1,13 +1,22 @@
 // The core's facade (architecture.md §2.3): one instance per host, no state shared between
 // instances. Reads load config, catalogs and the install dirs each call and never touch the network,
 // except list({ checkRemote }) (UPD-06) and refresh().
+import type { z } from "zod";
+import { createAccounts } from "../accounts/accounts.ts";
+import { defaultApiBases, type ApiBases } from "../accounts/apiBases.ts";
 import { refreshCatalogs, type CatalogRefresh } from "../catalogs/catalogs.ts";
+import { applyMigrateParked, planMigrateParked, type MigrateReport, type ParkedSkill } from "../claudeSettings/migrate.ts";
 import { createClaudeSettings } from "../claudeSettings/settings.ts";
+import { setSkillState, type ToggleReport } from "../claudeSettings/toggle.ts";
 import { createConfigStore } from "../config/config.ts";
 import { dependents, resolveDeps } from "../deps/deps.ts";
 import { createGitClient, type GitClient } from "../git/git.ts";
 import { createOperation } from "../git/operation.ts";
 import type { Host } from "../host.ts";
+import { applyInstall, type ApplyOpts, type ApplyReport } from "../install/apply.ts";
+import { discardPlan, planInstall, type InstallPlan } from "../install/plan.ts";
+import { applySync, planSync, type SyncPlan, type SyncReport } from "../install/sync.ts";
+import { uninstall, type UninstallItem } from "../install/uninstall.ts";
 import { LibraryError, ok, type Entry, type Result, type Warning } from "../model/model.ts";
 import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type EntryRecord, type Registry, type ResolveErr } from "../registry/registry.ts";
@@ -15,6 +24,12 @@ import { destFor, destState, readLegacyInstalls, scanInstallDirs, type ScanRepor
 import { cloneUrls, parseSource } from "../source/source.ts";
 import { isStale } from "../update/update.ts";
 import type { CatalogRow, EntryDetail } from "./schemas.ts";
+
+/** A plan as the facade hands it out (architecture.md §8.3): readable, but only a Library makes one, and it comes back unedited. */
+export type Issued<P, B extends string> = P & z.$brand<B>;
+export type IssuedInstallPlan = Issued<InstallPlan, "InstallPlan">;
+export type IssuedSyncPlan = Issued<SyncPlan, "SyncPlan">;
+export type IssuedMigratePlan = Issued<{ items: ParkedSkill[] }, "MigratePlan">;
 
 export interface Library {
   /** Every copy of every entry, in resolution order; `checkRemote` asks each installed remote source whether it moved (UPD-06). */
@@ -27,12 +42,31 @@ export interface Library {
   scan(): Promise<Result<ScanReport>>;
   /** Clone or fast-forward every remote catalog (RCAT-03); per-catalog failures are warnings. */
   refresh(): Promise<Result<CatalogRefresh[]>>;
+
+  /** Resolves every name, fetches each item with its dependencies and previews each destination; the plan holds the staged copies. */
+  planInstall(req: { names: string[]; catalog?: string; signal?: AbortSignal }): Promise<Result<IssuedInstallPlan, ResolveErr>>;
+  /** STALE_PLAN when a destination moved since the plan; REFUSED for unmanaged content not consented to by path. */
+  applyInstall(plan: IssuedInstallPlan, opts?: ApplyOpts): Promise<Result<ApplyReport>>;
+  uninstall(req: { names: string[]; forcePaths?: string[] }): Promise<Result<{ items: UninstallItem[] }, ResolveErr>>;
+  /** Through Claude Code's skillOverrides (architecture.md §4.5); agents are refused. */
+  setSkillState(names: string[], state: "on" | "off"): Promise<Result<ToggleReport, ResolveErr>>;
+  /** The copies the Python CLI parked in skills-disabled (§4.5 rule 7). */
+  planMigrateParked(): Promise<Result<IssuedMigratePlan>>;
+  applyMigrateParked(plan: IssuedMigratePlan): Promise<Result<MigrateReport>>;
+  planSync(req?: { catalog?: string; force?: boolean; signal?: AbortSignal }): Promise<Result<IssuedSyncPlan>>;
+  applySync(plan: IssuedSyncPlan, opts?: { signal?: AbortSignal }): Promise<Result<SyncReport>>;
+  /** Removes the staged copies of a plan that won't be applied; apply removes them itself. */
+  discardPlan(plan: IssuedInstallPlan | IssuedSyncPlan): Promise<Result<void>>;
 }
 
 export interface LibraryOptions {
   git?: GitClient;
   /** CLAUDE_CONFIG_DIR, as the app's login-shell probe found it */
   claudeConfigDir?: string;
+  /** tests only: the API stub's bases (architecture.md §6) */
+  apiBases?: ApiBases;
+  /** the Bitbucket OAuth consumer, injected into release builds */
+  bitbucketClient?: { id: string; secret: string };
 }
 
 const ref = (e: Entry) => ({ type: e.type, name: e.name, catalog: e.catalog, description: e.description });
@@ -61,6 +95,10 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
   const receiptStore = createReceiptStore(host);
   const settings = createClaudeSettings(host, opts.claudeConfigDir === undefined ? {} : { configDir: opts.claudeConfigDir });
   const git = opts.git ?? createGitClient(host);
+  const apiBases = opts.apiBases ?? defaultApiBases;
+  const accounts = createAccounts(host, store, { apiBases, ...(opts.bitbucketClient && { bitbucketClient: opts.bitbucketClient }) });
+  // Everything an op needs, built once per instance (architecture.md §8.7).
+  const ctx = { host, git, config: store, receipts: receiptStore, settings, accounts, apiBases };
   const home = host.paths.home;
 
   const loadAll = async (): Promise<Result<{ reg: Registry; view: InstallView; installs: string | undefined }>> => {
@@ -195,6 +233,43 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
       const loaded = await store.loadConfig();
       if (!loaded.ok) return loaded;
       return refreshCatalogs(host, git, loaded.value.config.catalogs);
+    },
+
+    async planInstall(req) {
+      return (await planInstall(ctx, req, req)) as Result<IssuedInstallPlan, ResolveErr>;
+    },
+
+    async applyInstall(plan, o = {}) {
+      return applyInstall(ctx, plan, o);
+    },
+
+    async uninstall(req) {
+      return uninstall(ctx, req);
+    },
+
+    async setSkillState(names, state) {
+      return setSkillState(ctx, names, state);
+    },
+
+    async planMigrateParked() {
+      return (await planMigrateParked(host)) as Result<IssuedMigratePlan>;
+    },
+
+    async applyMigrateParked(plan) {
+      return applyMigrateParked(ctx, plan);
+    },
+
+    async planSync(req = {}) {
+      return (await planSync(ctx, req, req)) as Result<IssuedSyncPlan>;
+    },
+
+    async applySync(plan, o = {}) {
+      return applySync(ctx, plan, o);
+    },
+
+    async discardPlan(plan) {
+      await discardPlan(host, plan);
+      return ok(undefined);
     },
   };
 }

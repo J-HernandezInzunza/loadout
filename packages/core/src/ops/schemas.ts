@@ -84,6 +84,53 @@ export const EntryDetail = z.strictObject({
   ]),
 });
 export type EntryDetail = z.infer<typeof EntryDetail>;
+
+/** Plans are shown and handed back unedited (architecture.md §8.3), so their fields aren't part of the contract. */
+const plan = <B extends string>() =>
+  z.custom<object>((v) => typeof v === "object" && v !== null && Array.isArray((v as { items?: unknown }).items), "not a plan").brand<B>();
+const InstallPlan = plan<"InstallPlan">();
+const SyncPlan = plan<"SyncPlan">();
+const MigratePlan = plan<"MigratePlan">();
+
+const Ref = z.strictObject({ type: EntryType, name: z.string(), catalog: z.string() });
+const files = z.array(z.string());
+const Preview = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("files"), newInstall: z.boolean(), added: files, removed: files, modified: files, editedLocally: files }),
+  z.strictObject({ kind: z.literal("destination-only") }),
+]);
+const progressItem = z.strictObject({ type: EntryType, name: z.string(), dest: z.string() });
+
+const ApplyReport = z.strictObject({
+  installed: z.array(progressItem.extend({ preview: Preview })),
+  stopped: z.strictObject({ name: z.string(), reason: z.string() }).nullable(),
+  aborted: z.boolean(),
+});
+
+const UninstallReport = z.strictObject({
+  items: z.array(
+    progressItem.extend({ outcome: z.enum(["deleted", "pruned", "absent", "refused"]), overrideRemoved: z.string().nullable() }),
+  ),
+});
+
+const ToggleReport = z.strictObject({
+  changed: z.array(z.strictObject({ name: z.string(), type: EntryType, state: z.enum(["on", "off"]) })),
+  unchanged: z.array(z.string()),
+  readOnly: z.array(z.strictObject({ name: z.string(), value: z.string() })),
+});
+
+const MigrateReport = z.strictObject({
+  moved: z.array(z.string()),
+  leftInPlace: z.array(z.strictObject({ name: z.string(), reason: z.string() })),
+});
+
+const SyncReport = z.strictObject({
+  synced: z.array(Ref.extend({ dest: z.string(), preview: Preview })),
+  upToDate: z.array(Ref.extend({ status: z.enum(["up-to-date", "unmoved"]) })),
+  failed: z.array(Ref.extend({ reason: z.string() })),
+  dependencies: z.array(Ref.extend({ requiredBy: z.array(z.string()) })),
+  unmanaged: z.array(Ref.extend({ dest: z.string(), origin: Origin })),
+  missing: z.array(ReceiptV2),
+});
 export type CatalogRow = z.infer<typeof CatalogRow>;
 
 export const ops = {
@@ -96,4 +143,16 @@ export const ops = {
     input: z.strictObject({}),
     output: z.array(z.strictObject({ id: z.string(), outcome: z.enum(["cloned", "pulled", "cached", "skipped"]) })),
   },
+  planInstall: { input: z.strictObject({ names: z.array(z.string()), ...catalogOption }), output: InstallPlan },
+  applyInstall: {
+    input: z.strictObject({ plan: InstallPlan, overwrite: z.strictObject({ unmanaged: z.array(z.string()).exactOptional() }).exactOptional() }),
+    output: ApplyReport,
+  },
+  uninstall: { input: z.strictObject({ names: z.array(z.string()), forcePaths: z.array(z.string()).exactOptional() }), output: UninstallReport },
+  setSkillState: { input: z.strictObject({ names: z.array(z.string()), state: z.enum(["on", "off"]) }), output: ToggleReport },
+  planMigrateParked: { input: z.strictObject({}), output: MigratePlan },
+  applyMigrateParked: { input: z.strictObject({ plan: MigratePlan }), output: MigrateReport },
+  planSync: { input: z.strictObject({ ...catalogOption, force: z.boolean().exactOptional() }), output: SyncPlan },
+  applySync: { input: z.strictObject({ plan: SyncPlan }), output: SyncReport },
+  discardPlan: { input: z.strictObject({ plan: z.union([InstallPlan, SyncPlan]) }), output: z.undefined() },
 };

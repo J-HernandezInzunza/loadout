@@ -23,6 +23,8 @@ export interface SyncPlan {
   upToDate: (Ref & { status: "up-to-date" | "unmoved" })[];
   /** A2: a copy Loadout didn't install sits where an item would go; it is left alone */
   unmanaged: (Ref & { dest: string; origin: Origin })[];
+  /** the catalog synced, when the request named one; apply reports missing receipts from it only */
+  catalog?: string;
   opDir: string;
   fingerprint: string;
 }
@@ -60,7 +62,7 @@ export async function planSync(ctx: InstallCtx, req: { catalog?: string; force?:
   }
 
   const op = await createOperation(host, ctx.git);
-  const plan: SyncPlan = { items: [], upToDate: [], unmanaged: [], opDir: op.dir, fingerprint: "" };
+  const plan: SyncPlan = { items: [], upToDate: [], unmanaged: [], ...(req.catalog !== undefined && { catalog: req.catalog }), opDir: op.dir, fingerprint: "" };
   const seen = new Set<string>();
   for (const target of targets) {
     const deps = resolveDeps(registry.entriesOf(target.catalog), target);
@@ -96,7 +98,7 @@ export async function planSync(ctx: InstallCtx, req: { catalog?: string; force?:
   return ok(plan, warnings);
 }
 
-export async function applySync(ctx: InstallCtx, plan: SyncPlan, opts: { signal?: AbortSignal; catalog?: string } = {}): Promise<Result<SyncReport>> {
+export async function applySync(ctx: InstallCtx, plan: SyncPlan, opts: { signal?: AbortSignal } = {}): Promise<Result<SyncReport>> {
   // Sync never replaces unmanaged content, so nothing is ever consented to here.
   const checked = await checkItems(ctx, plan.items, new Set());
   if (!checked.ok) return checked;
@@ -125,7 +127,7 @@ export async function applySync(ctx: InstallCtx, plan: SyncPlan, opts: { signal?
   const receipts = await ctx.receipts.all();
   if (receipts.ok) {
     for (const r of receipts.value) {
-      if ((opts.catalog === undefined || r.catalog.id === opts.catalog) && !(await ctx.host.fs.exists(r.dest))) report.missing.push(r);
+      if ((plan.catalog === undefined || r.catalog.id === plan.catalog) && !(await ctx.host.fs.exists(r.dest))) report.missing.push(r);
     }
   }
   return ok(report, receipts.warnings);

@@ -47,7 +47,7 @@ async function setup(catalogs: Record<string, Item[]>) {
   const sync = async (req: { catalog?: string; force?: boolean } = {}) => {
     const p = await planSync(ctx, req);
     if (!p.ok) throw new Error(p.error.message);
-    const r = await applySync(ctx, p.value, req.catalog === undefined ? {} : { catalog: req.catalog });
+    const r = await applySync(ctx, p.value);
     if (!r.ok) throw new Error(r.error.message);
     return { plan: p.value, report: r.value };
   };
