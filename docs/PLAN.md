@@ -626,7 +626,8 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Depends: M4.12
   - Done when: the exchange and a refresh are tested against the stub; a build without the
     variables reports Bitbucket sign-in as unavailable instead of failing; a manual sign-in connects
-    a real account.
+    a real account, and Loadout then comes to the front saying who is signed in and that the browser
+    tab can be closed (S12: the tab stays on the consent page).
 
 - [ ] **M4.15 Accounts in the debug view.** Connect, disconnect and "token still works" for both
   hosts, through the facade (M4.02).
