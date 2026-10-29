@@ -804,7 +804,7 @@ connected account, an installed skill and a PR on the shared catalog without the
   - Depends: M5.16
   - Done when: both paths land on a loaded list, tested against the fake.
 
-- [ ] **M6.02 Parked skills.** On the first launch that finds copies in `skills-disabled/`, list them,
+- [x] **M6.02 Parked skills.** On the first launch that finds copies in `skills-disabled/`, list them,
   then move them back and turn them off (Q16 B); occupied destinations are reported.
   - Rules: none (arch §4.5 rule 7; Q16 B)
   - Depends: M6.01
