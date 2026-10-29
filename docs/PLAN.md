@@ -533,7 +533,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: each op has a facade test; a PR-mode plan discarded through the facade leaves no temp
     dir.
 
-- [ ] **M4.04 Facade contract.** A test lists the `Library` interface's methods (TypeScript compiler
+- [x] **M4.04 Facade contract.** A test lists the `Library` interface's methods (TypeScript compiler
   API, as `rule-coverage.test.ts` reads titles) and fails if one lacks an exported input or output
   schema (arch §8.2); every result's warnings and error codes parse against `Warning`/`CoreError`.
   An in-memory `Library` fake for the UI tests (arch §6) implements the same interface.
