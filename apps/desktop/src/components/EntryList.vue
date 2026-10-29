@@ -123,10 +123,7 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
             @click="activate(row)"
           />
 
-          <!-- Its own column, so the type starts at the same x on every row. -->
-          <span class="entry-list__type">{{ row.entry.type }}</span>
-
-          <!-- Under the type, on the description's line: a track and a knob, above the open button. -->
+          <!-- On the name's line, where the eye starts: a track and a knob, above the open button. -->
           <button
             v-if="switchable(row)"
             type="button"
@@ -138,6 +135,12 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
             :title="`${switchedOn(row) ? 'Disable' : 'Enable'} ${row.entry.name}`"
             @click="flip(row)"
           />
+
+          <!-- Its own column, so the type starts at the same x on every row; under the switch when there is one. -->
+          <span
+            class="entry-list__type"
+            :class="{ 'entry-list__type--under': switchable(row) }"
+          >{{ row.entry.type }}</span>
 
           <div class="entry-list__head">
             <span class="entry-list__name">{{ row.entry.name }}</span>
@@ -250,7 +253,7 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
 }
 .entry-list__item {
   position: relative;
-  /* Two columns — the type and its switch, then everything else — and two rows: the
+  /* Two columns — the switch and the type, then everything else — and two rows: the
      name's line, then the description's. The column is sized by the label's own
      `min-width` rather than here, so changing the label's font size cannot silently
      stagger the names (see `.entry-list__type`).
@@ -329,6 +332,11 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
   white-space: nowrap;
   opacity: 0.7;
 }
+/* On the description's line, sharing its baseline, with the switch above it. */
+.entry-list__type--under {
+  grid-row: 2;
+  margin-top: 0.35rem;
+}
 .entry-list__origin {
   --catalog-hue: 220;
   padding: 0.12rem 0.5rem;
@@ -404,12 +412,11 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
   position: relative;
   z-index: 2;
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 1;
   justify-self: start;
-  /* Out of the baseline group — a control has no text to sit on a baseline — and nudged
-     to centre on the description's first line, which is what row 2 is. */
-  align-self: start;
-  margin-top: 0.5rem;
+  /* Out of the baseline group (a control has no text to sit on a baseline) and centred on
+     the name's line, which is what row 1 is. */
+  align-self: center;
   width: 1.9rem;
   height: 1.05rem;
   padding: 0;

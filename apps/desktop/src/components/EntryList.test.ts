@@ -26,6 +26,14 @@ describe("UI-18: an entry card", () => {
     expect(loser!.find(".entry-list__requires").exists()).toBe(false);
   });
 
+  it("puts the type under the switch on a card with one, and on the name's line on a card without", () => {
+    const list = mountList([installedRecord("installed", { name: "tidy", catalog: "team" }), entryRecord({ name: "lint", catalog: "team" })]);
+    const [withSwitch, without] = list.findAll(".entry-list__item");
+    const lead = (card: typeof withSwitch) => [...card!.element.children].map((el) => el.className).filter((c) => /switch|type/.test(c));
+    expect(lead(withSwitch)).toEqual(["entry-list__switch", "entry-list__type entry-list__type--under"]);
+    expect(lead(without)).toEqual(["entry-list__type"]);
+  });
+
   it("opens the copy that was clicked, with its catalog, through a button named for it", async () => {
     const list = mountList([entryRecord({ name: "tidy", catalog: "team" }), entryRecord({ name: "tidy", catalog: "personal", overriddenBy: "team" })]);
     const open = list.findAll(".entry-list__open");
