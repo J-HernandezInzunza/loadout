@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // Throwaway: proves the Tauri host end to end until the real screens exist.
+import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { onMounted, onUnmounted, ref } from "vue";
 import type { AuditEvent, CatalogRow, CoreError, EntryRecord, LaunchReport, Library, PlanItem, Result, Warning } from "@loadout/core";
 import type { AuditLog } from "./host-tauri/audit.ts";
@@ -164,6 +166,29 @@ async function editDescription() {
   });
 }
 
+// Spike S12: does Bitbucket's redirect reach the app through loadout://? The code shows only as its length.
+const bitbucketState = ref<string | null>(null);
+
+async function bitbucketRedirect() {
+  const clientId = import.meta.env.LOADOUT_BITBUCKET_CLIENT_ID;
+  if (!clientId) return show({ title: "Bitbucket redirect", lines: ["LOADOUT_BITBUCKET_CLIENT_ID isn't set in apps/desktop/.env.local"] });
+  bitbucketState.value = crypto.randomUUID();
+  const query = new URLSearchParams({ client_id: clientId, response_type: "code", state: bitbucketState.value });
+  await show({ title: "Bitbucket redirect", lines: ["Approve in the browser; the redirect should come back here."] });
+  await openUrl(`https://bitbucket.org/site/oauth2/authorize?${query}`);
+}
+
+function describeRedirect(raw: string): string[] {
+  const url = new URL(raw);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const received = code ? `code: ${code.length} characters` : `no code: ${url.searchParams.get("error") ?? "no error given"}`;
+  const stateCheck = state === bitbucketState.value ? "state matches" : `state doesn't match (${state ?? "none"})`;
+  return [`received ${url.protocol}//${url.host}${url.pathname}`, received, stateCheck];
+}
+
+let stopListening: (() => void) | undefined;
+
 function describeEvent(event: AuditEvent): string {
   if (event.kind === "proc:start") return `#${event.id} $ ${event.argv.join(" ")}${event.cwd ? `  (in ${event.cwd})` : ""}`;
   if (event.kind === "proc:end") return `#${event.id} exit ${event.code} in ${event.durationMs} ms`;
@@ -200,6 +225,11 @@ async function importFromCli() {
 }
 
 onMounted(async () => {
+  // Outside Tauri (component tests without IPC) there is no deep-link plugin to listen to.
+  onOpenUrl((urls) => void show({ title: "Deep link", lines: urls.flatMap(describeRedirect) })).then(
+    (unlisten) => (stopListening = unlisten),
+    () => {},
+  );
   // Reads serve the clones on disk while launch refreshes them; load again once it's done.
   await load();
   const launch = await props.launched;
@@ -207,7 +237,10 @@ onMounted(async () => {
   await load();
 });
 
-onUnmounted(unsubscribe);
+onUnmounted(() => {
+  unsubscribe();
+  stopListening?.();
+});
 </script>
 
 <template>
@@ -293,6 +326,13 @@ onUnmounted(unsubscribe);
         @click="act(sync)"
       >
         Plan sync
+      </button>
+      <button
+        :disabled="busy"
+        data-test="bitbucket-redirect"
+        @click="act(bitbucketRedirect)"
+      >
+        Bitbucket redirect (S12 spike)
       </button>
     </p>
     <p class="debug-view__actions">

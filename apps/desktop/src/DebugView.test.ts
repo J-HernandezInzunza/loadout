@@ -1,7 +1,9 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import type { EntryRecord, LaunchReport, Library, PlanItem, Result } from "@loadout/core";
 import { createFakeLibrary } from "@loadout/core/testing";
-import { describe, expect, it } from "vitest";
+import { emit } from "@tauri-apps/api/event";
+import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import DebugView from "./DebugView.vue";
 import { createAuditLog } from "./host-tauri/audit.ts";
 
@@ -165,5 +167,38 @@ describe("DebugView actions", () => {
     await flushPromises();
     expect(panelLines(wrapper)).toContain("compareUrl: https://bitbucket.org/ws/cat/branch/library/update-tidy-1");
     expect(discarded).toEqual([]);
+  });
+});
+
+describe("DebugView Bitbucket redirect spike", () => {
+  afterEach(() => {
+    clearMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("opens the authorize page with a fresh state, and reports a redirect without showing the code", async () => {
+    vi.stubEnv("LOADOUT_BITBUCKET_CLIENT_ID", "cid");
+    const opened: string[] = [];
+    mockIPC(
+      (cmd, payload) => {
+        if (cmd === "plugin:opener|open_url") opened.push((payload as { url: string }).url);
+      },
+      { shouldMockEvents: true },
+    );
+    const { wrapper } = setup(ready);
+    await flushPromises();
+    await wrapper.find("[data-test=bitbucket-redirect]").trigger("click");
+    await flushPromises();
+
+    const authorize = new URL(opened[0]!);
+    expect(`${authorize.origin}${authorize.pathname}`).toBe("https://bitbucket.org/site/oauth2/authorize");
+    expect(authorize.searchParams.get("client_id")).toBe("cid");
+    expect(authorize.searchParams.get("response_type")).toBe("code");
+    const state = authorize.searchParams.get("state")!;
+
+    await emit("deep-link://new-url", [`loadout://oauth/bitbucket?code=secretcode123&state=${state}`]);
+    await flushPromises();
+    expect(panelLines(wrapper)).toEqual(["received loadout://oauth/bitbucket", "code: 13 characters", "state matches"]);
+    expect(wrapper.text()).not.toContain("secretcode123");
   });
 });
