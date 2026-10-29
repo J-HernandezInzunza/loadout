@@ -5,6 +5,8 @@ import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { onMounted, onUnmounted, ref } from "vue";
 import type {
+  AccountHost,
+  AccountInfo,
   AuditEvent,
   CatalogRow,
   CoreError,
@@ -24,6 +26,11 @@ const status = ref("launching…");
 const warnings = ref<Warning[]>([]);
 const catalogs = ref<CatalogRow[]>([]);
 const entries = ref<EntryRecord[]>([]);
+const accounts = ref<Partial<Record<AccountHost, AccountInfo>>>({});
+const hosts: { on: AccountHost; name: string }[] = [
+  { on: "github", name: "GitHub" },
+  { on: "bitbucket", name: "Bitbucket" },
+];
 const events = ref<AuditEvent[]>(props.log.events());
 const unsubscribe = props.log.subscribe((event) => events.value.push(event));
 
@@ -38,6 +45,31 @@ async function load() {
   catalogs.value = valueOr(catalogRows, []);
   const records = await props.library.list();
   entries.value = valueOr(records, []);
+  await loadAccounts();
+}
+
+async function loadAccounts() {
+  const connected = await props.library.accounts();
+  accounts.value = valueOr(connected, {});
+}
+
+async function checkAccount(on: AccountHost, name: string) {
+  const checked = await props.library.checkAccount(on);
+  if (!checked.ok) return show(failure(`${name} account`, checked.error));
+  const scopes = checked.value.scopes?.join(", ") ?? "scopes not reported";
+  await show({ title: `${name} account`, lines: [`The token works: ${checked.value.login} (${scopes}).`] });
+}
+
+async function disconnect(on: AccountHost, name: string) {
+  const done = await props.library.disconnect(on);
+  if (!done.ok) return show(failure(`${name} account`, done.error));
+  await loadAccounts();
+  await show({ title: `${name} account`, lines: [`Disconnected; the token is gone from the Keychain.`] });
+}
+
+function signIn(on: AccountHost) {
+  if (on === "github") return githubSignIn();
+  return act(bitbucketSignIn);
 }
 
 /** What an action planned or did; `apply`/`replace` act on the plan, `discard` drops its staged copies. */
@@ -194,6 +226,7 @@ async function githubSignIn() {
   const done = await props.library.completeSignIn(started.value, { signal: controller.signal });
   if (done.ok) {
     const scopes = done.value.scopes.join(", ") || "no scopes";
+    await loadAccounts();
     await show({ title: "GitHub sign-in", lines: [`Signed in to GitHub as ${done.value.login} (${scopes}). You can close the browser tab.`] });
   } else if (done.error.code !== "CANCELLED") {
     await show(failure("GitHub sign-in", done.error));
@@ -231,6 +264,7 @@ async function onRedirect(urls: string[]) {
   }
   const done = await props.library.completeSignIn(started, { redirectUrl });
   if (!done.ok) return show(failure("Bitbucket sign-in", done.error));
+  await loadAccounts();
   await show({ title: "Bitbucket sign-in", lines: [`Signed in to Bitbucket as ${done.value.login}. You can close the browser tab.`] });
 }
 
@@ -358,6 +392,45 @@ onUnmounted(() => {
       </tr>
     </table>
 
+    <h2>Accounts</h2>
+    <table
+      class="debug-view__table"
+      data-test="accounts"
+    >
+      <tr
+        v-for="host in hosts"
+        :key="host.on"
+      >
+        <td>{{ host.name }}</td>
+        <td>{{ accounts[host.on] ? `${accounts[host.on]!.login} (${accounts[host.on]!.scopes.join(", ") || "no scopes"})` : "not connected" }}</td>
+        <td>
+          <button
+            :disabled="busy"
+            :data-test="`${host.on}-sign-in`"
+            @click="signIn(host.on)"
+          >
+            Sign in
+          </button>
+          <button
+            v-if="accounts[host.on]"
+            :disabled="busy"
+            :data-test="`${host.on}-check`"
+            @click="act(() => checkAccount(host.on, host.name))"
+          >
+            Check
+          </button>
+          <button
+            v-if="accounts[host.on]"
+            :disabled="busy"
+            :data-test="`${host.on}-disconnect`"
+            @click="act(() => disconnect(host.on, host.name))"
+          >
+            Disconnect
+          </button>
+        </td>
+      </tr>
+    </table>
+
     <h2>Actions</h2>
     <p class="debug-view__actions">
       <button
@@ -373,20 +446,6 @@ onUnmounted(() => {
         @click="act(sync)"
       >
         Plan sync
-      </button>
-      <button
-        :disabled="busy"
-        data-test="bitbucket-sign-in"
-        @click="act(bitbucketSignIn)"
-      >
-        Sign in to Bitbucket
-      </button>
-      <button
-        :disabled="busy"
-        data-test="github-sign-in"
-        @click="githubSignIn"
-      >
-        Sign in to GitHub
       </button>
     </p>
     <p class="debug-view__actions">

@@ -298,6 +298,7 @@ export const ops = {
   accounts: { input: z.strictObject({}), output: z.strictObject({ github: AccountInfo.exactOptional(), bitbucket: AccountInfo.exactOptional() }) },
   connect: { input: z.strictObject({ on: AccountHost, tokens: TokenSet }), output: AccountInfo },
   disconnect: { input: z.strictObject({ on: AccountHost }), output: z.undefined() },
+  checkAccount: { input: z.strictObject({ on: AccountHost }), output: z.strictObject({ login: z.string(), scopes: z.array(z.string()).nullable() }) },
   beginSignIn: { input: z.strictObject({ on: AccountHost }), output: SignIn },
   completeSignIn: { input: z.strictObject({ started: SignIn, redirectUrl: z.string().exactOptional() }), output: AccountInfo },
   planAdd: {

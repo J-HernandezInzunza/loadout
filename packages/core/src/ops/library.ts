@@ -132,6 +132,8 @@ export interface Library {
   /** What a sign-in flow ends with: validates the token, then keeps it in Host.secrets. */
   connect(on: AccountHost, tokens: TokenSet): Promise<Result<AccountInfo>>;
   disconnect(on: AccountHost): Promise<Result<void>>;
+  /** Whether the connected account's token still works (refreshing Bitbucket's first): the login and scopes it answers for. */
+  checkAccount(on: AccountHost): Promise<Result<{ login: string; scopes: string[] | null }>>;
   /** Starts a browser sign-in (S12); SIGN_IN_UNAVAILABLE when the build lacks the host's OAuth client. */
   beginSignIn(on: AccountHost): Promise<Result<IssuedSignIn>>;
   /**
@@ -459,6 +461,12 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
 
     async disconnect(on) {
       return accounts.disconnect(on);
+    },
+
+    async checkAccount(on) {
+      const token = await accounts.tokenFor(on);
+      if (!token.ok) return token;
+      return accounts.whoami(on, token.value);
     },
 
     async beginSignIn(on) {

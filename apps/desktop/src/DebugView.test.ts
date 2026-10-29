@@ -259,3 +259,29 @@ describe("DebugView GitHub sign-in", () => {
     expect(wrapper.find("[data-test=panel]").exists()).toBe(false);
   });
 });
+
+describe("DebugView accounts", () => {
+  it("lists each host's account, checks its token and disconnects it", async () => {
+    const state = { github: { login: "octo", scopes: ["repo"], connectedAt: "2026-10-29T12:00:00Z" } } as Partial<Record<"github" | "bitbucket", { login: string; scopes: string[]; connectedAt: string }>>;
+    const { wrapper } = setup(ready, {
+      accounts: async () => ok({ ...state }),
+      checkAccount: async () => ok({ login: "octo", scopes: ["repo"] }),
+      disconnect: async (on) => (delete state[on], ok(undefined)),
+    });
+    await flushPromises();
+    expect(wrapper.findAll("[data-test=accounts] tr").map((r) => r.findAll("td").slice(0, 2).map((d) => d.text()))).toEqual([
+      ["GitHub", "octo (repo)"],
+      ["Bitbucket", "not connected"],
+    ]);
+    expect(wrapper.find("[data-test=bitbucket-check]").exists()).toBe(false);
+
+    await wrapper.find("[data-test=github-check]").trigger("click");
+    await flushPromises();
+    expect(panelLines(wrapper)).toEqual(["The token works: octo (repo)."]);
+
+    await wrapper.find("[data-test=github-disconnect]").trigger("click");
+    await flushPromises();
+    expect(panelLines(wrapper)).toEqual(["Disconnected; the token is gone from the Keychain."]);
+    expect(wrapper.find("[data-test=accounts] tr td:nth-child(2)").text()).toBe("not connected");
+  });
+});

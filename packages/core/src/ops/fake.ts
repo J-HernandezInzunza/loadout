@@ -88,6 +88,7 @@ export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Part
     applyImport: refused,
     connect: refused,
     disconnect: refused,
+    checkAccount: refused,
     beginSignIn: refused,
     completeSignIn: refused,
     planAdd: refused,

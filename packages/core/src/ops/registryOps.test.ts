@@ -116,13 +116,18 @@ describe("facade: registry, accounts and maintenance", () => {
     expect(await library.applyImport(plan)).toMatchObject({ ok: false, error: { code: "REFUSED" } });
   });
 
-  it("connect, accounts and disconnect go through the instance's accounts; a rejected token is AUTH_FAILED", async () => {
+  it("connect, accounts, checkAccount and disconnect go through the instance's accounts; a rejected token is AUTH_FAILED", async () => {
     const { sb, stub, library, configFile } = await setup({ A: ["x"] });
     stub.addToken("github", "gh-token", "octo", ["repo"]);
     expect(value(await library.connect("github", { accessToken: "gh-token" }), ops.connect.output)).toMatchObject({ login: "octo" });
     expect(value(await library.accounts(), ops.accounts.output)).toMatchObject({ github: { login: "octo", scopes: ["repo"] } });
     expect(await readFile(configFile, "utf8")).not.toContain("gh-token");
     expect(await library.connect("bitbucket", { accessToken: "wrong" })).toMatchObject({ ok: false, error: { code: "AUTH_FAILED" } });
+
+    expect(value(await library.checkAccount("github"), ops.checkAccount.output)).toEqual({ login: "octo", scopes: ["repo"] });
+    stub.expireToken("gh-token");
+    expect(await library.checkAccount("github")).toMatchObject({ ok: false, error: { code: "AUTH_FAILED" } });
+    expect(await library.checkAccount("bitbucket")).toMatchObject({ ok: false, error: { code: "NOT_CONNECTED" } });
 
     value(await library.disconnect("github"), ops.disconnect.output);
     expect(value(await library.accounts(), ops.accounts.output)).toEqual({});

@@ -14,4 +14,6 @@ export { CatalogRef, CoreError, Entry, EntryType, ErrorCode, Result, Source, War
 export { createLibrary, type IssuedSignIn, type LaunchReport, type Library } from "./ops/library.ts";
 export type { EntryRecord } from "./registry/registry.ts";
 export type { PlanItem } from "./install/plan.ts";
+export type { AccountHost } from "./accounts/accounts.ts";
+export type { AccountInfo } from "./config/config.ts";
 export { ops, type CatalogRow, type EntryDetail } from "./ops/schemas.ts";
