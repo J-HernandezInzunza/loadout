@@ -668,7 +668,7 @@ a §4.10 gap says otherwise, and fixes its own a11y gaps (labels, roles, `aria-e
 inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestState`,
 `summarizeChanges`, …) stay in Vue; anything that decides rather than words lives in the core.
 
-- [ ] **M5.01 UI test footing.** The rule-coverage test also scans `apps/` for titles; a `mountView`
+- [x] **M5.01 UI test footing.** The rule-coverage test also scans `apps/` for titles; a `mountView`
   helper (Pinia with real stores over a seeded fake, the activity store fed by an audit log); the
   fake gains realistic seed builders (catalogs, records with every install state, pins, accounts).
   - Rules: none (tooling)
