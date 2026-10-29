@@ -487,7 +487,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M2.20
   - Done when: each rule has a test.
 
-- [ ] **M3.13 Milestone check.** Every WRITE and EDIT rule tagged `mvp` appears in a test title;
+- [x] **M3.13 Milestone check.** Every WRITE and EDIT rule tagged `mvp` appears in a test title;
   `npm run check` green; the deviation report regenerated and unchanged.
   - Rules: none
   - Depends: M3.05, M3.06, M3.09, M3.10, M3.11, M3.12
