@@ -44,6 +44,18 @@ export interface GitClient {
   divergence(dir: string, branch: string, opts?: CallOpts): Promise<{ behind: number; ahead: number } | "unknown">;
   /** Local: `remote.origin.url` of the clone at `dir`, or "" when it has none. */
   originUrl(dir: string): Promise<string>;
+  /** Local: the work tree holding `dir`, its origin URL ("" for none) and checked-out branch; null outside a repo. */
+  repoOf(dir: string): Promise<{ root: string; origin: string; branch: string } | null>;
+  /** Local: stages `paths` and commits them with `message`; the new commit's sha. */
+  commit(dir: string, paths: string[], message: string): Promise<Result<string>>;
+  /** Local: stages `paths` (deletions included) and returns `git diff --cached`; "" when nothing changed. */
+  stagedDiff(dir: string, paths: string[]): Promise<Result<string>>;
+  /** Local: creates `name` at HEAD and checks it out. */
+  checkoutBranch(dir: string, name: string): Promise<Result<void>>;
+  /** Local: `git show HEAD`, the last commit with its patch. */
+  showHead(dir: string): Promise<string>;
+  /** `git push origin <refspec>` (extra args before it, e.g. `-u`); a refusal is classified as WRITE-09 says. */
+  push(dir: string, refspec: string, opts?: CallOpts & { args?: string[] }): Promise<Result<void>>;
 }
 
 /** FETCH-03. GIT_SSH_COMMAND is always set: the core cannot see the user's environment, and a Finder launch carries none. */
@@ -77,6 +89,18 @@ export function gitErrorSummary(stderr: string): string {
   const main = lines.find((l) => /^(fatal|remote|error):/i.test(l)) ?? lines.at(-1) ?? "unknown error";
   const ssh = lines.findLast((l) => /^ssh:|Permission denied|Host key verification failed/i.test(l));
   return ssh === undefined || ssh === main ? main : `${main} (${ssh})`;
+}
+
+// WRITE-09: what a push refused for lack of access says, in git's or the host's words.
+const DENIED = ["denied", "permission", "403", "forbidden", "not authorized", "protected branch", "remote rejected", "remote: error"];
+
+/** WRITE-09: a refused push names the access problem; anything else carries git's summary. */
+export function pushError(stderr: string, repo: string): string {
+  const low = stderr.toLowerCase();
+  if (DENIED.some((d) => low.includes(d))) {
+    return `push rejected — you lack write access to ${repo}. Ask for write access, or use a pull request instead`;
+  }
+  return `push failed: ${gitErrorSummary(stderr)}`;
 }
 
 export function createGitClient(host: Host, opts: GitClientOptions = {}): GitClient {
@@ -177,6 +201,46 @@ export function createGitClient(host: Host, opts: GitClientOptions = {}): GitCli
     },
 
     originUrl,
+
+    async repoOf(dir) {
+      const top = await local(dir, ["rev-parse", "--show-toplevel"]);
+      if (top.code !== 0) return null;
+      const root = top.stdout.trim();
+      // symbolic-ref names the branch even before its first commit; a detached HEAD falls back to main.
+      const branch = (await local(root, ["symbolic-ref", "--quiet", "--short", "HEAD"])).stdout.trim();
+      return { root, origin: await originUrl(root), branch: branch === "" ? "main" : branch };
+    },
+
+    async commit(dir, paths, message) {
+      const added = await local(dir, ["add", "--", ...paths]);
+      if (added.code !== 0) return err({ code: "GIT_FAILED", message: `git add failed: ${gitErrorSummary(added.stderr)}` });
+      const committed = await local(dir, ["commit", "--quiet", "-m", message]);
+      if (committed.code !== 0) return err({ code: "GIT_FAILED", message: `git commit failed: ${gitErrorSummary(committed.stderr || committed.stdout)}` });
+      const sha = await revParse(dir, "HEAD");
+      return sha === null ? err({ code: "GIT_FAILED", message: "git commit left no HEAD" }) : ok(sha);
+    },
+
+    async stagedDiff(dir, paths) {
+      const added = await local(dir, ["add", "--", ...paths]);
+      if (added.code !== 0) return err({ code: "GIT_FAILED", message: `git add failed: ${gitErrorSummary(added.stderr)}` });
+      return ok((await local(dir, ["diff", "--cached", "--no-color"])).stdout);
+    },
+
+    async checkoutBranch(dir, name) {
+      const res = await local(dir, ["checkout", "--quiet", "-b", name]);
+      return res.code === 0 ? ok(undefined) : err({ code: "GIT_FAILED", message: `git checkout -b ${name} failed: ${gitErrorSummary(res.stderr)}` });
+    },
+
+    async showHead(dir) {
+      return (await local(dir, ["show", "--no-color", "HEAD"])).stdout;
+    },
+
+    async push(dir, refspec, o = {}) {
+      const origin = await originUrl(dir);
+      const res = await network(origin, ["-C", dir, "push", "--quiet", ...(o.args ?? []), "origin", refspec], undefined, o);
+      if (res.code === 0) return ok(undefined);
+      return err({ code: "GIT_FAILED", message: res.summary.startsWith("timed out") ? `push failed: ${res.summary}` : pushError(res.stderr, origin) });
+    },
   };
 }
 

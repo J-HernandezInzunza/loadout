@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: fs under $HOME and app data, git and gh only (architecture.md §2.4)",
+  "description": "Main window: fs under $HOME and app data, git only (architecture.md §2.4, §5.5)",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -37,15 +37,13 @@
     {
       "identifier": "shell:allow-spawn",
       "allow": [
-        { "name": "git", "cmd": "git", "args": true, "sidecar": false },
-        { "name": "gh", "cmd": "gh", "args": true, "sidecar": false }
+        { "name": "git", "cmd": "git", "args": true, "sidecar": false }
       ]
     },
     {
       "identifier": "shell:allow-execute",
       "allow": [
-        { "name": "git", "cmd": "git", "args": true, "sidecar": false },
-        { "name": "gh", "cmd": "gh", "args": true, "sidecar": false }
+        { "name": "git", "cmd": "git", "args": true, "sidecar": false }
       ]
     },
     "shell:allow-kill"

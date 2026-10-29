@@ -28,7 +28,10 @@ export interface UninstallItem {
   overrideRemoved: string | null;
 }
 
-export async function uninstall(ctx: UninstallCtx, req: { names: string[]; forcePaths?: string[] }): Promise<Result<{ items: UninstallItem[] }, ResolveErr>> {
+export async function uninstall(
+  ctx: UninstallCtx,
+  req: { names: string[]; forcePaths?: string[]; /** a name's type when the caller knows it, e.g. remove --purge */ types?: Partial<Record<string, EntryType>> },
+): Promise<Result<{ items: UninstallItem[] }, ResolveErr>> {
   const { host } = ctx;
   const home = host.paths.home;
   const force = new Set(req.forcePaths ?? []);
@@ -42,7 +45,7 @@ export async function uninstall(ctx: UninstallCtx, req: { names: string[]; force
   // Every name resolves before anything is deleted (RES-05): the catalog's entry, else what was installed under that name.
   const targets: { type: EntryType; name: string; dest: string }[] = [];
   for (const name of req.names) {
-    const winner = registry.winners().get(name)?.type;
+    const winner = req.types?.[name] ?? registry.winners().get(name)?.type;
     const known = (["skill", "prompt", "agent"] as const).filter((t) => byDest.has(destFor(home, t, name)));
     let type: EntryType | undefined = winner ?? known[0];
     if (type === undefined) {

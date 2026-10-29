@@ -49,7 +49,7 @@ async function refuseOverlap(host: Host, origin: string, dest: string): Promise<
 }
 
 /** Copies `from` into `to`, following symlinks (shutil.copytree's default) and skipping dangling ones and a top-level `.git` (FETCH-10). */
-async function copyTree(host: Host, from: string, to: string, top = true): Promise<void> {
+export async function copyTree(host: Host, from: string, to: string, top = true): Promise<void> {
   await host.fs.mkdirp(to);
   for (const e of await host.fs.readDir(from)) {
     if (top && e.name === ".git") continue;

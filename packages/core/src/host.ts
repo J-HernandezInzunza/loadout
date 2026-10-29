@@ -34,7 +34,7 @@ export interface ProcResult {
 
 export interface HostProc {
   run(
-    program: "git" | "gh",
+    program: "git",
     args: string[],
     opts: { cwd?: string; env?: Record<string, string>; timeoutMs?: number; signal?: AbortSignal },
   ): Promise<ProcResult>;

@@ -145,7 +145,7 @@ export function createNodeHost(opts: NodeHostOptions): Host {
           const child = spawn(program, args, {
             cwd: o.cwd,
             env: { ...process.env, ...o.env },
-            // No stdin: git and gh must fail rather than wait on a prompt.
+            // No stdin: git must fail rather than wait on a prompt.
             stdio: ["ignore", "pipe", "pipe"],
             // Own process group, so a timeout or abort also kills what git spawned (ssh, remote
             // helpers); otherwise they hold stdout open and the run never ends.

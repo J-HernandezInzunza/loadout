@@ -397,7 +397,7 @@ cover arch §4.5 rules 1–7.
 Exit: every M3 task checked; WRITE and EDIT rules covered; a PR-mode test checks the branch name,
 the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was dropped, arch §5.5).
 
-- [ ] **M3.01 PR API clients.** `git/pullRequests.ts`: `createPullRequest(host, repo, { base, head,
+- [x] **M3.01 PR API clients.** `git/pullRequests.ts`: `createPullRequest(host, repo, { base, head,
   title, body })` for GitHub (`POST /repos/{owner}/{repo}/pulls`) and Bitbucket
   (`POST /2.0/repositories/{workspace}/{repo}/pullrequests`) through `Host.http` with the account's
   token; a duplicate resolves to the existing PR's URL (QUESTIONS.md Q2); other failures are typed.
@@ -406,14 +406,14 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Done when: create, duplicate, expired-token-then-refresh and server-error cases pass against the
     stub, for both hosts.
 
-- [ ] **M3.02 Write target.** `writeTarget(req)`: explicit catalog (unknown, skipped,
+- [x] **M3.02 Write target.** `writeTarget(req)`: explicit catalog (unknown, skipped,
   `writable: false`), no catalog (none writable, one, several → `AMBIGUOUS_CATALOG`), and for
   update/remove the catalog the entry resolved from (`AMBIGUOUS_CATALOG` with holders).
   - Rules: WRITE-01, WRITE-02, WRITE-03, WRITE-04
   - Depends: M1.22
   - Done when: each rule has a test.
 
-- [ ] **M3.03 Edit pipeline.** `applyCatalogEdit` core shared by all modes: compute the edit
+- [x] **M3.03 Edit pipeline.** `applyCatalogEdit` core shared by all modes: compute the edit
   against the exact bytes being written (WRITE-15), field-level no-op detection, re-parse and verify
   (WRITE-16), plan fingerprint (`STALE_PLAN`), dry-run unified diff (WRITE-17), result shape
   (WRITE-18), atomic write of the catalog file (A32).
@@ -421,19 +421,19 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.02, M1.11
   - Done when: each rule has a test; a file changed between plan and apply returns `STALE_PLAN`.
 
-- [ ] **M3.04 Local mode.** Write the file; no git (Q11).
+- [x] **M3.04 Local mode.** Write the file; no git (Q11).
   - Rules: WRITE-14
   - Depends: M3.03
   - Done when: WRITE-14 has a test; the result reports `committed: false`, `pushed: false`.
 
-- [ ] **M3.05 Direct mode.** Refresh the clone, edit it, commit, `push origin HEAD:<branch>`;
+- [x] **M3.05 Direct mode.** Refresh the clone, edit it, commit, `push origin HEAD:<branch>`;
   commit or push failure is a warning and the result says so; a rejected stale push leaves the
   clone for doctor's re-clone (A4, S4).
   - Rules: WRITE-13, WRITE-09
   - Depends: M3.03, M2.09
   - Done when: each rule has a test against the harness, including a stale push.
 
-- [ ] **M3.06 PR mode.** Temp single-branch clone, branch `library/<op>-<name>-<%Y%m%dT%H%M%S>`
+- [x] **M3.06 PR mode.** Temp single-branch clone, branch `library/<op>-<name>-<%Y%m%dT%H%M%S>`
   with a `-2`… suffix on collision, commit, `push -u`, compare URL; then, when an account for the
   catalog's host is connected, open the PR through M3.01 (GitHub and Bitbucket alike), else return the
   manual result with the compare URL; an API failure is a warning with the compare URL; commit and PR
@@ -444,14 +444,14 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
     recorded PR request; a repeated write returns the existing PR's URL; with no account connected
     the result is manual with the compare URL; `capabilities.test.ts` allows only `git`.
 
-- [ ] **M3.07 Suggest source.** `suggestSource(path)`: a GitHub/Bitbucket browser URL for a local
+- [x] **M3.07 Suggest source.** `suggestSource(path)`: a GitHub/Bitbucket browser URL for a local
   file inside a git repo with a matching origin (Q13 b).
   - Rules: WRITE-05
   - Depends: M2.05, M1.14
   - Done when: GitHub and Bitbucket origins (ssh and https) produce the right URL; no origin gives
     none.
 
-- [ ] **M3.08 Add.** `planAdd` (one entry or a batch, EDIT-13) following behaviors.md §3.12: type
+- [x] **M3.08 Add.** `planAdd` (one entry or a batch, EDIT-13) following behaviors.md §3.12: type
   inferred from the source, source parsed, local source refused for remote catalogs with the
   suggestion (WRITE-05), local source inside an install dir refused (WRITE-06), refs validated
   (DEP-11), duplicates in the batch and the catalog refused, override warnings, unknown-dependency
@@ -461,33 +461,33 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.04, M3.07
   - Done when: each rule has a test; a batch of three lands as one write.
 
-- [ ] **M3.09 Update.** `planUpdate` per §3.15: edits through `replaceEntry` (D4), name and type
+- [x] **M3.09 Update.** `planUpdate` per §3.15: edits through `replaceEntry` (D4), name and type
   fixed, `setSource` validated like add, no-op when fields are equal, unknown-dependency warning
   against the fresh text.
   - Rules: EDIT-12, WRITE-15, DEP-10
   - Depends: M3.08
   - Done when: each rule has a test; an update preserves an unknown key end to end.
 
-- [ ] **M3.10 Remove.** `planRemove` per §3.14, with the dependents warning and optional purge of
+- [x] **M3.10 Remove.** `planRemove` per §3.14, with the dependents warning and optional purge of
   installed copies.
   - Rules: DEP-09, EDIT-10
   - Depends: M3.04, M2.18
   - Done when: each rule has a test.
 
-- [ ] **M3.11 Push.** `planPush` / `applyPush` per §3.16: send an installed copy's edits back to
+- [x] **M3.11 Push.** `planPush` / `applyPush` per §3.16: send an installed copy's edits back to
   its source (local file, or a PR/branch for a remote source); afterwards the receipt describes the
   pushed content, so the copy no longer reads as edited (A28).
   - Rules: none (§3.16; A28)
   - Depends: M3.06, M2.14
   - Done when: local and remote pushes have tests, and the copy reads `installed` after each.
 
-- [ ] **M3.12 Pin and unpin.** `planPin` / `applyPin({ switchInstalled })` with the switch
+- [x] **M3.12 Pin and unpin.** `planPin` / `applyPin({ switchInstalled })` with the switch
   assessment, and `unpin`.
   - Rules: RES-13, RES-14, RES-15, RES-16, RES-17
   - Depends: M2.20
   - Done when: each rule has a test.
 
-- [ ] **M3.13 Milestone check.** Every WRITE and EDIT rule tagged `mvp` appears in a test title;
+- [x] **M3.13 Milestone check.** Every WRITE and EDIT rule tagged `mvp` appears in a test title;
   `npm run check` green; the deviation report regenerated and unchanged.
   - Rules: none
   - Depends: M3.05, M3.06, M3.09, M3.10, M3.11, M3.12

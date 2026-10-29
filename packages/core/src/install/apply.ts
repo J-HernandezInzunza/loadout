@@ -47,23 +47,23 @@ async function moveInto(host: Host, from: string, to: string): Promise<void> {
   host.audit({ kind: "fs", op: "move", path: from, to });
 }
 
-async function placeOne(host: Host, item: PlanItem): Promise<void> {
-  const staged = item.fetched!.staged;
+/** Replaces `dest` with `staged`: the old copy moves aside and comes back if the move in fails. */
+export async function placeOne(host: Host, staged: string, dest: string): Promise<void> {
   // Beside the destination, so moving the old copy aside never crosses volumes; dot-named, so scans skip it.
-  const backup = `${dirname(item.dest)}/.loadout-previous-${item.dest.slice(item.dest.lastIndexOf("/") + 1)}`;
-  await host.fs.mkdirp(dirname(item.dest));
+  const backup = `${dirname(dest)}/.loadout-previous-${dest.slice(dest.lastIndexOf("/") + 1)}`;
+  await host.fs.mkdirp(dirname(dest));
   await host.fs.remove(backup, { recursive: true }).catch(() => {});
-  const hadOld = await host.fs.exists(item.dest);
+  const hadOld = await host.fs.exists(dest);
   if (hadOld) {
-    await host.fs.rename(item.dest, backup);
-    host.audit({ kind: "fs", op: "move", path: item.dest, to: backup });
+    await host.fs.rename(dest, backup);
+    host.audit({ kind: "fs", op: "move", path: dest, to: backup });
   }
   try {
-    await moveInto(host, staged, item.dest);
+    await moveInto(host, staged, dest);
   } catch (e) {
     if (hadOld) {
-      await host.fs.rename(backup, item.dest);
-      host.audit({ kind: "fs", op: "move", path: backup, to: item.dest });
+      await host.fs.rename(backup, dest);
+      host.audit({ kind: "fs", op: "move", path: backup, to: dest });
     }
     throw e;
   }
@@ -101,7 +101,7 @@ export async function checkItems(ctx: InstallCtx, items: PlanItem[], consented: 
 export async function installItem(ctx: InstallCtx, item: PlanItem): Promise<string | null> {
   const { host } = ctx;
   try {
-    await placeOne(host, item);
+    await placeOne(host, item.fetched!.staged, item.dest);
   } catch (e) {
     return (e as Error).message;
   }
