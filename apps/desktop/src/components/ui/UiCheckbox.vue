@@ -33,6 +33,7 @@ defineProps<{ value?: T }>();
 }
 .ui-checkbox__input {
   appearance: none;
+  box-sizing: border-box;
   margin: 0;
   width: 1rem;
   height: 1rem;
@@ -59,16 +60,18 @@ defineProps<{ value?: T }>();
   opacity: 0.45;
   cursor: not-allowed;
 }
-/* The tick: two borders of a rotated box, so it takes the theme's knob colour with no image. */
+/* The tick: two borders of a rotated box, so it takes the theme's knob colour with no image. Centred on the
+   box, then raised a little, because a tick's weight sits in its lower stroke. */
 .ui-checkbox__mark {
   position: absolute;
-  left: 0.36rem;
-  top: 0.17rem;
-  width: 0.28rem;
-  height: 0.52rem;
+  left: 50%;
+  top: 50%;
+  box-sizing: border-box;
+  width: 0.34rem;
+  height: 0.6rem;
   border: solid var(--control-on-knob);
   border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  transform: translate(-50%, -60%) rotate(45deg);
   opacity: 0;
   pointer-events: none;
 }
