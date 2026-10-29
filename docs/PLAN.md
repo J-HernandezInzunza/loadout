@@ -724,7 +724,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Depends: M5.06
   - Done when: UI-20 has a test; a prompt toggles; a read-only value shows and offers no switch.
 
-- [ ] **M5.08 Entry page.** `show` on open and on catalog change; the off note without "Parked at"
+- [x] **M5.08 Entry page.** `show` on open and on catalog change; the off note without "Parked at"
   (rebuild); source card; "On this machine"; copies and pins; requires and dependents.
   - Rules: UI-22, UI-23, UI-24, UI-25, UI-29, UI-31
   - Depends: M5.06
