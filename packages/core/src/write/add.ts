@@ -121,19 +121,29 @@ async function prepare(ctx: WriteCtx, input: NewEntryInput, dest: CatalogState, 
   return ok({ type, name: input.name, description: input.description, source: input.source, requires: requires.value });
 }
 
-/** The CLI's new_entry_override_warnings: which copy of a shared name wins, and why. */
-function overrideWarnings(registry: Registry, pins: Record<string, string>, dest: string, name: string): Warning[] {
-  const order = registry.active().map((c) => c.ref.id);
+/**
+ * Which other holders of a name a new copy in `dest` would beat, and which would beat it: a pin decides,
+ * else precedence (`order` = active catalog ids, highest first).
+ */
+export function splitOverrides(order: string[], holders: string[], pinned: string, dest: string): { overrides: string[]; overriddenBy: string[] } {
   const rank = order.indexOf(dest);
-  const pinned = pins[name] ?? "";
   const overrides: string[] = [];
   const overriddenBy: string[] = [];
-  for (const other of registry.active()) {
-    if (other.ref.id === dest || !other.entries.some((e) => e.name === name)) continue;
-    if (pinned === dest) overrides.push(other.ref.id);
-    else if (pinned === other.ref.id) overriddenBy.push(other.ref.id);
-    else (order.indexOf(other.ref.id) > rank ? overrides : overriddenBy).push(other.ref.id);
+  for (const other of order) {
+    if (other === dest || !holders.includes(other)) continue;
+    if (pinned === dest) overrides.push(other);
+    else if (pinned === other) overriddenBy.push(other);
+    else (order.indexOf(other) > rank ? overrides : overriddenBy).push(other);
   }
+  return { overrides, overriddenBy };
+}
+
+/** The CLI's new_entry_override_warnings: which copy of a shared name wins, and why. */
+function overrideWarnings(registry: Registry, pins: Record<string, string>, dest: string, name: string): Warning[] {
+  const active = registry.active();
+  const holders = active.filter((c) => c.entries.some((e) => e.name === name)).map((c) => c.ref.id);
+  const pinned = pins[name] ?? "";
+  const { overrides, overriddenBy } = splitOverrides(active.map((c) => c.ref.id), holders, pinned, dest);
   const out: Warning[] = [];
   if (overrides.length > 0) {
     const why = pinned === dest ? "is pinned" : "takes precedence";

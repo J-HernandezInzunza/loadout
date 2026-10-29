@@ -69,13 +69,13 @@ describe("createLibrary", () => {
     expect(ops.list.output.parse(list.value)).toEqual(list.value);
   });
 
-  it("catalogs reports catalog-level fields, skipped ones included, offline", async () => {
+  it("catalogs reports catalog-level fields, skipped ones included, offline; editable = WRITE-01 accepts it", async () => {
     const { sb, library } = await setup([{ id: "team", kind: "remote", repo: "git@x:o/r.git", yamlPath: "library.yaml", branch: "main", protected: true }]);
     const rows = await library.catalogs();
     if (!rows.ok) throw new Error(rows.error.message);
     expect(rows.value).toEqual([
-      { precedence: 1, id: "A", kind: "local", location: join(sb.root, "a.yaml"), writeMode: "local", writable: true, entries: 3, skipped: null },
-      { precedence: 2, id: "B", kind: "local", location: join(sb.root, "b.yaml"), writeMode: "local", writable: false, entries: 1, skipped: null },
+      { precedence: 1, id: "A", kind: "local", location: join(sb.root, "a.yaml"), writeMode: "local", writable: true, editable: true, entries: 3, skipped: null },
+      { precedence: 2, id: "B", kind: "local", location: join(sb.root, "b.yaml"), writeMode: "local", writable: false, editable: false, entries: 1, skipped: null },
       {
         precedence: 3,
         id: "team",
@@ -83,6 +83,7 @@ describe("createLibrary", () => {
         location: "git@x:o/r.git (main, library.yaml)",
         writeMode: "pr",
         writable: true,
+        editable: false,
         entries: null,
         skipped: `not cloned yet at ${join(sb.host.paths.appData, "clones", "team")}`,
       },
@@ -120,7 +121,7 @@ describe("createLibrary", () => {
       name: "commit-and-push",
       entry: { catalog: "A", overrides: ["B"] },
       copies: [{ catalog: "A", wins: true, subject: true }, { catalog: "B", wins: false, subject: false }],
-      requires: [{ type: "prompt", name: "commit-style", catalog: "A", description: "House style" }],
+      requires: [{ type: "prompt", name: "commit-style", catalog: "A", description: "House style", direct: true, installed: false, state: "not_installed" }],
       unresolvedRequires: [{ ref: "skill:missing", requiredBy: "commit-and-push", reason: "not_found" }],
       dependents: [],
       source: { raw: "https://github.com/org/repo/blob/main/skills/commit/SKILL.md", kind: "github", cloneUrls: expect.any(Array) },
@@ -129,11 +130,47 @@ describe("createLibrary", () => {
 
     const style = await library.show("commit-style");
     expect(style.ok && style.value.dependents).toEqual([
-      { type: "skill", name: "commit-and-push", catalog: "A", description: "Commit staged changes and push", direct: true },
+      { type: "skill", name: "commit-and-push", catalog: "A", description: "Commit staged changes and push", direct: true, installed: false, state: "not_installed" },
     ]);
     expect(style.ok && style.value.source).toEqual({ raw: "not a source", kind: "unknown", error: "unrecognized source format: not a source" });
     const lint = await library.show("lint");
     expect(lint.ok && lint.value.source).toEqual({ raw: "~/skills/lint/SKILL.md", kind: "local", path: join(sb.host.paths.home, "skills/lint/SKILL.md") });
+  });
+
+  it("show says which dependencies the subject declares and what sits at each related destination", async () => {
+    const chain = `library:
+  skills:
+    - name: top
+      description: t
+      source: ~/s/top/SKILL.md
+      requires: ["skill:mid"]
+    - name: mid
+      description: m
+      source: ~/s/mid/SKILL.md
+      requires: ["skill:base"]
+    - name: base
+      description: b
+      source: ~/s/base/SKILL.md
+`;
+    const sb = await createSandbox();
+    const path = join(sb.root, "c.yaml");
+    await writeFile(path, chain);
+    await createConfigStore(sb.host).saveConfig({ version: 1, catalogs: [{ id: "C", kind: "local", path }], pins: {}, settings: {} });
+    const base = join(sb.host.paths.home, ".claude/skills/base");
+    await mkdir(base, { recursive: true });
+    await writeFile(join(base, "SKILL.md"), "hand-made");
+    const library = checked(createLibrary(sb.host));
+
+    const top = await library.show("top");
+    expect(top.ok && top.value.requires.map(({ name, direct, installed, state }) => ({ name, direct, installed, state }))).toEqual([
+      { name: "base", direct: false, installed: true, state: "unmanaged" },
+      { name: "mid", direct: true, installed: false, state: "not_installed" },
+    ]);
+    const shownBase = await library.show("base");
+    expect(shownBase.ok && shownBase.value.dependents.map(({ name, direct, installed }) => ({ name, direct, installed }))).toEqual([
+      { name: "mid", direct: true, installed: false },
+      { name: "top", direct: false, installed: false },
+    ]);
   });
 
   it("show of another catalog's copy reports that copy as the subject", async () => {

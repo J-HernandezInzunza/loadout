@@ -27,7 +27,7 @@ import { createClaudeSettings } from "../claudeSettings/settings.ts";
 import { setSkillState, type ToggleReport } from "../claudeSettings/toggle.ts";
 import { createConfigStore, type AccountInfo, type LoadedConfig } from "../config/config.ts";
 import { applyImport, planImport, type ImportErr, type ImportPlan, type ImportReport } from "../config/import.ts";
-import { dependents, resolveDeps } from "../deps/deps.ts";
+import { dependents, lookup, resolveDeps } from "../deps/deps.ts";
 import { doctor, recloneCatalog, type DoctorReport } from "../doctor/doctor.ts";
 import { createGitClient, type GitClient } from "../git/git.ts";
 import { createOperation, sweepTemp } from "../git/operation.ts";
@@ -48,7 +48,7 @@ import { applyPin, planPin, unpin, type PinPlan, type PinResult } from "../write
 import { applyPush, discardPush, planPush, type PushPlan, type PushRequest, type PushResult } from "../write/push.ts";
 import { applyRemove, planRemove, type RemovePlan, type RemoveRequest } from "../write/remove.ts";
 import { suggestSource, type SourceSuggestion } from "../write/suggest.ts";
-import type { WriteTargetErr } from "../write/target.ts";
+import { writeTarget, type WriteTargetErr } from "../write/target.ts";
 import { applyUpdate, planUpdate, type UpdatePlan, type UpdateRequest } from "../write/update.ts";
 import { discardWrite } from "../write/write.ts";
 import type { CatalogRow, EntryDetail, PinRecord } from "./schemas.ts";
@@ -315,15 +315,22 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
       const own = reg.entriesOf(subject.catalog);
       const deps = resolveDeps(own, subject);
       const record = reg.records().find((e) => e.catalog === subject.catalog && e.type === subject.type && e.name === subject.name)!;
+      const declared = new Set(subject.requires.map((r) => lookup(own, r)));
+      // What sits at the related entry's destination, whichever catalog's copy put it there: that is what
+      // satisfies a dependency at run time.
+      const related = async (e: Entry, direct: boolean) => {
+        const { installed, state } = await installFields(e, view);
+        return { ...ref(e), direct, installed, state };
+      };
       return ok(
         {
           name,
           // RES-08: the subject's install fields as if it won, even when another copy does.
           entry: { ...record, ...(await installFields(subject, view)) },
           copies: reg.copies(name, subject.catalog),
-          requires: deps.order.filter((e) => e !== subject).map(ref),
+          requires: await Promise.all(deps.order.filter((e) => e !== subject).map((e) => related(e, declared.has(e)))),
           unresolvedRequires: deps.unresolved,
-          dependents: dependents(own, subject).map(({ entry: e, direct }) => ({ ...ref(e), direct })),
+          dependents: await Promise.all(dependents(own, subject).map(({ entry: e, direct }) => related(e, direct))),
           installs: view.receipts.filter((r) => r.name === subject.name && r.type === subject.type),
           source: shownSource(subject.source, home),
         },
@@ -343,6 +350,7 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
           location: c.ref.kind === "remote" ? `${c.ref.repo} (${c.ref.branch}, ${c.ref.yamlPath})` : c.file,
           writeMode: c.ref.kind === "local" ? "local" : c.ref.protected ? "pr" : "direct",
           writable: c.ref.writable !== false,
+          editable: writeTarget(reg, { op: "add", catalog: c.ref.id }).ok,
           entries: c.skipped === undefined ? c.entries.length : null,
           skipped: c.skipped ?? null,
         })),

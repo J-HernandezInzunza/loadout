@@ -19,6 +19,7 @@ export function catalogRow(overrides: Partial<CatalogRow> = {}): CatalogRow {
     location: `${seedHome}/catalog/library.yaml`,
     writeMode: "local",
     writable: true,
+    editable: true,
     entries: 0,
     skipped: null,
     ...overrides,

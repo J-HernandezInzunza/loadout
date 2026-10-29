@@ -25,7 +25,7 @@ const record = (name: string, extra: Partial<EntryRecord> = {}): EntryRecord => 
   ...extra,
 });
 
-const catalog = { precedence: 1, id: "team", kind: "remote" as const, location: "git@x:o/cat.git (main, library.yaml)", writeMode: "pr" as const, writable: true, entries: 2, skipped: null };
+const catalog = { precedence: 1, id: "team", kind: "remote" as const, location: "git@x:o/cat.git (main, library.yaml)", writeMode: "pr" as const, writable: true, editable: true, entries: 2, skipped: null };
 
 function setup(launched: Result<LaunchReport>, overrides: Partial<Library> = {}) {
   const library = createFakeLibrary({ catalogs: [catalog], entries: [record("tidy", { state: "installed", installed: true, disabled: true }), record("lint")] }, overrides);
