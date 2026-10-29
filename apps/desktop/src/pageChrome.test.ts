@@ -1,6 +1,7 @@
 // The shared page chrome, guarded against the source: the defects it catches only exist between screens,
 // as a control that jumps when you navigate, which no single-component test can see.
 import { describe, expect, it } from "vitest";
+import tauriConfig from "../src-tauri/tauri.conf.json";
 import { appCss, components } from "./assets/styleSources.ts";
 
 const source = (name: string) => components().find(([path]) => path === name || path.endsWith(`/${name}`))?.[1] ?? "";
@@ -78,5 +79,18 @@ describe("UI-09, UI-55: page chrome", () => {
       const offenders = views().filter(([, src]) => /<template #badges>[\s\S]*?<button[\s\S]*?<\/template>/.test(src.match(/<template #badges>[\s\S]*?<\/template>/)?.[0] ?? ""));
       expect(offenders.map(([p]) => p)).toEqual([]);
     });
+  });
+});
+
+describe("the window's minimum size", () => {
+  // The list's cards keep a name, its catalog, a provenance note and the install badge on one line at this width.
+  const LIST_MIN_PX = 640;
+
+  it("leaves the list at least its minimum beside the sidebar", () => {
+    const [main] = tauriConfig.app.windows;
+    const sidebarRem = /grid-template-columns:\s*([\d.]+)rem/.exec(source("CatalogView.vue"))?.[1];
+    expect(sidebarRem).toBeDefined();
+    expect(main!.minWidth - Number(sidebarRem) * 16).toBeGreaterThanOrEqual(LIST_MIN_PX);
+    expect(main!.minHeight).toBeGreaterThanOrEqual(480);
   });
 });
