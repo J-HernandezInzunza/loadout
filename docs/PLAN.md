@@ -766,7 +766,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Depends: M5.04
   - Done when: each rule has a test; `Sync.spec.ts` and `Doctor.spec.ts` are ported.
 
-- [ ] **M5.14 Catalogs and registration.** Registry level (add, health), pinned names, unregister
+- [x] **M5.14 Catalogs and registration.** Registry level (add, health), pinned names, unregister
   with an in-flight guard (§4.10), a catalog's entries; register an existing catalog, create a new
   one, or add a shared one, with a picker that matches its hint (§4.10).
   - Rules: UI-41, UI-42, UI-43, UI-44, UI-45
