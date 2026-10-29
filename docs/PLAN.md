@@ -594,12 +594,11 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: `cargo test` covers cache hit, cache miss, a probe timeout and a corrupt cache file;
     launch time with a warm cache doesn't wait on the shell.
 
-- [ ] **M4.11 App wiring and debug view.** `main.ts` builds the Tauri host and one `createLibrary`
+- [x] **M4.11 App wiring and debug view.** `main.ts` builds the Tauri host and one `createLibrary`
   instance, runs `launch`, and shows a throwaway debug view (catalogs, entries with install state,
   the audit log) to prove the host end to end; `apps/desktop/src/spike/` is removed.
   - Rules: none (arch §2.5)
   - Depends: M4.05, M4.06, M4.07, M4.08, M4.09, M4.10
-  - Blocked: (manual; the owner launches the debug build from Finder) code done, see PROGRESS.md
   - Done when: a dev build launched from Finder lists the registered catalogs and their entries, and
     the audit log shows the launch's git calls.
 

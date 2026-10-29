@@ -65,9 +65,9 @@ Browser sign-in (architecture.md §5.5) needs two registrations outside the code
 
 M2 and M3 test with injected tokens, so nothing waits on this until M4.
 
-**Answer:**
+**Answer: I will register it, but need a walkthrough of scopes/permissions to define**
 
-## Q6. A fourth Rust command for `realPath` (assumed A in M4.06; confirm or redirect)
+## Q6. A fourth Rust command for `realPath` (resolved 2026-10-29: A confirmed)
 
 `HostFs.realPath` resolves symlinks, and the core uses it in six places (local catalog keys, the
 `~/.claude/settings.json` symlink, the import's `~/.claude/skills/library` link, fetch, suggest,
@@ -84,4 +84,4 @@ architecture.md §2.4 allows no `#[tauri::command]` but the three Keychain ones.
 - [ ] C. No command: treat `realPath` as identity on the Tauri host. Breaks the symlinked
       `settings.json` case (arch §4.5) and catalog identity through symlinks.
 
-**Answer:**
+**Answer: confirmed**
