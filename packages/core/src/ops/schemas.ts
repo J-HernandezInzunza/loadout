@@ -1,7 +1,9 @@
 // Input and output schemas for every Library op (architecture.md §8.2), so tool definitions are
 // generated rather than hand-written. Outputs are the `value` of the op's Result.
 import { z } from "zod";
-import { Entry, EntryType, Source } from "../model/model.ts";
+import { TokenSet } from "../accounts/accounts.ts";
+import { AccountInfo } from "../config/config.ts";
+import { CatalogRef, Entry, EntryType, Source } from "../model/model.ts";
 import { ReceiptV2 } from "../receipts/receipts.ts";
 
 const catalogOption = { catalog: z.string().exactOptional() };
@@ -86,11 +88,13 @@ export const EntryDetail = z.strictObject({
 export type EntryDetail = z.infer<typeof EntryDetail>;
 
 /** Plans are shown and handed back unedited (architecture.md §8.3), so their fields aren't part of the contract. */
-const plan = <B extends string>() =>
-  z.custom<object>((v) => typeof v === "object" && v !== null && Array.isArray((v as { items?: unknown }).items), "not a plan").brand<B>();
-const InstallPlan = plan<"InstallPlan">();
-const SyncPlan = plan<"SyncPlan">();
-const MigratePlan = plan<"MigratePlan">();
+const plan = <B extends string>(key: string) =>
+  z.custom<object>((v) => typeof v === "object" && v !== null && key in v, "not a plan").brand<B>();
+const InstallPlan = plan<"InstallPlan">("items");
+const SyncPlan = plan<"SyncPlan">("items");
+const MigratePlan = plan<"MigratePlan">("items");
+const AddCatalogPlan = plan<"AddCatalogPlan">("ref");
+const ImportPlan = plan<"ImportPlan">("config");
 
 const Ref = z.strictObject({ type: EntryType, name: z.string(), catalog: z.string() });
 const files = z.array(z.string());
@@ -133,6 +137,48 @@ const SyncReport = z.strictObject({
 });
 export type CatalogRow = z.infer<typeof CatalogRow>;
 
+export const PinRecord = z.strictObject({
+  name: z.string(),
+  catalog: z.string(),
+  /** active catalogs that define the name, in registry order */
+  holders: z.array(z.string()),
+  /** RES-11: the pinned catalog doesn't hold the name (unregistered, skipped or lacking it), so the pin is inert */
+  dangling: z.boolean(),
+  resolvesTo: z.string().nullable(),
+});
+export type PinRecord = z.infer<typeof PinRecord>;
+
+const Finding = z.strictObject({
+  check: z.string(),
+  severity: z.enum(["error", "warning"]),
+  catalog: z.string().nullable(),
+  entry: z.string().nullable(),
+  message: z.string(),
+  action: z.strictObject({ kind: z.literal("reclone"), catalog: z.string() }).exactOptional(),
+});
+const DoctorReport = z.strictObject({
+  status: z.enum(["ok", "problems"]),
+  entries: z.int(),
+  errors: z.array(Finding),
+  warnings: z.array(Finding),
+});
+
+const placement = { writable: z.boolean().exactOptional(), position: z.enum(["first", "last"]).exactOptional() };
+const AddCatalogRequest = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("local"), id: z.string(), path: z.string(), ...placement }),
+  z.strictObject({
+    kind: z.literal("remote"),
+    id: z.string(),
+    repo: z.string(),
+    protected: z.boolean(),
+    branch: z.string().exactOptional(),
+    yamlPath: z.string().exactOptional(),
+    ...placement,
+  }),
+]);
+const Registered = z.array(CatalogRef);
+const AccountHost = z.enum(["github", "bitbucket"]);
+
 export const ops = {
   list: { input: z.strictObject({ ...catalogOption, checkRemote: z.boolean().exactOptional() }), output: z.array(EntryRecord) },
   search: { input: z.strictObject({ query: z.string(), ...catalogOption }), output: z.array(EntryRecord) },
@@ -155,4 +201,25 @@ export const ops = {
   planSync: { input: z.strictObject({ ...catalogOption, force: z.boolean().exactOptional() }), output: SyncPlan },
   applySync: { input: z.strictObject({ plan: SyncPlan }), output: SyncReport },
   discardPlan: { input: z.strictObject({ plan: z.union([InstallPlan, SyncPlan]) }), output: z.undefined() },
+  pins: { input: z.strictObject({}), output: z.array(PinRecord) },
+  doctor: { input: z.strictObject({ deep: z.boolean().exactOptional(), noPull: z.boolean().exactOptional() }), output: DoctorReport },
+  recloneCatalog: { input: z.strictObject({ id: z.string() }), output: z.undefined() },
+  planAddCatalog: { input: AddCatalogRequest, output: AddCatalogPlan },
+  applyAddCatalog: { input: z.strictObject({ plan: AddCatalogPlan }), output: Registered },
+  initCatalog: {
+    input: z.strictObject({ path: z.string(), id: z.string().exactOptional(), position: placement.position }),
+    output: z.strictObject({ created: z.string(), catalogs: Registered }),
+  },
+  removeCatalog: {
+    input: z.strictObject({ id: z.string(), purgeClone: z.boolean().exactOptional(), purgeInstalls: z.boolean().exactOptional() }),
+    output: z.strictObject({ purgedClone: z.boolean(), purgedInstalls: z.array(z.string()), clearedReceipts: z.int() }),
+  },
+  planImport: { input: z.strictObject({ toolDir: z.string().exactOptional() }), output: ImportPlan },
+  applyImport: {
+    input: z.strictObject({ plan: ImportPlan }),
+    output: z.strictObject({ catalogs: z.int(), pins: z.int(), notImported: z.array(z.string()) }),
+  },
+  accounts: { input: z.strictObject({}), output: z.strictObject({ github: AccountInfo.exactOptional(), bitbucket: AccountInfo.exactOptional() }) },
+  connect: { input: z.strictObject({ on: AccountHost, tokens: TokenSet }), output: AccountInfo },
+  disconnect: { input: z.strictObject({ on: AccountHost }), output: z.undefined() },
 };

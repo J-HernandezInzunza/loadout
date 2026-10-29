@@ -2,14 +2,25 @@
 // instances. Reads load config, catalogs and the install dirs each call and never touch the network,
 // except list({ checkRemote }) (UPD-06) and refresh().
 import type { z } from "zod";
-import { createAccounts } from "../accounts/accounts.ts";
+import { createAccounts, type AccountHost, type TokenSet } from "../accounts/accounts.ts";
 import { defaultApiBases, type ApiBases } from "../accounts/apiBases.ts";
 import { refreshCatalogs, type CatalogRefresh } from "../catalogs/catalogs.ts";
+import {
+  applyAddCatalog,
+  initCatalog,
+  planAddCatalog,
+  removeCatalog,
+  type AddCatalogPlan,
+  type AddCatalogRequest,
+  type RemoveCatalogReport,
+} from "../catalogs/register.ts";
 import { applyMigrateParked, planMigrateParked, type MigrateReport, type ParkedSkill } from "../claudeSettings/migrate.ts";
 import { createClaudeSettings } from "../claudeSettings/settings.ts";
 import { setSkillState, type ToggleReport } from "../claudeSettings/toggle.ts";
-import { createConfigStore } from "../config/config.ts";
+import { createConfigStore, type AccountInfo } from "../config/config.ts";
+import { applyImport, planImport, type ImportErr, type ImportPlan, type ImportReport } from "../config/import.ts";
 import { dependents, resolveDeps } from "../deps/deps.ts";
+import { doctor, recloneCatalog, type DoctorReport } from "../doctor/doctor.ts";
 import { createGitClient, type GitClient } from "../git/git.ts";
 import { createOperation } from "../git/operation.ts";
 import type { Host } from "../host.ts";
@@ -17,19 +28,21 @@ import { applyInstall, type ApplyOpts, type ApplyReport } from "../install/apply
 import { discardPlan, planInstall, type InstallPlan } from "../install/plan.ts";
 import { applySync, planSync, type SyncPlan, type SyncReport } from "../install/sync.ts";
 import { uninstall, type UninstallItem } from "../install/uninstall.ts";
-import { LibraryError, ok, type Entry, type Result, type Warning } from "../model/model.ts";
+import { LibraryError, ok, type CatalogRef, type Entry, type Result, type Warning } from "../model/model.ts";
 import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type EntryRecord, type Registry, type ResolveErr } from "../registry/registry.ts";
 import { destFor, destState, readLegacyInstalls, scanInstallDirs, type ScanReport } from "../scan/scan.ts";
 import { cloneUrls, parseSource } from "../source/source.ts";
 import { isStale } from "../update/update.ts";
-import type { CatalogRow, EntryDetail } from "./schemas.ts";
+import type { CatalogRow, EntryDetail, PinRecord } from "./schemas.ts";
 
 /** A plan as the facade hands it out (architecture.md §8.3): readable, but only a Library makes one, and it comes back unedited. */
 export type Issued<P, B extends string> = P & z.$brand<B>;
 export type IssuedInstallPlan = Issued<InstallPlan, "InstallPlan">;
 export type IssuedSyncPlan = Issued<SyncPlan, "SyncPlan">;
 export type IssuedMigratePlan = Issued<{ items: ParkedSkill[] }, "MigratePlan">;
+export type IssuedAddCatalogPlan = Issued<AddCatalogPlan, "AddCatalogPlan">;
+export type IssuedImportPlan = Issued<ImportPlan, "ImportPlan">;
 
 export interface Library {
   /** Every copy of every entry, in resolution order; `checkRemote` asks each installed remote source whether it moved (UPD-06). */
@@ -57,6 +70,25 @@ export interface Library {
   applySync(plan: IssuedSyncPlan, opts?: { signal?: AbortSignal }): Promise<Result<SyncReport>>;
   /** Removes the staged copies of a plan that won't be applied; apply removes them itself. */
   discardPlan(plan: IssuedInstallPlan | IssuedSyncPlan): Promise<Result<void>>;
+
+  /** §3.6's list: every pin by name, and whether it is dangling (RES-11: its catalog doesn't hold the name, so it is inert). */
+  pins(): Promise<Result<PinRecord[]>>;
+  doctor(opts?: { deep?: boolean; noPull?: boolean }): Promise<Result<DoctorReport>>;
+  /** A4: replace a diverged clone with a fresh one. */
+  recloneCatalog(id: string): Promise<Result<void>>;
+  /** Clones or reads the catalog to prove it works before anything is saved. */
+  planAddCatalog(req: AddCatalogRequest & { signal?: AbortSignal }): Promise<Result<IssuedAddCatalogPlan>>;
+  /** The registry after the add, highest precedence first. */
+  applyAddCatalog(plan: IssuedAddCatalogPlan): Promise<Result<CatalogRef[]>>;
+  initCatalog(req: { path: string; id?: string; position?: "first" | "last" }): Promise<Result<{ created: string; catalogs: CatalogRef[] }>>;
+  removeCatalog(req: { id: string; purgeClone?: boolean; purgeInstalls?: boolean }): Promise<Result<RemoveCatalogReport>>;
+  /** The Python CLI's config.local.yaml, found through ~/.claude/skills/library unless `toolDir` is given. */
+  planImport(toolDir?: string): Promise<Result<IssuedImportPlan, ImportErr>>;
+  applyImport(plan: IssuedImportPlan): Promise<Result<ImportReport>>;
+  accounts(): Promise<Result<Partial<Record<AccountHost, AccountInfo>>>>;
+  /** What a sign-in flow ends with: validates the token, then keeps it in Host.secrets. */
+  connect(on: AccountHost, tokens: TokenSet): Promise<Result<AccountInfo>>;
+  disconnect(on: AccountHost): Promise<Result<void>>;
 }
 
 export interface LibraryOptions {
@@ -65,6 +97,8 @@ export interface LibraryOptions {
   claudeConfigDir?: string;
   /** tests only: the API stub's bases (architecture.md §6) */
   apiBases?: ApiBases;
+  /** tests only: macOS's managed-settings.json otherwise */
+  managedSettingsFile?: string;
   /** the Bitbucket OAuth consumer, injected into release builds */
   bitbucketClient?: { id: string; secret: string };
 }
@@ -98,7 +132,16 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
   const apiBases = opts.apiBases ?? defaultApiBases;
   const accounts = createAccounts(host, store, { apiBases, ...(opts.bitbucketClient && { bitbucketClient: opts.bitbucketClient }) });
   // Everything an op needs, built once per instance (architecture.md §8.7).
-  const ctx = { host, git, config: store, receipts: receiptStore, settings, accounts, apiBases };
+  const ctx = {
+    host,
+    git,
+    config: store,
+    receipts: receiptStore,
+    settings,
+    accounts,
+    apiBases,
+    ...(opts.managedSettingsFile !== undefined && { managedSettingsFile: opts.managedSettingsFile }),
+  };
   const home = host.paths.home;
 
   const loadAll = async (): Promise<Result<{ reg: Registry; view: InstallView; installs: string | undefined }>> => {
@@ -270,6 +313,65 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
     async discardPlan(plan) {
       await discardPlan(host, plan);
       return ok(undefined);
+    },
+
+    async pins() {
+      const loaded = await store.loadConfig();
+      if (!loaded.ok) return loaded;
+      const reg = await loadRegistry(host, loaded.value.config);
+      const active = reg.active().map((c) => c.ref.id);
+      const pins = Object.entries(loaded.value.config.pins).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+      return ok(
+        pins.map(([name, catalog]) => {
+          const holders = active.filter((id) => reg.entriesOf(id).some((e) => e.name === name));
+          const resolved = reg.resolve(name);
+          return { name, catalog, holders, dangling: !holders.includes(catalog), resolvesTo: resolved.ok ? resolved.value.catalog : null };
+        }),
+      );
+    },
+
+    async doctor(o = {}) {
+      return doctor(ctx, o);
+    },
+
+    async recloneCatalog(id) {
+      return recloneCatalog(ctx, id);
+    },
+
+    async planAddCatalog(req) {
+      return (await planAddCatalog(ctx, req, req)) as Result<IssuedAddCatalogPlan>;
+    },
+
+    async applyAddCatalog(plan) {
+      return applyAddCatalog(ctx, plan);
+    },
+
+    async initCatalog(req) {
+      return initCatalog(ctx, req);
+    },
+
+    async removeCatalog(req) {
+      return removeCatalog(ctx, req);
+    },
+
+    async planImport(toolDir) {
+      return (await planImport(host, toolDir)) as Result<IssuedImportPlan, ImportErr>;
+    },
+
+    async applyImport(plan) {
+      return applyImport(host, store, plan);
+    },
+
+    async accounts() {
+      return accounts.accounts();
+    },
+
+    async connect(on, tokens) {
+      return accounts.connect(on, tokens);
+    },
+
+    async disconnect(on) {
+      return accounts.disconnect(on);
     },
   };
 }
