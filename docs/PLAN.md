@@ -568,7 +568,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: `mockIPC` tests cover a timeout and an abort killing the child; the audit buffer never
     holds an env value (tokens travel in env, arch §5.5).
 
-- [ ] **M4.08 Keychain secrets.** Rust `secret_get`/`secret_set`/`secret_delete` with the `keyring`
+- [x] **M4.08 Keychain secrets.** Rust `secret_get`/`secret_set`/`secret_delete` with the `keyring`
   crate (service `com.jhernandezinzunza.loadout`, account `<host>`), the one exception to "no
   commands" (arch §2.4); `HostSecrets` in host-tauri invokes them.
   - Rules: none (arch §5.5)
