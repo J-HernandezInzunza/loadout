@@ -8,6 +8,8 @@ import { useActivityStore } from "../stores/activity.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import RepoPicker, { type RepoPick } from "./RepoPicker.vue";
 import StatusBanner from "./StatusBanner.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
+import UiRadio from "./ui/UiRadio.vue";
 
 export type RegisterMode = "existing" | "create" | "remote";
 
@@ -195,21 +197,18 @@ function registerAnother() {
         role="radiogroup"
         aria-label="How to add the catalog"
       >
-        <label><input
+        <label><UiRadio
           v-model="mode"
-          type="radio"
           value="existing"
-        > Register an existing catalog</label>
-        <label><input
+        /> Register an existing catalog</label>
+        <label><UiRadio
           v-model="mode"
-          type="radio"
           value="create"
-        > Create a new empty one</label>
-        <label><input
+        /> Create a new empty one</label>
+        <label><UiRadio
           v-model="mode"
-          type="radio"
           value="remote"
-        > Add a shared repository</label>
+        /> Add a shared repository</label>
       </div>
       <p class="register__hint register__mode-hint">
         {{ modeHint }}
@@ -274,21 +273,18 @@ function registerAnother() {
           >
             <span>Where it lives</span>
             <div class="register__where">
-              <label><input
+              <label><UiRadio
                 v-model="where"
-                type="radio"
                 value="github"
-              > GitHub</label>
-              <label><input
+              /> GitHub</label>
+              <label><UiRadio
                 v-model="where"
-                type="radio"
                 value="bitbucket"
-              > Bitbucket</label>
-              <label><input
+              /> Bitbucket</label>
+              <label><UiRadio
                 v-model="where"
-                type="radio"
                 value="elsewhere"
-              > Somewhere else</label>
+              /> Somewhere else</label>
             </div>
           </div>
           <RepoPicker
@@ -325,10 +321,9 @@ function registerAnother() {
             </label>
           </template>
           <label class="register__check">
-            <input
+            <UiCheckbox
               v-model="protectedRemote"
-              type="checkbox"
-            >
+            />
             <span>
               Changes to this catalog go through a pull request. Leave this on for anything your team shares; turning it
               off means a write commits straight to {{ remoteBranch }}, with no review.
@@ -338,10 +333,9 @@ function registerAnother() {
             v-if="needsDirectPushAck"
             class="register__check register__check--warn"
           >
-            <input
+            <UiCheckbox
               v-model="directPushAck"
-              type="checkbox"
-            >
+            />
             <span>
               I understand: with the box above unchecked, edits to this catalog push directly to
               {{ remoteBranch }} — no pull request, no review step. This has to be checked to register with
@@ -356,10 +350,9 @@ function registerAnother() {
           v-if="catalogs.length > 0"
           class="register__check"
         >
-          <input
+          <UiCheckbox
             v-model="wins"
-            type="checkbox"
-          >
+          />
           <span>
             When another catalog defines the same name, use this catalog's copy. That is usually right for a catalog of
             your own and wrong for one you are only reading.

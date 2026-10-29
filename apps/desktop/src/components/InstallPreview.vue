@@ -8,6 +8,8 @@ import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
+import UiSelect from "./ui/UiSelect.vue";
 
 type Plan = Parameters<Library["applyInstall"]>[0];
 type Report = Extract<Awaited<ReturnType<Library["applyInstall"]>>, { ok: true }>["value"];
@@ -162,7 +164,7 @@ onUnmounted(() => void discard());
       >
         <label class="install-preview__field">
           <span class="install-preview__label">Install from</span>
-          <select
+          <UiSelect
             v-model="source"
             class="install-preview__source"
           >
@@ -173,16 +175,15 @@ onUnmounted(() => void discard());
             >
               {{ option.catalog }}{{ option.overriddenBy === null ? (option.pinned ? " · default, pinned" : " · default") : "" }}
             </option>
-          </select>
+          </UiSelect>
         </label>
         <label
           v-if="overriding"
           class="install-preview__remember"
         >
-          <input
+          <UiCheckbox
             v-model="remember"
-            type="checkbox"
-          >
+          />
           <span>
             Always use {{ source }} for {{ name }}. Without this the choice applies to this install only, and the next
             refresh goes back to {{ resolving || "whatever the catalog order resolves" }}.
@@ -339,10 +340,9 @@ onUnmounted(() => void discard());
           v-if="drifted.length"
           class="install-preview__ack"
         >
-          <input
+          <UiCheckbox
             v-model="acknowledged"
-            type="checkbox"
-          >
+          />
           Overwrite {{ drifted.length }} locally edited {{ drifted.length === 1 ? "copy" : "copies" }}, discarding those
           edits.
         </label>
@@ -466,17 +466,6 @@ onUnmounted(() => void discard());
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-}
-.install-preview__source {
-  align-self: flex-start;
-  max-width: 100%;
-  padding: 0.35rem 0.5rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-control);
-  background: transparent;
-  color: inherit;
-  font-family: inherit;
-  font-size: 0.85rem;
 }
 .install-preview__remember {
   display: flex;

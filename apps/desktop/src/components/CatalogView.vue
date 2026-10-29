@@ -11,6 +11,8 @@ import CatalogSummary from "./CatalogSummary.vue";
 import EntryList from "./EntryList.vue";
 import ListSidebar from "./ListSidebar.vue";
 import StatusBanner from "./StatusBanner.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
+import UiSelect from "./ui/UiSelect.vue";
 
 const catalog = useCatalogStore();
 const { entries, catalogs, loading, failure, lastPulled, pullWarnings, firstLoad } = storeToRefs(catalog);
@@ -133,7 +135,7 @@ const freshness = computed(() => {
       >
         <label class="toolbar__from">
           From
-          <select v-model="fromChoice">
+          <UiSelect v-model="fromChoice">
             <option value="">every catalog</option>
             <option
               v-for="c in catalogs"
@@ -142,7 +144,7 @@ const freshness = computed(() => {
             >
               {{ c.id }} ({{ c.skipped ? "not loaded" : c.entries }})
             </option>
-          </select>
+          </UiSelect>
         </label>
         <div
           class="toolbar__state"
@@ -177,10 +179,9 @@ const freshness = computed(() => {
           v-if="from === null && state === 'any' && overriddenCount"
           class="toolbar__toggle"
         >
-          <input
+          <UiCheckbox
             v-model="hideOverridden"
-            type="checkbox"
-          >
+          />
           Hide overridden
         </label>
       </div>
@@ -358,14 +359,6 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-}
-.toolbar__from select {
-  padding: 0.25rem 0.4rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-control);
-  background: transparent;
-  color: inherit;
-  font: inherit;
 }
 .toolbar__state {
   display: inline-flex;

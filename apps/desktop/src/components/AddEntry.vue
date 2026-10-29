@@ -14,6 +14,8 @@ import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
 import WriteGate from "./WriteGate.vue";
 import WriteLanding from "./WriteLanding.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
+import UiSelect from "./ui/UiSelect.vue";
 
 type Pin = Extract<Awaited<ReturnType<Library["pins"]>>, { ok: true }>["value"][number];
 type Suggestion = Extract<Awaited<ReturnType<Library["suggestSource"]>>, { ok: true }>["value"];
@@ -202,13 +204,13 @@ async function reveal(path: string) {
 
         <label class="add-entry__field">
           <span>Type</span>
-          <select v-model="type">
+          <UiSelect v-model="type">
             <option
               v-for="option in TYPES"
               :key="option"
               :value="option"
             >{{ option }}</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="add-entry__field">
@@ -279,11 +281,10 @@ async function reveal(path: string) {
               :key="option"
               class="add-entry__check"
             >
-              <input
+              <UiCheckbox
                 v-model="requires"
-                type="checkbox"
                 :value="option"
-              >
+              />
               <span>{{ option }}</span>
             </label>
           </div>
@@ -329,8 +330,7 @@ async function reveal(path: string) {
   font-size: 0.78rem;
   opacity: 0.85;
 }
-.add-entry__field input,
-.add-entry__field select {
+.add-entry__field input {
   padding: 0.45rem 0.6rem;
   border-radius: 8px;
   border: 1px solid var(--border-control);

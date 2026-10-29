@@ -8,6 +8,7 @@ import { useViewStore } from "../stores/views.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
 
 type Report = Extract<Awaited<ReturnType<Library["doctor"]>>, { ok: true }>["value"];
 type Finding = Report["errors"][number];
@@ -71,12 +72,11 @@ onMounted(run);
       <template #actions>
         <!-- Disabled while running, so a click mid-run can't start a second run. -->
         <label class="doctor__deep">
-          <input
+          <UiCheckbox
             v-model="deep"
-            type="checkbox"
             :disabled="loading"
             @change="run()"
-          >
+          />
           Deep checks (reaches the network)
         </label>
         <button

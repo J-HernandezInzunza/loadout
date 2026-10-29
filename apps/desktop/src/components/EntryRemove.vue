@@ -9,6 +9,7 @@ import { useCatalogStore } from "../stores/catalog.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
 import WriteGate from "./WriteGate.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
 
 const props = defineProps<{ entry: EntryRecord }>();
 const emit = defineEmits<{
@@ -105,10 +106,9 @@ async function confirm() {
           they are, and there will be no entry left to uninstall them from.
         </p>
         <label class="remove__purge">
-          <input
+          <UiCheckbox
             v-model="purge"
-            type="checkbox"
-          >
+          />
           <span>
             Also delete the installed copy. This deletes whatever is at {{ entry.locations[0] }}, including anything you
             put there yourself — the receipt check that normally refuses that does not apply here.
