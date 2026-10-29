@@ -37,6 +37,45 @@ uses them.
 | `describeDependencyWrite` | words | Vue (M5.13) if sync's dependencies need it; the old states are gone |
 | `describeDestState` | words | Vue (M5.11) |
 
+## Old app specs (M5.16)
+
+Each of the old app's 31 spec files (`the-library-skill/desktop/src/**/*.spec.ts`), and where it went.
+Paths on the right are under `apps/desktop/src/`.
+
+| Old spec | Outcome | Now |
+|---|---|---|
+| `App.spec.ts` | ported, in part | `App.test.ts` (pulls, loading, failures, freshness, trail), `components/CatalogView.test.ts` (tabs, empty states, counts, strip), `components/BulkInstall.test.ts` (selection); dropped: FirstRun routing (M6.01), browser-only mode (W-UI4), `describeAppError` cases (UI-56 drop) |
+| `assets/buttons.spec.ts` | ported | `assets/buttons.test.ts`, over `assets/app.css` instead of `App.vue` |
+| `assets/contrast.spec.ts` | ported | `assets/contrast.test.ts` |
+| `assets/tokens.spec.ts` | ported | `assets/tokens.test.ts`, `app.css` included |
+| `catalog.spec.ts` | ported, in part | wording: `catalog.test.ts`; decisions: core `ops/views.test.ts` and `ops/library.test.ts` (M5.02); dropped: scope, location and parked-path cases (global installs only, no parking), `isOnDisk` (one `installed` field), `purgeable` (no scope to block it) |
+| `commandActivity.spec.ts` | ported | `stores/activity.test.ts`; `beginIntent` folded into `withActivity`; bootstrap and `claude` labels dropped with those features |
+| `components/AddEntry.spec.ts` | ported | `components/AddEntry.test.ts`; the install-dir case is the core's refusal now |
+| `components/AppearanceToggle.spec.ts` | ported | `components/AppearanceToggle.test.ts` |
+| `components/BulkInstall.spec.ts` | ported | `components/BulkInstall.test.ts` |
+| `components/Catalogs.spec.ts` | ported | `components/CatalogsView.test.ts` |
+| `components/CommandLog.spec.ts` | ported | `components/CommandLog.test.ts`, over the audit log instead of Tauri events |
+| `components/Doctor.spec.ts` | ported | `components/DoctorView.test.ts` |
+| `components/EntryDetail.spec.ts` | ported | `components/EntryDetail.test.ts`, `components/CopyChooser.test.ts` (pins) |
+| `components/EntryEditor.spec.ts` | ported | `components/EntryAuthoring.test.ts` |
+| `components/EntryList.spec.ts` | ported | `components/EntryList.test.ts`, `components/EntrySwitch.test.ts`; the parked-path tooltip case dropped (no parking) |
+| `components/InstalledCopies.spec.ts` | ported | `components/EntryDetail.test.ts` (UI-25), `components/InstalledCopies.test.ts` (actions) |
+| `components/InstallPreview.spec.ts` | ported, global cases | `components/InstallView.test.ts`; project scope, recent directories and the unverified-install warning dropped (UI-33 drop; verification happens in staging) |
+| `components/RegisterCatalog.spec.ts` | ported | `components/RegisterCatalog.test.ts` |
+| `components/SecretPrompt.spec.ts` | dropped | guided setup is deferred (behaviors.md §4.9, app/later) |
+| `components/SetupReadiness.spec.ts` | dropped | guided setup is deferred (§4.9) |
+| `components/StatusBanner.spec.ts` | ported | `components/StatusBanner.test.ts` |
+| `components/Sync.spec.ts` | ported | `components/SyncView.test.ts`, plan-then-apply |
+| `components/UninstallControl.spec.ts` | ported | `components/InstalledCopies.test.ts` (UI-26), global copy only |
+| `components/Walkthrough.spec.ts` | dropped | the agent walkthrough is deferred (§4.9) |
+| `pageChrome.spec.ts` | ported | `pageChrome.test.ts` |
+| `recentProjects.spec.ts` | dropped | gone with project scope (W-UI5) |
+| `setup.spec.ts` | dropped | guided setup is deferred (§4.9) |
+| `statusFeedback.spec.ts` | ported | `statusFeedback.test.ts` |
+| `theme.spec.ts` | ported | `theme.test.ts`; the plain-browser case dropped (W-UI4) |
+| `toasts.spec.ts` | ported | `stores/toasts.test.ts`, `components/ToastStack.test.ts` |
+| `walkthrough.spec.ts` | dropped | the agent walkthrough is deferred (§4.9) |
+
 ## Log
 
 2026-10-28 M1.01 50d467a rule-coverage test: checked tasks' rule ids must appear in a describe/it/test title
