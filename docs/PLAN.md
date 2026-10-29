@@ -599,6 +599,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   the audit log) to prove the host end to end; `apps/desktop/src/spike/` is removed.
   - Rules: none (arch §2.5)
   - Depends: M4.05, M4.06, M4.07, M4.08, M4.09, M4.10
+  - Blocked: (manual; the owner launches the debug build from Finder) code done, see PROGRESS.md
   - Done when: a dev build launched from Finder lists the registered catalogs and their entries, and
     the audit log shows the launch's git calls.
 
