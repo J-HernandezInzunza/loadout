@@ -58,12 +58,13 @@ const opened = () => ipc.filter(([cmd]) => cmd === "plugin:opener|open_url").map
 async function openAccounts(library: Partial<Library> = {}) {
   const mounted = mountApp(library);
   await flushPromises();
-  await press(mounted.wrapper, "Accounts");
+  await mounted.wrapper.find(".sidebar__accounts .sidebar__item").trigger("click");
+  await flushPromises();
   return mounted;
 }
 
 describe("accounts page", () => {
-  it("opens from the list's header and shows each host's account, or that none is signed in", async () => {
+  it("opens from the sidebar's Accounts and shows each host's account, or that none is signed in", async () => {
     const { wrapper } = await openAccounts();
     expect(wrapper.find(".page-title__heading").text()).toBe("Accounts");
     expect(say(wrapper, "github")).toContain("Signed in as octo since 2026-10-01");

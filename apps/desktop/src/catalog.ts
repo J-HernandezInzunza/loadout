@@ -1,6 +1,6 @@
 // Wording, ranking and colour for the catalog list; what the rows are (winners, provenance, install state)
 // is decided in the core and read off its records.
-import { groupByName, type CatalogRow, type EntryRecord, type Library, type PlanItem } from "@loadout/core";
+import { groupByName, type CatalogRow, type EntryRecord, type EntryType, type Library, type PlanItem } from "@loadout/core";
 
 const HUES = [211, 275, 25, 320];
 
@@ -9,8 +9,16 @@ export function catalogHue(precedence: number): number {
   return HUES[(precedence - 1) % HUES.length]!;
 }
 
-/** Which tab the list shows: every catalog, one of them, or what is switched off. */
-export type Tab = { kind: "all" } | { kind: "catalog"; id: string } | { kind: "disabled" };
+/** What the list shows: which type, every catalog or one, and every copy or only the installed or switched-off ones. */
+export interface ListFilter {
+  /** null: every type */
+  type: EntryType | null;
+  /** null: every catalog */
+  from: string | null;
+  state: "any" | "installed" | "disabled";
+  /** with every catalog, only the copies that would install */
+  hideOverridden: boolean;
+}
 
 /** An entry copy as one card: its install badge, and the catalogs it beats where that is worth saying. */
 export interface Row {
@@ -41,21 +49,22 @@ export function installStatus(entry: EntryRecord): Pick<Row, "status" | "tone"> 
 }
 
 /**
- * The rows a tab shows, in list() order: All is every copy with a name's copies side by side, or only the
- * winners with `hideOverridden`; a catalog tab is that catalog's copies; the disabled tab is the winners
- * switched off. "overrides" shows only on a winning copy outside a catalog tab.
+ * The rows a filter shows, in list() order. Every catalog is every copy with a name's copies side by side, or
+ * only the winners with `hideOverridden`; one catalog is its own copies. Disabled is the winners switched
+ * off. "overrides" shows only on a winning copy while every catalog is shown.
  */
-export function rowsFor(tab: Tab, records: EntryRecord[], hideOverridden: boolean): Row[] {
-  const winners = records.filter((e) => e.overriddenBy === null);
+export function rowsFor(filter: ListFilter, records: EntryRecord[]): Row[] {
   let shown: EntryRecord[];
-  if (tab.kind === "disabled") shown = winners.filter((e) => e.disabled);
-  else if (tab.kind === "catalog") shown = records.filter((e) => e.catalog === tab.id);
-  else if (hideOverridden) shown = winners;
+  if (filter.from !== null) shown = records.filter((e) => e.catalog === filter.from);
+  else if (filter.hideOverridden) shown = records.filter((e) => e.overriddenBy === null);
   else shown = groupByName(records);
+  if (filter.state === "installed") shown = shown.filter((e) => e.installed);
+  if (filter.state === "disabled") shown = shown.filter((e) => e.overriddenBy === null && e.disabled);
+  if (filter.type !== null) shown = shown.filter((e) => e.type === filter.type);
   return shown.map((entry) => ({
     entry,
     ...installStatus(entry),
-    overrides: tab.kind === "catalog" || entry.overriddenBy !== null ? [] : entry.overrides,
+    overrides: filter.from !== null || entry.overriddenBy !== null ? [] : entry.overrides,
   }));
 }
 

@@ -54,7 +54,7 @@ const emit = defineEmits<{ manage: [] }>();
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  /* One btn-xs tall on every tab, so the strip doesn't jump when "Manage entries" is absent. */
+  /* One btn-xs tall for every catalog, so the strip doesn't jump when "Manage entries" is absent. */
   min-height: 1.4rem;
 }
 .catalog-summary__meta {

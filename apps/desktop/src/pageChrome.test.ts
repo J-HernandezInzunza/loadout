@@ -32,7 +32,7 @@ describe("UI-09, UI-55: page chrome", () => {
   it("makes the app the view, then the command bar, so the bar is the window's bottom by construction", () => {
     const app = source("App.vue");
     expect(app).toMatch(/\.app\s*\{[^}]*grid-template-rows:\s*1fr auto/);
-    expect(source("CatalogView.vue")).toMatch(/<section[^>]*class="view"/);
+    expect(source("CatalogView.vue")).toMatch(/<section[^>]*class="view[ "]/);
     expect(app).not.toMatch(/position:\s*(fixed|sticky)/);
   });
 

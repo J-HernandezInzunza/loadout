@@ -10,8 +10,10 @@ const ALLOWED = new Set([
   // The log's own bar: its height is locked to the strip it opens, so padding is horizontal only.
   "components/CommandLog.vue: .command-log__toggle",
   "components/CommandLog.vue: .command-log__more",
-  // The catalog tab: its padding and square top corners join it to the panel below.
-  "components/CatalogTabs.vue: .catalog-tabs__tab",
+  // Sidebar rows: full-width navigation items, sized as a list row rather than a button.
+  "components/ListSidebar.vue: .sidebar__item",
+  // Segments of one control: square inner corners join them into a single outlined group.
+  "components/CatalogView.vue: .toolbar__state button",
   // The on/off switch: a track with a knob, not a button-shaped button.
   "components/EntryList.vue: .entry-list__switch",
   "components/EntryList.vue: .entry-list__switch::after",

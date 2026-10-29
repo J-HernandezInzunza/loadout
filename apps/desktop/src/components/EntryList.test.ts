@@ -7,7 +7,7 @@ import EntryList from "./EntryList.vue";
 const catalogs = [catalogRow({ id: "personal" }), catalogRow({ id: "team", precedence: 2 })];
 
 function mountList(records: Parameters<typeof rowsFor>[1], showOrigin = true) {
-  return mountView(EntryList, { props: { rows: rowsFor({ kind: "all" }, records, false), catalogs, showOrigin } }).wrapper;
+  return mountView(EntryList, { props: { rows: rowsFor({ type: null, from: null, state: "any", hideOverridden: false }, records), catalogs, showOrigin } }).wrapper;
 }
 
 describe("UI-18: an entry card", () => {
