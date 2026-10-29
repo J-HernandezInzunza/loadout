@@ -66,3 +66,22 @@ Browser sign-in (architecture.md §5.5) needs two registrations outside the code
 M2 and M3 test with injected tokens, so nothing waits on this until M4.
 
 **Answer:**
+
+## Q6. A fourth Rust command for `realPath` (assumed A in M4.06; confirm or redirect)
+
+`HostFs.realPath` resolves symlinks, and the core uses it in six places (local catalog keys, the
+`~/.claude/settings.json` symlink, the import's `~/.claude/skills/library` link, fetch, suggest,
+remove-catalog). `tauri-plugin-fs` has no `realpath` or `readlink`, so the webview cannot compute it.
+architecture.md §2.4 allows no `#[tauri::command]` but the three Keychain ones.
+
+- [x] A. Add `real_path` (`std::fs::canonicalize`, ~3 lines of glue), granted through an app manifest
+      in `build.rs` so it is denied unless `capabilities/default.json` lists `allow-real-path`
+      (recommended; applied). It reveals where a path resolves, never file content, so it has no fs
+      scope of its own.
+- [ ] B. Same command, but checking input and result against the fs scope's allow and deny globs in
+      Rust (the capability's `fs:scope` isn't reachable from an app command, so the globs would be
+      duplicated).
+- [ ] C. No command: treat `realPath` as identity on the Tauri host. Breaks the symlinked
+      `settings.json` case (arch §4.5) and catalog identity through symlinks.
+
+**Answer:**

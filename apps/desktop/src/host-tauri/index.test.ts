@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createTauriHost } from "./host-tauri.ts";
+import { createTauriHost } from "./index.ts";
 
-describe("host-tauri (stub until M4)", () => {
+describe("host-tauri ports not built yet", () => {
   const host = createTauriHost({ home: "/Users/x", appData: "/Users/x/Library/Application Support/l" });
 
-  it("rejects every fs and proc call with a clear not-implemented error", async () => {
-    await expect(host.fs.readText("/x")).rejects.toThrow("host-tauri: fs.readText is not implemented yet (M4)");
+  it("rejects every proc call with a clear not-implemented error", async () => {
     await expect(host.proc.run("git", ["--version"], {})).rejects.toThrow(
       "host-tauri: proc.run is not implemented yet (M4)",
     );
