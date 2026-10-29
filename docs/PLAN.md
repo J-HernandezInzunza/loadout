@@ -610,7 +610,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Depends: M4.11
   - Done when: S12 is written with the chosen redirect per host.
 
-- [ ] **M4.13 GitHub sign-in.** The flow S12 chose (device flow by default), ending in
+- [x] **M4.13 GitHub sign-in.** The flow S12 chose (device flow by default), ending in
   `accounts.connect("github", tokenSet)` (M2.04); cancellable; a denied or expired authorization is
   a typed error.
   - Rules: none (arch §5.5)
@@ -618,7 +618,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: the flow's HTTP exchanges are tested against an extended API stub (M2.03); a manual
     sign-in connects a real account.
 
-- [ ] **M4.14 Bitbucket sign-in.** Authorization-code flow with the redirect S12 chose; the consumer
+- [x] **M4.14 Bitbucket sign-in.** Authorization-code flow with the redirect S12 chose; the consumer
   key and secret come from build-time environment variables (a GitHub Actions secret in release
   builds, never committed, arch §5.5 and §10 risk 13); ends in `accounts.connect("bitbucket",
   tokenSet)` with the refresh token, which M2.04 already uses.
@@ -629,7 +629,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
     a real account, and Loadout then comes to the front saying who is signed in and that the browser
     tab can be closed (S12: the tab stays on the consent page).
 
-- [ ] **M4.15 Accounts in the debug view.** Connect, disconnect and "token still works" for both
+- [x] **M4.15 Accounts in the debug view.** Connect, disconnect and "token still works" for both
   hosts, through the facade (M4.02).
   - Rules: none (arch §5.5)
   - Depends: M4.13, M4.14
@@ -643,7 +643,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Depends: M4.11
   - Done when: S11 is written and M2.23 is checked with a pointer to it.
 
-- [ ] **M4.17 Milestone check.** `npm run check` green; the facade contract test passes; the
+- [x] **M4.17 Milestone check.** `npm run check` green; the facade contract test passes; the
   capabilities test covers fs, shell, http and the three commands.
   - Rules: none
   - Depends: M4.11, M4.15, M4.16
