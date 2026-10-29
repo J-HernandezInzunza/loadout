@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-set-focus",
+    "core:app:allow-set-app-theme",
     "dialog:allow-open",
     "opener:default",
     "deep-link:default",

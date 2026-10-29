@@ -1,0 +1,74 @@
+<script setup lang="ts">
+/**
+ * The one way this app reports how a command turned out.
+ *
+ * Success and failure of the same action must appear in the same place, or the user
+ * learns two habits for one question. The add form shipped with its confirmation above
+ * the form and its error below it, so a refused add looked like nothing happening at all
+ * — the failure was a screen's worth of scrolling away from where the success appears.
+ *
+ * Placement is the caller's job, and the rule is: the top of the surface that owns the
+ * command. A full view puts it under its header; a panel puts it at the top of the panel.
+ * Never under the control that was clicked.
+ */
+defineProps<{
+  kind: "success" | "error" | "warning";
+  /**
+   * Preformatted text, such as git's stderr, rendered verbatim in a `<pre>` because its
+   * line breaks carry meaning.
+   */
+  detail?: string | undefined;
+}>();
+</script>
+
+<template>
+  <div
+    class="status-banner fade-in"
+    :class="`status-banner--${kind}`"
+    :role="kind === 'error' ? 'alert' : 'status'"
+    aria-live="polite"
+  >
+    <slot />
+    <pre
+      v-if="detail"
+      class="status-banner__detail"
+    >{{ detail }}</pre>
+  </div>
+</template>
+
+<style scoped>
+.status-banner {
+  /* No max-width: it sits above full-width cards, and a narrower banner reads as a
+     misaligned box rather than as a measure. `.app` already caps the line length. */
+  margin: 0 0 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.status-banner--success {
+  border-color: var(--status-ok-edge);
+  background: var(--status-ok-tint);
+}
+.status-banner--warning {
+  border-color: var(--status-attention-edge);
+  background: var(--status-attention-tint);
+  color: var(--status-attention-ink);
+}
+.status-banner--error {
+  border-color: var(--status-danger-edge);
+  background: var(--status-danger-tint);
+  color: var(--status-danger-ink);
+}
+.status-banner__detail {
+  margin: 0;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Only when it follows content, so a detail-only banner keeps its own padding. */
+.status-banner__detail:not(:first-child) {
+  margin-top: 0.6rem;
+}
+</style>

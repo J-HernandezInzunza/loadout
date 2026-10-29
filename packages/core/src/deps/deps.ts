@@ -9,13 +9,13 @@ export type Unresolved = { ref: string; requiredBy: string; reason: "malformed" 
 const key = (e: { type: string; name: string }) => `${e.type}:${e.name}`;
 
 /** Split on the first `:`, both halves stripped; undefined when there is no `:`. */
-function parseRef(ref: string): { type: string; name: string } | undefined {
+export function parseRef(ref: string): { type: string; name: string } | undefined {
   const colon = ref.indexOf(":");
   if (colon < 0) return undefined;
   return { type: strip(ref.slice(0, colon)), name: strip(ref.slice(colon + 1)) };
 }
 
-function lookup(entries: Entry[], ref: string): Entry | undefined {
+export function lookup(entries: Entry[], ref: string): Entry | undefined {
   const parsed = parseRef(ref);
   return parsed && entries.find((e) => e.type === parsed.type && e.name === parsed.name);
 }

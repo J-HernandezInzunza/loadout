@@ -132,19 +132,23 @@ describe("install state in reads", () => {
     expect(shown.ok && shown.value.installs.map((r) => r.type)).toEqual(["skill"]);
   });
 
-  it("reports disabled from skillOverrides, never for an agent", async () => {
+  it("reports disabled and the read-only values (Q14 A) from skillOverrides, never for an agent", async () => {
     const { h, install, list, home } = await setup({
       team: [
         { type: "skill", name: "s", source: gh("skills/s/SKILL.md") },
+        { type: "skill", name: "n", source: gh("skills/n/SKILL.md") },
         { type: "agent", name: "s2", source: gh("agents/s2.md") },
+        { type: "prompt", name: "p", source: gh("prompts/p.md") },
       ],
     });
-    h.createRepo("github.com", "o/r").commit({ "skills/s/SKILL.md": "s\n", "agents/s2.md": "a\n" });
-    await install(["s", "s2"]);
-    await put(join(home, ".claude/settings.json"), JSON.stringify({ skillOverrides: { s: "off", s2: "off" } }));
-    expect((await list()).map((r) => [r.name, r.disabled])).toEqual([
-      ["s", true],
-      ["s2", false],
+    h.createRepo("github.com", "o/r").commit({ "skills/s/SKILL.md": "s\n", "skills/n/SKILL.md": "n\n", "agents/s2.md": "a\n", "prompts/p.md": "p\n" });
+    await install(["s", "n", "s2", "p"]);
+    await put(join(home, ".claude/settings.json"), JSON.stringify({ skillOverrides: { s: "off", n: "name-only", s2: "name-only", p: "user-invocable-only" } }));
+    expect((await list()).map((r) => [r.name, r.disabled, r.skillOverride])).toEqual([
+      ["s", true, null],
+      ["n", false, "name-only"],
+      ["s2", false, null],
+      ["p", false, "user-invocable-only"],
     ]);
   });
 

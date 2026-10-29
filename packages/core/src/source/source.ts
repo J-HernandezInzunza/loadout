@@ -54,12 +54,15 @@ const REMOTES = [
   /^https:\/\/([^/]+)\/([^/]+)\/(.+?)(?:\.git)?\/?$/,
 ];
 
+/** SSH-only hosts and the web host they stand for: Bitbucket Cloud is moving SSH to its own host. */
+const WEB_HOSTS: Record<string, string> = { "ssh.bitbucket.org": "bitbucket.org" };
+
 /** `[host, org, repo]` of a git remote URL, for linking to it in a browser; anything else is null. */
 export function remoteWeb(url: string): [string, string, string] | null {
   const s = strip(url);
   for (const form of REMOTES) {
     const m = form.exec(s);
-    if (m) return [m[1]!, m[2]!, m[3]!];
+    if (m) return [WEB_HOSTS[m[1]!] ?? m[1]!, m[2]!, m[3]!];
   }
   return null;
 }

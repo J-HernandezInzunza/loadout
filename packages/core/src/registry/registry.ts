@@ -41,7 +41,15 @@ export type InstallState = "not_installed" | "installed" | "drifted" | "unmanage
 
 /** A listed entry. The registry knows nothing of installs: its records read not installed, and the facade fills them in. */
 export type EntryRecord = Entry &
-  Provenance & { installed: boolean; state: InstallState; receipt: ReceiptV2 | null; locations: string[]; disabled: boolean };
+  Provenance & {
+    installed: boolean;
+    state: InstallState;
+    receipt: ReceiptV2 | null;
+    locations: string[];
+    disabled: boolean;
+    /** Q14 A: a skillOverrides value set elsewhere that Loadout shows but never changes */
+    skillOverride: "name-only" | "user-invocable-only" | null;
+  };
 
 export interface Registry {
   /** every registered catalog, highest precedence first, skipped ones included */
@@ -197,7 +205,7 @@ export async function loadRegistry(host: Host, config: AppConfigV1): Promise<Reg
       return copies.map((e, i) => ({ catalog: e.catalog, wins: i === 0, subject: e.catalog === about, ...overrideSplit(e) }));
     },
     records: () =>
-      merged.map((e) => ({ ...e, ...overrideSplit(e), installed: false, state: "not_installed", receipt: null, locations: [], disabled: false })),
+      merged.map((e) => ({ ...e, ...overrideSplit(e), installed: false, state: "not_installed", receipt: null, locations: [], disabled: false, skillOverride: null })),
     candidates(query, catalog) {
       const searched = scope(catalog);
       return searched.ok ? candidatesIn(searched.value, query) : [];

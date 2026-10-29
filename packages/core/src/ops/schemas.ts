@@ -19,6 +19,8 @@ const EntryRecord = Entry.extend({
   locations: z.array(z.string()),
   /** turned off through skillOverrides */
   disabled: z.boolean(),
+  /** Q14 A: a skillOverrides value set elsewhere that Loadout shows but never changes */
+  skillOverride: z.enum(["name-only", "user-invocable-only"]).nullable(),
 }).strict();
 
 const Edits = z.strictObject({ modified: z.array(z.string()), added: z.array(z.string()), deleted: z.array(z.string()) });
@@ -49,12 +51,16 @@ const CatalogRow = z.strictObject({
   location: z.string(),
   writeMode: z.enum(["local", "direct", "pr"]),
   writable: z.boolean(),
+  /** an add, edit or remove can name it: registered writable and not skipped (WRITE-01) */
+  editable: z.boolean(),
   /** null when the catalog was skipped */
   entries: z.int().nullable(),
   skipped: z.string().nullable(),
 });
 
 const EntryRef = z.strictObject({ type: EntryType, name: z.string(), catalog: z.string(), description: z.string() });
+/** a dependency or dependent with what sits at its destination, the one "installed" test the views share */
+const RelatedEntry = EntryRef.extend({ direct: z.boolean(), installed: z.boolean(), state: EntryRecord.shape.state });
 
 const [, RemoteSource] = Source.options;
 
@@ -71,12 +77,12 @@ export const EntryDetail = z.strictObject({
       overriddenBy: z.string().nullable(),
     }),
   ),
-  /** the subject's dependencies in install order, the subject excluded */
-  requires: z.array(EntryRef),
+  /** the subject's dependencies in install order, the subject excluded; direct = the subject declares it */
+  requires: z.array(RelatedEntry),
   unresolvedRequires: z.array(
     z.strictObject({ ref: z.string(), requiredBy: z.string(), reason: z.enum(["malformed", "not_found", "cycle"]) }),
   ),
-  dependents: z.array(EntryRef.extend({ direct: z.boolean() })),
+  dependents: z.array(RelatedEntry),
   /** receipts for this name and type (A26: never another type's) */
   installs: z.array(ReceiptV2),
   source: z.discriminatedUnion("kind", [

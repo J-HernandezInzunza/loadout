@@ -8,7 +8,9 @@ import { createGitClient } from "../git/git.ts";
 import type { CatalogRef } from "../model/model.ts";
 import { createLibrary } from "../ops/library.ts";
 import { loadRegistry } from "../registry/registry.ts";
-import { catalogStatus, refreshCatalogs } from "./catalogs.ts";
+import type { GitClient } from "../git/git.ts";
+import { cloneUrls } from "../source/source.ts";
+import { catalogStatus, catalogUrls, refreshCatalogs, sameRepo } from "./catalogs.ts";
 
 const yaml = (...names: string[]) =>
   "library:\n  skills:\n" + names.map((n) => `    - name: ${n}\n      description: ${n}\n      source: /x/${n}/SKILL.md\n`).join("");
@@ -185,5 +187,25 @@ describe("catalog status", () => {
     expect((await refresh([ref])).warnings).toEqual([
       { message: expect.stringMatching(/^catalog 'team': pull failed: .*; using the cached copy$/) },
     ]);
+  });
+});
+
+describe("Bitbucket's new SSH host", () => {
+  const git = { urlsFor: async (src: Parameters<GitClient["urlsFor"]>[0]) => cloneUrls(src) } as GitClient;
+  const ref = (repo: string) => ({ id: "shared", kind: "remote" as const, repo, branch: "develop", yamlPath: "library.yaml", protected: true });
+
+  it("tries the ssh URL as registered, then https on bitbucket.org", async () => {
+    expect(await catalogUrls(git, ref("git@ssh.bitbucket.org:sedteam/agent-library.git"))).toEqual([
+      "git@ssh.bitbucket.org:sedteam/agent-library.git",
+      "https://bitbucket.org/sedteam/agent-library.git",
+    ]);
+    expect(await catalogUrls(git, ref("https://bitbucket.org/sedteam/agent-library.git"))).toEqual([
+      "git@bitbucket.org:sedteam/agent-library.git",
+      "https://bitbucket.org/sedteam/agent-library.git",
+    ]);
+  });
+
+  it("is the same repo as the old host's spelling of it", () => {
+    expect(sameRepo("git@ssh.bitbucket.org:sedteam/agent-library.git", "git@bitbucket.org:sedteam/agent-library.git")).toBe(true);
   });
 });

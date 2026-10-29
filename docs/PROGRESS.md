@@ -1,6 +1,82 @@
 # Progress
 
-One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what changed>`.
+One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what changed>` (see Log).
+
+## Old `desktop/src/catalog.ts` exports (M5.02)
+
+Where each export of the old app's `catalog.ts` lives now. "Core" functions are in
+`packages/core/src/ops/views.ts` unless noted; "Vue" ones are wording and land with the screen that
+uses them.
+
+| Old export | Decides or words | New home |
+|---|---|---|
+| `Row` | view shape | Vue (M5.06), built from `EntryRecord` |
+| `catalogHue` | words (UI-14) | Vue (M5.06) |
+| `allRows` | decides: copies of a name side by side | core `groupByName(list())` |
+| `winningRows` | decides: the copy that wins, and what it beats | `list()` fields: `overriddenBy === null`, `overrides` (RES-07/08) |
+| `catalogRows` | decides: one catalog's copies | `list({ catalog })` |
+| `searchRows` | words: ranking (UI-11) | Vue (M5.06) |
+| `SESSION_TIMING` | words | Vue (M5.07) |
+| `installStatus` | words a decided state | `EntryRecord.state` and `disabled` (global destination only, so no scope or location re-judging); badge text in Vue (M5.06) |
+| `archivedPath` | dropped | no parked copies (Q16 B); the off note has no "Parked at" (M5.08) |
+| `Dependency`, `dependencies` | decides: declared vs inherited, installed | `show().requires[]`: `direct`, `installed`, `state` |
+| `DependentView`, `dependents` | decides: installed | `show().dependents[]`: `direct`, `installed`, `state` |
+| `isOnDisk` | decides | `installed` on records and on `show()`'s related entries: one test (§4.10) |
+| `editableCatalogs` | decides: write target | `CatalogRow.editable` (WRITE-01: writable, not skipped); M5 also requires `kind === "local"` in Vue until M6 |
+| `CatalogDescription`, `describeCatalog` | words | Vue (M5.14) |
+| `requirableRefs` | decides: DEP-02 | core `requirableRefs` |
+| `AddConsequences`, `addConsequences` | decides: DUPLICATE, override split | core `addConsequences`, sharing `splitOverrides` with `planAdd`'s warnings (pins included, which the old one ignored) |
+| `editableCopies` | decides | `show().copies` joined with `CatalogRow.editable` |
+| `EntryDraft`, `entryEdits` | decides: the planUpdate fields | core `entryEdits` (returns `setDescription`/`setSource`/`setRequires`) |
+| `Purgeable`, `purgeable` | dropped | global only: purge deletes `show().installs`' dests; no scope to block it |
+| `PlannedItem`, `InstallPlan`, `installPlan` | decides: target vs dependency, drift gate | `PlanItem.requiredBy` (empty = asked for), `PlanItem.state`; core `discardsEdits(plan)` for the gate |
+| `InstalledCopy`, `installedCopies` | decides | `EntryRecord.locations` and `receipt` (`receipt.catalog.id` = from which catalog; null = unmanaged) |
+| `PushOutcome`, `describePush` | words | Vue (M5.09), keyed on the push result's `method` |
+| `InstallAction`, `describeInstallAction` | words | Vue (M5.11), from plan item states; no project scope |
+| `summarizeChanges` | words | Vue (M5.11), from `Preview` |
+| `describeDependencyWrite` | words | Vue (M5.13) if sync's dependencies need it; the old states are gone |
+| `describeDestState` | words | Vue (M5.11) |
+
+## Old app specs (M5.16)
+
+Each of the old app's 31 spec files (`the-library-skill/desktop/src/**/*.spec.ts`), and where it went.
+Paths on the right are under `apps/desktop/src/`.
+
+| Old spec | Outcome | Now |
+|---|---|---|
+| `App.spec.ts` | ported, in part | `App.test.ts` (pulls, loading, failures, freshness, trail), `components/CatalogView.test.ts` (tabs, empty states, counts, strip), `components/BulkInstall.test.ts` (selection); dropped: FirstRun routing (M6.01), browser-only mode (W-UI4), `describeAppError` cases (UI-56 drop) |
+| `assets/buttons.spec.ts` | ported | `assets/buttons.test.ts`, over `assets/app.css` instead of `App.vue` |
+| `assets/contrast.spec.ts` | ported | `assets/contrast.test.ts` |
+| `assets/tokens.spec.ts` | ported | `assets/tokens.test.ts`, `app.css` included |
+| `catalog.spec.ts` | ported, in part | wording: `catalog.test.ts`; decisions: core `ops/views.test.ts` and `ops/library.test.ts` (M5.02); dropped: scope, location and parked-path cases (global installs only, no parking), `isOnDisk` (one `installed` field), `purgeable` (no scope to block it) |
+| `commandActivity.spec.ts` | ported | `stores/activity.test.ts`; `beginIntent` folded into `withActivity`; bootstrap and `claude` labels dropped with those features |
+| `components/AddEntry.spec.ts` | ported | `components/AddEntry.test.ts`; the install-dir case is the core's refusal now |
+| `components/AppearanceToggle.spec.ts` | ported | `components/AppearanceToggle.test.ts` |
+| `components/BulkInstall.spec.ts` | ported | `components/BulkInstall.test.ts` |
+| `components/Catalogs.spec.ts` | ported | `components/CatalogsView.test.ts` |
+| `components/CommandLog.spec.ts` | ported | `components/CommandLog.test.ts`, over the audit log instead of Tauri events |
+| `components/Doctor.spec.ts` | ported | `components/DoctorView.test.ts` |
+| `components/EntryDetail.spec.ts` | ported | `components/EntryDetail.test.ts`, `components/CopyChooser.test.ts` (pins) |
+| `components/EntryEditor.spec.ts` | ported | `components/EntryAuthoring.test.ts` |
+| `components/EntryList.spec.ts` | ported | `components/EntryList.test.ts`, `components/EntrySwitch.test.ts`; the parked-path tooltip case dropped (no parking) |
+| `components/InstalledCopies.spec.ts` | ported | `components/EntryDetail.test.ts` (UI-25), `components/InstalledCopies.test.ts` (actions) |
+| `components/InstallPreview.spec.ts` | ported, global cases | `components/InstallView.test.ts`; project scope, recent directories and the unverified-install warning dropped (UI-33 drop; verification happens in staging) |
+| `components/RegisterCatalog.spec.ts` | ported | `components/RegisterCatalog.test.ts` |
+| `components/SecretPrompt.spec.ts` | dropped | guided setup is deferred (behaviors.md §4.9, app/later) |
+| `components/SetupReadiness.spec.ts` | dropped | guided setup is deferred (§4.9) |
+| `components/StatusBanner.spec.ts` | ported | `components/StatusBanner.test.ts` |
+| `components/Sync.spec.ts` | ported | `components/SyncView.test.ts`, plan-then-apply |
+| `components/UninstallControl.spec.ts` | ported | `components/InstalledCopies.test.ts` (UI-26), global copy only |
+| `components/Walkthrough.spec.ts` | dropped | the agent walkthrough is deferred (§4.9) |
+| `pageChrome.spec.ts` | ported | `pageChrome.test.ts` |
+| `recentProjects.spec.ts` | dropped | gone with project scope (W-UI5) |
+| `setup.spec.ts` | dropped | guided setup is deferred (§4.9) |
+| `statusFeedback.spec.ts` | ported | `statusFeedback.test.ts` |
+| `theme.spec.ts` | ported | `theme.test.ts`; the plain-browser case dropped (W-UI4) |
+| `toasts.spec.ts` | ported | `stores/toasts.test.ts`, `components/ToastStack.test.ts` |
+| `walkthrough.spec.ts` | dropped | the agent walkthrough is deferred (§4.9) |
+
+## Log
 
 2026-10-28 M1.01 50d467a rule-coverage test: checked tasks' rule ids must appear in a describe/it/test title
 2026-10-28 M1.02 e065f4e model types with zod schemas, closed ErrorCode enum, Result with ok()/err()
@@ -77,3 +153,20 @@ One line per finished task, newest last: `YYYY-MM-DD <task id> <commit> <what ch
 2026-10-29 M4.14 e08324c Bitbucket authorization code to loadout://oauth/bitbucket: state checked before any exchange, code exchanged with the consumer (secret via Vite env, ships in builds per Q5), refresh token stored and used by M2.04; window focused with "you can close the browser tab"; owner signed in for real
 2026-10-29 M4.15 b1acfc1 checkAccount(on) on the facade (tokenFor + whoami); debug view Accounts section: sign in, check, disconnect per host; owner connected, checked and disconnected both hosts; config.json's strict schema and the git/fs-only audit log keep tokens out
 2026-10-29 M4.17 b1acfc1 milestone check (no code change): npm run check green (1970 TS + 15 Rust tests); facade contract test passes for all 43 Library methods; capabilities test pins fs (exact allow + denies), shell (git only), http (four URLs) and the app commands (real_path + three Keychain); every M4 task checked
+2026-10-29 M5.01 67687f2 rule coverage scans apps/ (fixture-tree proof with UI-20); services.ts injection keys (libraryKey, auditLogKey; useLibrary/useAuditLog for setup stores via app-level provide); testing/mountView (fresh Pinia + seeded fake + audit log, sync mount); @loadout/core/testing seed builders and seededState() (every install state, off skill, override, pin, account), parsed against the ops schemas
+2026-10-29 M5.02 d150380 show requires/dependents gain direct/installed/state; CatalogRow.editable (writeTarget add by name); views.ts: groupByName, requirableRefs, addConsequences (splitOverrides shared with planAdd, pins count), entryEdits (setDescription/setSource/setRequires or null), discardsEdits (drift gate); export map table at the top of PROGRESS.md, which now has a Log heading
+2026-10-29 M5.03 27a538b tokens.css verbatim; app.css = old App.vue global block; PageHeader, StatusBanner, ActivityBar, AppearanceToggle, BusyIndicator (was Busy), ToastStack (was Toasts); toasts store, activity store (audit-log procs + withActivity intents -> busy); theme.ts over setTheme + core:app:allow-set-app-theme (pinned in capabilities.test); ported specs: tokens, contrast, buttons, theme, toasts, statusFeedback, pageChrome (its view-level checks wait for M5.04's views and App.vue, its CommandLog ones for M5.05), AppearanceToggle, StatusBanner; browser-only branch of applyAppearance dropped (W-UI4)
+2026-10-29 M5.04 1880104 App.vue + catalog store (launch = pull once on open; refresh pulls; reload reads disk; failure = message verbatim, lists emptied; pull warnings deduped, shown until the next pull; lastPulled) + views store (doctor > sync > add > catalogs > install > entry trail > list; prune by name after a good load); freshness cue in App; title 'Loadout' (open-questions Q B) instead of 'The Library'; DebugView removed, so sign-in and CLI import have no UI until M6.03/M6.01; ported App.spec: pull on open, reload without pull, rows kept dimmed, Refresh pulls, stderr verbatim, throw stringified, failed load empties; dropped: FirstRun routing (M6), browser-only (W-UI4), describeAppError cases (UI-56 drop); tabs/empty states/summary/selection/shortcut cases wait for M5.06/M5.12/M5.14; pageChrome gains the .app grid check
+2026-10-29 M5.05 c051902 activity store: commands from audit proc events (fs events not listed), describeArgv for git (subcommand past -C/-c; bootstrap/claude cases dropped with those features), activityLabel, withActivity(label, work(signal)), cancel() aborts every intent; CommandLog ported (+ aria-expanded, Cancel beside the label while an intent runs); launch takes the signal (refresh has none in the facade); ported CommandLog.spec and commandActivity.spec (beginIntent's disposer folded into withActivity); cancel-an-install test against a fake honouring the signal; pageChrome gains the CommandLog overlay checks
+2026-10-29 M5.06 219f198 CatalogView (header: labelled search, Refresh/Catalogs/Sync; tabs with aria-pressed in a labelled nav rather than half an ARIA tabs pattern; strip; counts; Hide overridden on All only, §4.10; empty states), EntryList cards (no switch until M5.07, no selection until M5.12; no 'Parked at' in the off tooltip), catalog.ts (Tab, Row, rowsFor, searchRows, installStatus: unmanaged = 'installed outside Loadout', disabled+installed = 'disabled'; writeModeText); 'Manage entries'/'Add the first one' need editable && local in M5; App switches views with a stand-in page per unbuilt view; views.home(); ported EntryList.spec (identity, type column), catalog.spec list/search/badge cases (scope and locations cases dropped: global only), App.spec tabs/empty/summary/strip cases
+2026-10-29 M5.07 40a1570 EntryRecord.skillOverride (name-only | user-invocable-only | null, Q14 A; schema + list + seeds); EntryList switch for the winning installed copy of a skill or prompt (unmanaged too, rule 6; agents never, Q15 A), optimistic with per-row inert, success toast + reload (no pull), refusal or readOnly report snaps back with an error toast; read-only pill with a title; ported EntryList.spec toggle cases (parked-path tooltip dropped)
+2026-10-29 M5.08 3c4399a EntryDetail (show by stop, reload on catalog change, badges without 'guided setup', off note without Parked at, source card from show().source, handoff to install, copies with labels and sources joined from list records, Edit only for editable local catalogs, Requires/Also installed/Required by on the core's direct+installed, Unresolved reasons) + InstalledCopies (one global dest; unmanaged note replaces 'put here by hand'; 'from X, not Y'); App renders it for the entry view; pin actions wait for M5.10, Send edits back/Remove for M5.09; ported EntryDetail.spec subject cases and InstalledCopies.spec (actions with M5.09)
+2026-10-29 M5.09 02ec19d InstalledCopies actions (one panel, aria-expanded) + UninstallControl (Q17 A override named before and reported after; refusal -> second confirm with forcePaths [dest]) + PushControl (planPush on mount, note, diff/target, message with the core's default as placeholder, discardPush when unapplied, describePush in catalog.ts keyed on pr.method api); outcome banner owned by InstalledCopies and the page rereads quietly (load(true)) so success outlives the control (§4.10); EntryDetail/InstalledCopies watches fixed to compare values, not a fresh array; StatusBanner detail accepts undefined; ported UninstallControl.spec, InstalledCopies.spec actions, catalog.spec describePush (gh method -> api)
+2026-10-29 M5.10 4ce0ec6 CopyChooser (copies section moved out of EntryDetail): planPin -> applyPin({ switchInstalled }) straight through unless switch.switchable, proposal with stale/newDependencies/dependents/blockers and switch only when simple, outcome banners, Clear pin = unpin with a 'what installs now' banner (§4.10's missing unpin status; the Pin mistyping can't recur: typed facade); ported EntryDetail.spec pin cases; npm run check green except real-git core tests timing out at 5 s under a load average of 23 (all pass alone)
+2026-10-29 M5.11 5dd5adb InstallView + InstallPreview (source picker from list records, remember = planPin/applyPin before applyInstall; planInstall file-level preview, editedLocally flagged, destination-only fallback; drift gate via core discardsEdits; needsConsent items reported and block Install, replace is M6; Install/Reinstall without scope; caution for all-clean; STALE_PLAN re-plans with a notice; stopped/aborted banners; discardPlan on re-check, source change and unmount); catalog.ts describeDestState/summarizeChanges/describeInstallAction; ported InstallPreview.spec global-scope cases (project scope, recent dirs and the unverified warning dropped: verification happens in staging now); separate commit gives core and host-node a 15 s test timeout (real git under parallel load)
+2026-10-29 M5.12 480b8ea selection mode in CatalogView (catalog tab only; picked null vs empty; Select all over filtered winners; note when all overridden) + EntryList pick targets (aria-pressed, Select {name}, overridden disabled, tick outside the card, switch hidden) + BulkInstall (one planInstall for all names, dependencies counted, one drift ack via discardsEdits, needsConsent reported and blocking, 'Install {n}' without 'globally', unforced uninstall with deleted/absent/refused reporting, discard on selection change/unmount); ported BulkInstall.spec and App.spec selection cases
+2026-10-29 M5.13 da259d8 SyncView (planSync on open, apply on 'Sync N'; drift ack via discardsEdits, a gate the old app didn't have; unmanaged 'Left alone' before and after (A2); report: updated = files touched, failed, missing receipts with the note, dependencies installed, unchanged collapsed; failure drops the report; discardPlan on re-check/unmount; sync doesn't pull catalogs, so it no longer marks the freshness time) + DoctorView (deep checkbox disabled mid-run, §4.10; Re-clone {catalog} on findings with a reclone action, then re-run, A4); App renders both; ported Sync.spec and Doctor.spec
+2026-10-29 M5.14 dc815c1 CatalogsView (registry: describeCatalog wording, Manage entries on editable local, Unregister when >1 with purge installs/clone and an in-flight guard (§4.10), no-personal-catalog card, nothing-editable lead, Check catalog health -> doctor; pins with dangling and Clear; level 2 entries sorted with Add an entry, Edit/Remove with M5.15; Back to the opener or the registry) + RegisterCatalog (existing = library.yaml file picker, matching its hint (§4.10); create = folder picker -> initCatalog, DUPLICATE offers 'Register the one that's there'; remote = planAddCatalog/applyAddCatalog with protected default on and direct-push ack; precedence and displacement lines); App renders it; pageChrome gains the per-view checks deferred from M5.03; ported Catalogs.spec and RegisterCatalog.spec
+2026-10-29 M5.15 16ace5e AddEntry (planAdd + applyCatalogEdit; core addConsequences with pins and requirableRefs; suggestSource on pick/typed path (Q13 b); SOURCE_IN_INSTALL_DIR shown from the core's refusal rather than a UI pre-check; Show in Finder via revealItemInDir) + EntryEditor (core entryEdits, Save disabled until changed, empty-field block, Cancel/Done) + EntryRemove (dry-run apply for the diff, dependents, purge only for this entry's installed winning copy, success banner lifted to the catalog page (§4.10); the old 'Remove installed copies' pointer to a non-existent button is gone) wired into CatalogsView level 2 with aria-expanded and arrival-opens-edit; App stand-in and views.home() removed; ported AddEntry.spec and EntryEditor.spec
+2026-10-29 M5.16 81e2ce0 milestone check: npm run check green (2166 TS tests + Rust); all 51 M5 UI rules (UI-01..55 less UI-06/07/33/40/56) in test titles; rule-coverage passes with M1-M5 checked; old-spec port table in PROGRESS.md (22 ported, 9 dropped with reasons); owner's Finder-launched walk of list, entry, install, toggle, sync, doctor, catalogs and add/edit/remove passed. The one failure was re-adding the Bitbucket catalog as git@ssh.bitbucket.org (Bitbucket's new SSH host): host key verification failed until the owner accepted the new host's key. Found then: remoteWeb keeps 'ssh.bitbucket.org' as the web host, so compare links, the PR API and token matching don't recognise it as Bitbucket (for M6.04)
+2026-10-29 M5.16 8bda52a follow-up: remoteWeb maps ssh.bitbucket.org to bitbucket.org (compare links, PR API, sameRepo, suggestions); catalogUrls keeps a registered ssh URL as the ssh attempt. Entry sources' generated clone URLs still use git@bitbucket.org
