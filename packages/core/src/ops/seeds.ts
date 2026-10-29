@@ -46,6 +46,7 @@ export function entryRecord(overrides: Partial<EntryRecord> = {}): EntryRecord {
     receipt: null,
     locations: [],
     disabled: false,
+    skillOverride: null,
     ...overrides,
   };
 }

@@ -178,6 +178,8 @@ export interface LibraryOptions {
 
 const ref = (e: Entry) => ({ type: e.type, name: e.name, catalog: e.catalog, description: e.description });
 
+const partialOverride = (value: string | undefined): EntryRecord["skillOverride"] => (value === "name-only" || value === "user-invocable-only" ? value : null);
+
 function shownSource(raw: string, home: string): EntryDetail["source"] {
   try {
     const src = parseSource(raw, home);
@@ -252,6 +254,7 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
       receipt: "receipt" in state ? state.receipt : null,
       locations: state.state === "absent" ? [] : [dest],
       disabled: entry.type !== "agent" && view.overrides.get(entry.name) === "off",
+      skillOverride: entry.type === "agent" ? null : partialOverride(view.overrides.get(entry.name)),
     };
   };
 

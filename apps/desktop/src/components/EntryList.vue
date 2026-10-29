@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { CatalogRow } from "@loadout/core";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { catalogHue, SESSION_TIMING, type Row } from "../catalog.ts";
+import { useLibrary } from "../services.ts";
+import { useActivityStore } from "../stores/activity.ts";
+import { useCatalogStore } from "../stores/catalog.ts";
+import { useToastStore } from "../stores/toasts.ts";
 import type { EntryStop } from "../stores/views.ts";
 
 const props = defineProps<{
@@ -15,6 +19,62 @@ const emit = defineEmits<{
   /** which copy was opened: a row is one catalog's copy, so its name alone is ambiguous */
   select: [stop: EntryStop];
 }>();
+
+const library = useLibrary();
+const activity = useActivityStore();
+const catalog = useCatalogStore();
+const toasts = useToastStore();
+
+/** rows whose toggle is in flight, so only those switches go inert */
+const toggling = ref(new Set<string>());
+/**
+ * Flips not yet confirmed, name → on, so the switch moves under the finger rather than after the write
+ * and the reload. Intent, not truth: fresh rows replace it, and a refusal drops it so the row snaps back.
+ */
+const pending = ref(new Map<string, boolean>());
+
+watch(
+  () => props.rows,
+  () => {
+    // Kept while still in flight: the rows also change on every search keystroke.
+    for (const name of [...pending.value.keys()]) if (!toggling.value.has(name)) pending.value.delete(name);
+  },
+);
+
+/**
+ * The winning copy of a skill or prompt that is on the machine, whoever put it there; not one set to a
+ * value Loadout leaves alone (name-only, user-invocable-only).
+ */
+function switchable(row: Row): boolean {
+  const e = row.entry;
+  return e.type !== "agent" && e.installed && e.overriddenBy === null && e.skillOverride === null;
+}
+
+function switchedOn(row: Row): boolean {
+  return pending.value.get(row.entry.name) ?? !row.entry.disabled;
+}
+
+async function flip(row: Row) {
+  const name = row.entry.name;
+  const on = row.entry.disabled;
+  pending.value.set(name, on);
+  toggling.value.add(name);
+  try {
+    const result = await activity.withActivity(`${on ? "enabling" : "disabling"} ${name}…`, () => library.setSkillState([name], on ? "on" : "off"));
+    const readOnly = result.ok ? result.value.readOnly[0] : undefined;
+    if (!result.ok || readOnly) {
+      pending.value.delete(name);
+      const detail = result.ok ? `It is set to ${readOnly!.value} elsewhere; Loadout leaves that as it is.` : result.error.message;
+      toasts.notify({ kind: "error", message: `Could not switch ${name}.`, detail });
+      return;
+    }
+    // Already in the requested state counts as success.
+    toasts.notify({ kind: "success", message: `${name} is switched ${on ? "on" : "off"}. ${SESSION_TIMING}` });
+    await catalog.reload();
+  } finally {
+    toggling.value.delete(name);
+  }
+}
 
 /** A switched-off card's hover text says when the change lands; the badge has no room for it. */
 function statusTitle(row: Row): string | undefined {
@@ -49,6 +109,19 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
           <!-- Its own column, so the type starts at the same x on every row. -->
           <span class="entry-list__type">{{ row.entry.type }}</span>
 
+          <!-- Under the type, on the description's line: a track and a knob, above the open button. -->
+          <button
+            v-if="switchable(row)"
+            type="button"
+            role="switch"
+            class="entry-list__switch"
+            :aria-checked="switchedOn(row)"
+            :disabled="toggling.has(row.entry.name)"
+            :aria-label="`${row.entry.name} enabled`"
+            :title="`${switchedOn(row) ? 'Disable' : 'Enable'} ${row.entry.name}`"
+            @click="flip(row)"
+          />
+
           <div class="entry-list__head">
             <span class="entry-list__name">{{ row.entry.name }}</span>
             <span
@@ -77,6 +150,13 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
               class="entry-list__overrides"
             >
               overrides {{ row.overrides.join(", ") }}
+            </span>
+            <span
+              v-if="row.entry.skillOverride"
+              class="entry-list__visibility"
+              :title="`Set to ${row.entry.skillOverride} in Claude Code's settings; Loadout leaves it as it is.`"
+            >
+              {{ row.entry.skillOverride }}
             </span>
             <!-- Whether this copy is on the machine, apart from the precedence pills, so an overridden
                  copy can say both "overridden by X" and "not installed". -->
@@ -285,5 +365,64 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
   margin: 0.35rem 0 0;
   font-size: 0.78rem;
   opacity: 0.6;
+}
+.entry-list__switch {
+  /* Above the stretched open button, so pressing the switch does not open the entry. */
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  /* Out of the baseline group — a control has no text to sit on a baseline — and nudged
+     to centre on the description's first line, which is what row 2 is. */
+  align-self: start;
+  margin-top: 0.5rem;
+  width: 1.9rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 1px solid var(--control-off);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+.entry-list__switch::after {
+  /* The knob. A pseudo-element because the button has no text to lay out around. */
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0.1rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--control-off);
+  transform: translateY(-50%);
+  transition: transform 0.12s ease;
+}
+.entry-list__switch[aria-checked="true"] {
+  background: var(--control-on);
+  border-color: var(--control-on);
+}
+.entry-list__switch[aria-checked="true"]::after {
+  background: var(--control-on-knob);
+  transform: translate(0.8rem, -50%);
+}
+.entry-list__switch:hover:not(:disabled) {
+  border-color: var(--control-on);
+}
+.entry-list__switch:disabled {
+  /* Only lightly faded: the switch has already moved to where the user put it, and the
+     point of moving it early is lost if the new position is hard to read. */
+  opacity: 0.7;
+  cursor: progress;
+}
+.entry-list__visibility {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px dashed var(--status-disabled-edge);
+  color: var(--status-disabled-ink);
 }
 </style>

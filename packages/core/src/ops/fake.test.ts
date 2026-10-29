@@ -20,6 +20,7 @@ const record = (name: string, catalog: string, extra: Partial<EntryRecord> = {})
   receipt: null,
   locations: [],
   disabled: false,
+  skillOverride: null,
   ...extra,
 });
 

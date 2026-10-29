@@ -12,6 +12,9 @@ const ALLOWED = new Set([
   "components/CommandLog.vue: .command-log__more",
   // The catalog tab: its padding and square top corners join it to the panel below.
   "components/CatalogTabs.vue: .catalog-tabs__tab",
+  // The on/off switch: a track with a knob, not a button-shaped button.
+  "components/EntryList.vue: .entry-list__switch",
+  "components/EntryList.vue: .entry-list__switch::after",
   // The invisible hit target stretched over an entry card.
   "components/EntryList.vue: .entry-list__open",
   // Icon buttons, sized by their icon.
@@ -20,7 +23,11 @@ const ALLOWED = new Set([
 ]);
 
 /** Selectors allowed to draw a disabled button themselves, each with the reason app.css's rule is wrong for it. */
-const ALLOWED_DISABLED = new Set<string>([]);
+const ALLOWED_DISABLED = new Set<string>([
+  // Only lightly faded, with a progress cursor: the switch has already moved where the user put it,
+  // and the toggle is in flight, not refused.
+  "components/EntryList.vue: .entry-list__switch:disabled",
+]);
 const DISABLED_STATE = /^\s*(opacity|cursor)\b/;
 
 /**

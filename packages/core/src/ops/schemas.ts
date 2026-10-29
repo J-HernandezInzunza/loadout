@@ -19,6 +19,8 @@ const EntryRecord = Entry.extend({
   locations: z.array(z.string()),
   /** turned off through skillOverrides */
   disabled: z.boolean(),
+  /** Q14 A: a skillOverrides value set elsewhere that Loadout shows but never changes */
+  skillOverride: z.enum(["name-only", "user-invocable-only"]).nullable(),
 }).strict();
 
 const Edits = z.strictObject({ modified: z.array(z.string()), added: z.array(z.string()), deleted: z.array(z.string()) });

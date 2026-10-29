@@ -1,13 +1,13 @@
 import { catalogRow, entryRecord, installedRecord } from "@loadout/core/testing";
-import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import { rowsFor, SESSION_TIMING } from "../catalog.ts";
+import { mountView } from "../testing/mountView.ts";
 import EntryList from "./EntryList.vue";
 
 const catalogs = [catalogRow({ id: "personal" }), catalogRow({ id: "team", precedence: 2 })];
 
 function mountList(records: Parameters<typeof rowsFor>[1], showOrigin = true) {
-  return mount(EntryList, { props: { rows: rowsFor({ kind: "all" }, records, false), catalogs, showOrigin } });
+  return mountView(EntryList, { props: { rows: rowsFor({ kind: "all" }, records, false), catalogs, showOrigin } }).wrapper;
 }
 
 describe("UI-18: an entry card", () => {
