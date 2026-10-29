@@ -892,7 +892,7 @@ on each card, below the switch; the window gets a minimum size instead of a coll
     state and search combine in tests; the Accounts rows show a login or Connect and open Accounts;
     Sync and Catalogs open their views and Back returns to the list with the sidebar choice kept.
 
-- [ ] **M7.02 Type below the switch.** On every card the type label sits under the on/off switch
+- [x] **M7.02 Type below the switch.** On every card the type label sits under the on/off switch
   (alone where there is no switch), instead of above it.
   - Rules: UI-18 (rebuild, this task)
   - Depends: M7.01
