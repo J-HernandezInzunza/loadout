@@ -67,6 +67,22 @@ M2 and M3 test with injected tokens, so nothing waits on this until M4.
 
 **Answer: I will register it, but need a walkthrough of scopes/permissions to define**
 
+Follow-up (2026-10-29), what to register:
+
+- **GitHub OAuth app** (Settings → Developer settings → OAuth Apps → New OAuth App): name Loadout;
+  any homepage URL; callback URL required but unused by device flow (`http://127.0.0.1/`);
+  **Enable Device Flow** on; **Expire user access tokens** off (refreshing a GitHub token needs the
+  client secret, which device flow avoids). Scopes are requested at sign-in, not registered:
+  `repo` (private sources and catalogs: clone, push, PRs). Under an org with OAuth app access
+  restrictions, an owner must approve the app before its tokens reach org repos.
+- **Bitbucket OAuth consumer** (workspace settings → OAuth consumers → Add consumer): name Loadout;
+  callback URL `loadout://oauth/bitbucket` for now (editable; M4.12 decides between it and a
+  loopback URL); **This is a private consumer** off; permissions **Account: Read**,
+  **Repositories: Write**, **Pull requests: Write** (it implies repository write), nothing else.
+  Keep the key and secret out of the repo and chat; M4.12 reads them from environment variables.
+- Still open from Q5: is the Bitbucket secret shipping inside each build acceptable to the
+  workspace owner, or a token-exchange service instead?
+
 ## Q6. A fourth Rust command for `realPath` (resolved 2026-10-29: A confirmed)
 
 `HostFs.realPath` resolves symlinks, and the core uses it in six places (local catalog keys, the
