@@ -80,8 +80,12 @@ Follow-up (2026-10-29), what to register:
   loopback URL); **This is a private consumer** off; permissions **Account: Read**,
   **Repositories: Write**, **Pull requests: Write** (it implies repository write), nothing else.
   Keep the key and secret out of the repo and chat; M4.12 reads them from environment variables.
-- Still open from Q5: is the Bitbucket secret shipping inside each build acceptable to the
-  workspace owner, or a token-exchange service instead?
+- Decided 2026-10-29: the Bitbucket secret ships in builds (a CI secret, injected at build time); no
+  token-exchange service. Alone it grants nothing (the consumer isn't private, so no
+  client-credentials grant); it lets someone pose as Loadout and redeem an authorization code they
+  manage to intercept, so M4.12 prefers the redirect that is hardest to intercept and M4.14 sends
+  and checks a `state` value. Rotate it if it is abused.
+- Q5 stays open until both apps are registered.
 
 ## Q6. A fourth Rust command for `realPath` (resolved 2026-10-29: A confirmed)
 
