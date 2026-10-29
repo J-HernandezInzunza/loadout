@@ -17,12 +17,12 @@ import {
 import { applyMigrateParked, planMigrateParked, type MigrateReport, type ParkedSkill } from "../claudeSettings/migrate.ts";
 import { createClaudeSettings } from "../claudeSettings/settings.ts";
 import { setSkillState, type ToggleReport } from "../claudeSettings/toggle.ts";
-import { createConfigStore, type AccountInfo } from "../config/config.ts";
+import { createConfigStore, type AccountInfo, type LoadedConfig } from "../config/config.ts";
 import { applyImport, planImport, type ImportErr, type ImportPlan, type ImportReport } from "../config/import.ts";
 import { dependents, resolveDeps } from "../deps/deps.ts";
 import { doctor, recloneCatalog, type DoctorReport } from "../doctor/doctor.ts";
 import { createGitClient, type GitClient } from "../git/git.ts";
-import { createOperation } from "../git/operation.ts";
+import { createOperation, sweepTemp } from "../git/operation.ts";
 import type { Host } from "../host.ts";
 import { applyInstall, type ApplyOpts, type ApplyReport } from "../install/apply.ts";
 import { discardPlan, planInstall, type InstallPlan } from "../install/plan.ts";
@@ -65,7 +65,19 @@ export type CatalogEditResult = WriteResult &
     | { op: "remove"; removed: RemovePlan["removed"]; dependents: string[]; deleted: string[] }
   );
 
+export interface LaunchReport {
+  /** "no-catalogs": nothing registered yet, so the app offers to import or add one */
+  state: LoadedConfig["state"];
+  catalogs: CatalogRefresh[];
+}
+
 export interface Library {
+  /**
+   * At app start (architecture.md §2.5): clear what killed operations left in tmp, then clone or pull
+   * every remote catalog; a catalog that can't be refreshed is a warning (A3). Reads made before it
+   * finishes serve the clones on disk (W14).
+   */
+  launch(opts?: { signal?: AbortSignal }): Promise<Result<LaunchReport>>;
   /** Every copy of every entry, in resolution order; `checkRemote` asks each installed remote source whether it moved (UPD-06). */
   list(opts?: { catalog?: string; checkRemote?: boolean }): Promise<Result<EntryRecord[]>>;
   /** W18: the list filtered by name or description, case-insensitively, as RES-04's candidates are. */
@@ -235,6 +247,15 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
   };
 
   return {
+    async launch(o = {}) {
+      await sweepTemp(host);
+      const loaded = await store.loadConfig();
+      if (!loaded.ok) return loaded;
+      const refreshed = await refreshCatalogs(host, git, loaded.value.config.catalogs, o);
+      if (!refreshed.ok) return refreshed;
+      return ok({ state: loaded.value.state, catalogs: refreshed.value }, refreshed.warnings);
+    },
+
     async list(o = {}) {
       const found = await listed(o.catalog);
       if (!found.ok) return found;

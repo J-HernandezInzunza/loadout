@@ -248,16 +248,16 @@ const PinResult = z.strictObject({
   installed: ApplyReport.nullable(),
 });
 
+const CatalogRefresh = z.strictObject({ id: z.string(), outcome: z.enum(["cloned", "pulled", "cached", "skipped"]) });
+
 export const ops = {
   list: { input: z.strictObject({ ...catalogOption, checkRemote: z.boolean().exactOptional() }), output: z.array(EntryRecord) },
   search: { input: z.strictObject({ query: z.string(), ...catalogOption }), output: z.array(EntryRecord) },
   show: { input: z.strictObject({ name: z.string(), ...catalogOption }), output: EntryDetail },
   catalogs: { input: z.strictObject({}), output: z.array(CatalogRow) },
   scan: { input: z.strictObject({}), output: ScanReport },
-  refresh: {
-    input: z.strictObject({}),
-    output: z.array(z.strictObject({ id: z.string(), outcome: z.enum(["cloned", "pulled", "cached", "skipped"]) })),
-  },
+  refresh: { input: z.strictObject({}), output: z.array(CatalogRefresh) },
+  launch: { input: z.strictObject({}), output: z.strictObject({ state: z.enum(["no-catalogs", "ready"]), catalogs: z.array(CatalogRefresh) }) },
   planInstall: { input: z.strictObject({ names: z.array(z.string()), ...catalogOption }), output: InstallPlan },
   applyInstall: {
     input: z.strictObject({ plan: InstallPlan, overwrite: z.strictObject({ unmanaged: z.array(z.string()).exactOptional() }).exactOptional() }),

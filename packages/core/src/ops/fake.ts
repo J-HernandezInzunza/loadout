@@ -20,9 +20,14 @@ const refused = async () => err({ code: "REFUSED" as const, message: "not modell
 export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Partial<Library> = {}): Library & { state: FakeState } {
   const state: FakeState = { catalogs: [], entries: [], pins: [], accounts: {}, ...seed };
   const inCatalog = (catalog?: string) => state.entries.filter((e) => catalog === undefined || e.catalog === catalog);
+  // Remote catalogs only, as the real refresh does; the fake never pulls, so each serves its cached copy.
+  const refreshed = () => state.catalogs.filter((c) => c.kind === "remote").map((c) => ({ id: c.id, outcome: "cached" as const }));
   const winner = (name: string, catalog?: string) => inCatalog(catalog).find((e) => e.name === name && (catalog !== undefined || e.overriddenBy === null));
 
   const library: Library = {
+    async launch() {
+      return ok({ state: state.catalogs.length === 0 ? ("no-catalogs" as const) : ("ready" as const), catalogs: refreshed() });
+    },
     async list(o = {}) {
       return ok(inCatalog(o.catalog));
     },
@@ -57,7 +62,7 @@ export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Part
       return ok({ items: [], missing: [] });
     },
     async refresh() {
-      return ok(state.catalogs.map((c) => ({ id: c.id, outcome: "cached" as const })));
+      return ok(refreshed());
     },
     async doctor() {
       return ok({ status: "ok" as const, entries: state.entries.length, errors: [], warnings: [] });
