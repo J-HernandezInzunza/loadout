@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { appCss, components } from "./assets/styleSources.ts";
 
-const source = (name: string) => components().find(([path]) => path.endsWith(`/${name}`))?.[1] ?? "";
+const source = (name: string) => components().find(([path]) => path === name || path.endsWith(`/${name}`))?.[1] ?? "";
 
 describe("UI-09, UI-55: page chrome", () => {
   it("leaves PageHeader the only component drawing a back arrow", () => {
@@ -27,6 +27,13 @@ describe("UI-09, UI-55: page chrome", () => {
     const header = source("PageHeader.vue");
     expect(header.indexOf('class="page-head view__head')).toBeLessThan(header.indexOf('class="view__body'));
     expect(header.indexOf('class="view__body')).toBeLessThan(header.indexOf('class="page-title"'));
+  });
+
+  it("makes the app the view, then the command bar, so the bar is the window's bottom by construction", () => {
+    const app = source("App.vue");
+    expect(app).toMatch(/\.app\s*\{[^}]*grid-template-rows:\s*1fr auto/);
+    expect(app).toMatch(/<section[^>]*class="view"/);
+    expect(app).not.toMatch(/position:\s*(fixed|sticky)/);
   });
 
   it("leaves the scrolling body full width, so nothing is clipped against its edge", () => {
