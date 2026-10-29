@@ -517,7 +517,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Done when: each op has a facade test (happy path plus one refusal) on the Node host; two
     instances still share no state.
 
-- [ ] **M4.02 Facade: registry, accounts and maintenance.** `pins()` (name, catalog, holders,
+- [x] **M4.02 Facade: registry, accounts and maintenance.** `pins()` (name, catalog, holders,
   dangling, resolvesTo; §3.6's list), `doctor`, `recloneCatalog`, `planAddCatalog`/`applyAddCatalog`,
   `initCatalog`, `removeCatalog`, `planImport`/`applyImport`, `accounts`/`connect`/`disconnect`.
   - Rules: none (arch §2.3, §5.5; behaviors.md §3.6 list form)
