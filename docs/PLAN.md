@@ -904,7 +904,7 @@ on each card, below the switch; the window gets a minimum size instead of a coll
   - Depends: M7.01
   - Done when: a test reads the config and checks the minimum against the sidebar's width.
 
-- [ ] **M7.04 Form controls of our own.** A small component library in `apps/desktop/src/components/ui/`:
+- [x] **M7.04 Form controls of our own.** A small component library in `apps/desktop/src/components/ui/`:
   `UiCheckbox`, `UiRadio` and `UiSelect`, each a wrapper around the native element (kept for keyboard,
   focus, `v-model` and the native macOS menu) restyled with `appearance: none` from the tokens, to
   match the on/off switch (sizes, border, the switch's on colour, focus ring, disabled opacity). The
