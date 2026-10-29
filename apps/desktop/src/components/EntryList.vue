@@ -13,12 +13,26 @@ const props = defineProps<{
   catalogs: CatalogRow[];
   /** origin is worth the space only once more than one catalog is registered */
   showOrigin: boolean;
+  /** names ticked for a bulk action, or null outside selection mode, which renders no ticks at all */
+  selected?: Set<string> | null;
 }>();
 
 const emit = defineEmits<{
   /** which copy was opened: a row is one catalog's copy, so its name alone is ambiguous */
   select: [stop: EntryStop];
+  /** a name ticked or unticked in selection mode */
+  toggle: [name: string];
 }>();
+
+const selecting = computed(() => props.selected !== null && props.selected !== undefined);
+/** An overridden copy can't be picked: installing its name would fetch the winning catalog's copy. */
+const selectable = (row: Row) => selecting.value && row.entry.overriddenBy === null;
+
+/** The card is the hit target in both modes, so there is no 13px checkbox to aim at. */
+function activate(row: Row) {
+  if (selecting.value) emit("toggle", row.entry.name);
+  else emit("select", { name: row.entry.name, catalog: row.entry.catalog });
+}
 
 const library = useLibrary();
 const activity = useActivityStore();
@@ -47,7 +61,8 @@ watch(
  */
 function switchable(row: Row): boolean {
   const e = row.entry;
-  return e.type !== "agent" && e.installed && e.overriddenBy === null && e.skillOverride === null;
+  // Not while picking: a mutating control inside a pick target is a trap.
+  return !selecting.value && e.type !== "agent" && e.installed && e.overriddenBy === null && e.skillOverride === null;
 }
 
 function switchedOn(row: Row): boolean {
@@ -93,7 +108,7 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
     >
       <div
         class="entry-list__card"
-        :class="{ 'entry-list__card--off': row.entry.disabled }"
+        :class="{ 'entry-list__card--off': row.entry.disabled, 'entry-list__card--picked': selected?.has(row.entry.name) }"
       >
         <div class="entry-list__item">
           <!-- An empty button stretched over the card rather than one wrapping it, so the card can hold
@@ -101,9 +116,11 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
           <button
             type="button"
             class="entry-list__open"
-            :aria-label="`Open ${row.entry.name}`"
+            :disabled="selecting && !selectable(row)"
+            :aria-pressed="selectable(row) ? selected?.has(row.entry.name) : undefined"
+            :aria-label="`${selecting ? 'Select' : 'Open'} ${row.entry.name}`"
             :title="statusTitle(row)"
-            @click="emit('select', { name: row.entry.name, catalog: row.entry.catalog })"
+            @click="activate(row)"
           />
 
           <!-- Its own column, so the type starts at the same x on every row. -->
@@ -178,6 +195,22 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
             requires: {{ row.entry.requires.join(", ") }}
           </p>
         </div>
+        <!-- Outside the card, so it can't be mistaken for part of it; only in selection mode. -->
+        <span
+          v-if="selectable(row)"
+          class="entry-list__controls"
+        >
+          <span
+            class="entry-list__tick"
+            :class="{ 'entry-list__tick--on': selected?.has(row.entry.name) }"
+            aria-hidden="true"
+          >
+            <svg
+              v-if="selected?.has(row.entry.name)"
+              viewBox="0 0 16 16"
+            ><path d="M4 8.4l2.7 2.7L12 5.2" /></svg>
+          </span>
+        </span>
       </div>
     </li>
   </ul>
@@ -424,5 +457,38 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
   border-radius: 999px;
   border: 1px dashed var(--status-disabled-edge);
   color: var(--status-disabled-ink);
+}
+.entry-list__card--picked {
+  background: var(--accent-tint);
+}
+.entry-list__controls {
+  display: flex;
+  align-items: center;
+  padding: 0 0.9rem 0 0.7rem;
+}
+.entry-list__tick {
+  /* A square box, because the selection is a multi-pick: a circle would promise a radio. */
+  display: flex;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 5px;
+  border: 2px solid var(--border-control);
+}
+.entry-list__tick--on {
+  border-color: var(--accent-bright);
+  background: var(--accent-bright);
+  color: var(--text-on-accent);
+}
+.entry-list__tick svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.entry-list__open:disabled {
+  cursor: default;
 }
 </style>

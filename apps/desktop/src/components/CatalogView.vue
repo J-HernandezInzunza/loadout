@@ -5,6 +5,7 @@ import { rowsFor, searchRows, type Tab } from "../catalog.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import { useViewStore } from "../stores/views.ts";
 import AppearanceToggle from "./AppearanceToggle.vue";
+import BulkInstall from "./BulkInstall.vue";
 import BusyIndicator from "./BusyIndicator.vue";
 import CatalogSummary from "./CatalogSummary.vue";
 import CatalogTabs from "./CatalogTabs.vue";
@@ -31,6 +32,25 @@ const filtered = computed(() => searchRows(rows.value, query.value));
 /** counted across every catalog: a fact about the machine, not about the tab on screen */
 const disabledCount = computed(() => entries.value.filter((e) => e.overriddenBy === null && e.disabled).length);
 const overriddenCount = computed(() => entries.value.filter((e) => e.overriddenBy !== null).length);
+
+/**
+ * Names ticked for a bulk action, or null when not selecting; only inside one catalog's tab, where "these
+ * entries" is unambiguous. Computed over the search-filtered rows.
+ */
+const picked = ref<Set<string> | null>(null);
+/** every row in this tab whose name installs this copy */
+const selectable = computed(() => filtered.value.filter((r) => r.entry.overriddenBy === null).map((r) => r.entry.name));
+const pickedNames = computed(() => selectable.value.filter((name) => picked.value?.has(name)));
+
+function togglePicked(name: string) {
+  if (!picked.value) return;
+  const next = new Set(picked.value);
+  if (!next.delete(name)) next.add(name);
+  picked.value = next;
+}
+
+// Null, not empty: an empty set *is* selection mode, and changing tabs leaves it.
+watch(tab, () => (picked.value = null));
 
 /** A disabled copy is still on the machine, so it counts as installed and as disabled. */
 const summary = computed(() => {
@@ -158,7 +178,60 @@ const freshness = computed(() => {
           >
           Hide overridden
         </label>
+        <!-- A missing control reads as a bug, so a tab where nothing would install says so. -->
+        <span
+          v-if="activeCatalog && !selectable.length && rows.length"
+          class="summary__note"
+        >
+          Nothing here can be installed: every copy is overridden by a higher-precedence catalog, so installing any of
+          these names would fetch that catalog's copy instead.
+        </span>
+        <span
+          v-if="activeCatalog && selectable.length"
+          class="summary__actions"
+        >
+          <button
+            v-if="!picked"
+            type="button"
+            class="ghost btn-xs"
+            @click="picked = new Set()"
+          >
+            Install or remove several
+          </button>
+          <template v-else>
+            <button
+              v-if="pickedNames.length < selectable.length"
+              type="button"
+              class="ghost btn-xs"
+              @click="picked = new Set(selectable)"
+            >
+              Select all {{ selectable.length }}
+            </button>
+            <button
+              v-if="pickedNames.length"
+              type="button"
+              class="ghost btn-xs"
+              @click="picked = new Set()"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              class="ghost btn-xs"
+              @click="picked = null"
+            >
+              Stop selecting
+            </button>
+          </template>
+        </span>
       </p>
+      <!-- Kept for the whole of selection mode: it owns the outcome banner of what was just done. -->
+      <BulkInstall
+        v-if="activeCatalog && picked"
+        :names="pickedNames"
+        :catalog-id="activeCatalog"
+        @done="picked = new Set()"
+      />
       <!-- Only the first load replaces the list; a reload keeps the rows and marks them as being re-read,
            so one changed row doesn't blank and rebuild the whole list. -->
       <BusyIndicator
@@ -213,7 +286,9 @@ const freshness = computed(() => {
         :rows="filtered"
         :catalogs="catalogs"
         :show-origin="multiCatalog"
+        :selected="picked"
         @select="views.trail = [$event]"
+        @toggle="togglePicked($event)"
       />
     </div>
   </section>
@@ -257,6 +332,14 @@ h1 {
 }
 .summary__freshness {
   opacity: 0.8;
+}
+.summary__note {
+  flex-basis: 100%;
+}
+.summary__actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
 }
 .summary__toggle {
   display: flex;

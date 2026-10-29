@@ -26,6 +26,9 @@ const ALLOWED = new Set([
 
 /** Selectors allowed to draw a disabled button themselves, each with the reason app.css's rule is wrong for it. */
 const ALLOWED_DISABLED = new Set<string>([
+  // The invisible button over a card: in selection mode an overridden row simply isn't a target, and
+  // a refusal cursor across the whole row would say otherwise.
+  "components/EntryList.vue: .entry-list__open:disabled",
   // Only lightly faded, with a progress cursor: the switch has already moved where the user put it,
   // and the toggle is in flight, not refused.
   "components/EntryList.vue: .entry-list__switch:disabled",
