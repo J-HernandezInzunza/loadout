@@ -651,3 +651,7 @@ Conventions for the host tasks: `apps/desktop/src/host-tauri/` holds one file pe
   - Rules: none
   - Depends: M4.11, M4.15, M4.16
   - Done when: every M4 task is checked.
+
+---
+
+Potentially next (not planned yet): M5, the screens (open-questions.md "UI"), built against the M4.04 `Library` fake; then R, the first release to teammates (arch §7: CI build, Homebrew cask with the quarantine caveat).
