@@ -1,6 +1,7 @@
 // The Tauri capability file is the app's permission surface (architecture.md §2.4, §6): the shell may
 // spawn only git (gh was dropped for the host APIs, §5.5), the fs scope must keep its denies for
-// secrets under $HOME and reach nothing past $HOME and $APPDATA, and the app's own commands are few.
+// secrets under $HOME and reach nothing past $HOME and $APPDATA, http reaches only the host APIs and
+// OAuth endpoints (§5.5), and the app's own commands are few.
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -54,6 +55,17 @@ describe("capabilities", () => {
   it("lets globs match dot-components, or $HOME/** would exclude ~/.claude", () => {
     const conf = JSON.parse(readFileSync(dir + "../tauri.conf.json", "utf8"));
     expect(conf.plugins?.fs?.requireLiteralLeadingDot).toBe(false);
+  });
+
+  it("lets http reach only the GitHub and Bitbucket APIs and OAuth endpoints", () => {
+    const urls = scoped("http:").flatMap((p) => p.allow ?? []).map((e) => e.url);
+    expect(urls.sort()).toEqual([
+      "https://api.bitbucket.org/*",
+      "https://api.github.com/*",
+      "https://bitbucket.org/site/oauth2/*",
+      "https://github.com/login/*",
+    ]);
+    expect(scoped("http:").flatMap((p) => p.deny ?? [])).toEqual([]);
   });
 
   it("grants only the app commands no plugin covers", () => {

@@ -24,10 +24,4 @@ describe("host-tauri", () => {
     host.audit({ kind: "fs", op: "delete", path: "/Users/x/.claude/skills/a" });
     expect(log.events().at(-1)).toEqual({ kind: "fs", op: "delete", path: "/Users/x/.claude/skills/a" });
   });
-
-  it("rejects http calls until its port exists", async () => {
-    await expect(host.http.request({ method: "GET", url: "https://api.github.com/user" })).rejects.toThrow(
-      "host-tauri: http.request is not implemented yet (M4)",
-    );
-  });
 });
