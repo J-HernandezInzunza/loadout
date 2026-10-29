@@ -773,7 +773,7 @@ inline confirms, Escape closes). Wording helpers (`describePush`, `describeDestS
   - Depends: M5.04
   - Done when: each rule has a test; `Catalogs.spec.ts` and `RegisterCatalog.spec.ts` are ported.
 
-- [ ] **M5.15 Authoring on local catalogs.** Add entry (with the source-URL suggestion, Q13 b),
+- [x] **M5.15 Authoring on local catalogs.** Add entry (with the source-URL suggestion, Q13 b),
   edit entry (only changed fields), remove entry (dry-run diff, dependents, purge), each through
   `planAdd`/`planUpdate`/`planRemove` and `applyCatalogEdit`; remote catalogs wait for M6.
   - Rules: UI-46, UI-47, UI-48
