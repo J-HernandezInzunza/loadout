@@ -474,7 +474,7 @@ the commit and the PR API request (START-HERE.md said `gh`'s argv; `gh` was drop
   - Depends: M3.04, M2.18
   - Done when: each rule has a test.
 
-- [ ] **M3.11 Push.** `planPush` / `applyPush` per §3.16: send an installed copy's edits back to
+- [x] **M3.11 Push.** `planPush` / `applyPush` per §3.16: send an installed copy's edits back to
   its source (local file, or a PR/branch for a remote source); afterwards the receipt describes the
   pushed content, so the copy no longer reads as edited (A28).
   - Rules: none (§3.16; A28)
