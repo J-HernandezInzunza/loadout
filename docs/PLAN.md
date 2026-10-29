@@ -873,7 +873,7 @@ test with its id; `npm run check` green; the owner walked it in a Finder-launche
 Decided 2026-10-29: the sidebar is on the list view only (other views stay full width); the type stays
 on each card, below the switch; the window gets a minimum size instead of a collapsing sidebar.
 
-- [ ] **M7.01 List sidebar and toolbar.** The list view becomes sidebar + list. Sidebar, top to
+- [x] **M7.01 List sidebar and toolbar.** The list view becomes sidebar + list. Sidebar, top to
   bottom: "Loadout" with the appearance toggle; **Browse**: All, Skills, Prompts, Agents, each with a
   count (names of that type, winning copies, across every catalog); **Manage**: Sync, Catalogs (Catalog
   health stays on the Catalogs page); at the bottom, **Accounts**: one row per host with its login, or
