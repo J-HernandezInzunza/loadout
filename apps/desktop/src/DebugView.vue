@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Throwaway: proves the Tauri host end to end until the real screens exist.
 import { onMounted, onUnmounted, ref } from "vue";
-import type { AuditEvent, CatalogRow, EntryRecord, LaunchReport, Library, Result, Warning } from "@loadout/core";
+import type { AuditEvent, CatalogRow, CoreError, EntryRecord, LaunchReport, Library, PlanItem, Result, Warning } from "@loadout/core";
 import type { AuditLog } from "./host-tauri/audit.ts";
 
 const props = defineProps<{ library: Library; log: AuditLog; launched: Promise<Result<LaunchReport>> }>();
@@ -24,6 +24,144 @@ async function load() {
   catalogs.value = valueOr(catalogRows, []);
   const records = await props.library.list();
   entries.value = valueOr(records, []);
+}
+
+/** What an action planned or did; `apply`/`replace` act on the plan, `discard` drops its staged copies. */
+interface Panel {
+  title: string;
+  lines: string[];
+  apply?: () => Promise<void>;
+  replace?: () => Promise<void>;
+  discard?: () => Promise<void>;
+}
+
+const panel = ref<Panel | null>(null);
+const busy = ref(false);
+const editTarget = ref<EntryRecord | null>(null);
+const editText = ref("");
+
+async function act(step: () => Promise<void>) {
+  busy.value = true;
+  try {
+    await step();
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function show(next: Panel) {
+  // A plan nobody applied still holds staged copies or a temp clone.
+  await panel.value?.discard?.();
+  panel.value = next;
+}
+
+function failure(title: string, error: CoreError): Panel {
+  return { title, lines: [`${error.code}: ${error.message}`] };
+}
+
+/** Runs one of the panel's actions; the plan is spent either way, so there's nothing left to discard. */
+async function runPanel(step: "apply" | "replace" | "discard") {
+  const current = panel.value;
+  panel.value = null;
+  await act(async () => {
+    await current?.[step]?.();
+  });
+}
+
+function describeItem(item: PlanItem): string {
+  const where = `${item.type} ${item.name} → ${item.dest}: ${item.status}${item.reason ? ` (${item.reason})` : ""}`;
+  const consent = item.needsConsent ? ", holds a copy Loadout didn't install" : "";
+  if (item.preview.kind === "destination-only") return `${where}${consent}, source unreachable`;
+  const p = item.preview;
+  const edited = p.editedLocally.length > 0 ? `, you edited ${p.editedLocally.join(", ")}` : "";
+  const change = p.newInstall ? "new install" : `+${p.added.length} −${p.removed.length} ~${p.modified.length}${edited}`;
+  return `${where}${consent}, ${change}`;
+}
+
+async function doctor() {
+  const report = await props.library.doctor();
+  if (!report.ok) return show(failure("Doctor", report.error));
+  const findings = [...report.value.errors, ...report.value.warnings];
+  const lines = findings.map((f) => `${f.severity} [${f.check}] ${[f.catalog, f.entry].filter(Boolean).join(" ")}: ${f.message}`);
+  await show({ title: `Doctor: ${report.value.status}, ${report.value.entries} entries checked`, lines });
+}
+
+async function install(entry: EntryRecord) {
+  const plan = await props.library.planInstall({ names: [entry.name], catalog: entry.catalog });
+  if (!plan.ok) return show(failure(`Install ${entry.name}`, plan.error));
+  const unmanaged = plan.value.items.filter((i) => i.needsConsent).map((i) => i.dest);
+  const applyReplacing = (replace: string[]) => async () => {
+    const report = await props.library.applyInstall(plan.value, { overwrite: { unmanaged: replace } });
+    if (!report.ok) return show(failure(`Install ${entry.name}`, report.error));
+    const lines = report.value.installed.map((i) => `installed ${i.type} ${i.name} → ${i.dest}`);
+    if (report.value.stopped) lines.push(`stopped at ${report.value.stopped.name}: ${report.value.stopped.reason}`);
+    await show({ title: `Installed from ${entry.catalog}`, lines });
+    await load();
+  };
+  await show({
+    title: `Install ${entry.name} from ${entry.catalog}`,
+    lines: [...plan.warnings.map((w) => `warning: ${w.message}`), ...plan.value.items.map(describeItem)],
+    apply: applyReplacing([]),
+    ...(unmanaged.length > 0 && { replace: applyReplacing(unmanaged) }),
+    discard: async () => {
+      await props.library.discardPlan(plan.value);
+    },
+  });
+}
+
+async function sync() {
+  const plan = await props.library.planSync();
+  if (!plan.ok) return show(failure("Sync", plan.error));
+  const { items, upToDate, unmanaged } = plan.value;
+  const lines = [
+    ...items.map(describeItem),
+    `${upToDate.length} up to date`,
+    ...unmanaged.map((u) => `left alone (not installed by Loadout): ${u.type} ${u.name} at ${u.dest}`),
+  ];
+  const apply = async () => {
+    const report = await props.library.applySync(plan.value);
+    if (!report.ok) return show(failure("Sync", report.error));
+    const r = report.value;
+    await show({
+      title: "Synced",
+      lines: [
+        ...r.synced.map((s) => `synced ${s.type} ${s.name}`),
+        ...r.failed.map((f) => `failed ${f.type} ${f.name}: ${f.reason}`),
+        ...r.missing.map((m) => `installed copy gone: ${m.dest}`),
+        `${r.upToDate.length} up to date`,
+      ],
+    });
+    await load();
+  };
+  const discard = async () => {
+    await props.library.discardPlan(plan.value);
+  };
+  await show({ title: `Sync: ${items.length} to update`, lines, ...(items.length > 0 && { apply }), discard });
+}
+
+async function editDescription() {
+  const entry = editTarget.value;
+  if (!entry) return;
+  const plan = await props.library.planUpdate({ name: entry.name, catalog: entry.catalog, type: entry.type, setDescription: editText.value });
+  if (!plan.ok) return show(failure(`Edit ${entry.name}`, plan.error));
+  const mode = plan.value.write.mode;
+  const how = { local: "writes the catalog file", direct: "commits and pushes to the catalog's branch", pr: "pushes a branch and opens a pull request (or gives a compare link)" }[mode];
+  const apply = async () => {
+    const result = await props.library.applyCatalogEdit(plan.value);
+    if (!result.ok) return show(failure(`Edit ${entry.name}`, result.error));
+    const r = result.value;
+    const lines = Object.entries(r).map(([k, v]) => `${k}: ${String(v)}`);
+    await show({ title: `Edited ${entry.name} in ${entry.catalog}`, lines: [...result.warnings.map((w) => `warning: ${w.message}`), ...lines] });
+    await load();
+  };
+  await show({
+    title: `Set ${entry.name}'s description in ${entry.catalog}`,
+    lines: [...plan.warnings.map((w) => `warning: ${w.message}`), `${mode} mode: ${how}`],
+    apply,
+    discard: async () => {
+      await props.library.discardCatalogEdit(plan.value);
+    },
+  });
 }
 
 function describeEvent(event: AuditEvent): string {
@@ -127,8 +265,103 @@ onUnmounted(unsubscribe);
         <td>{{ entry.catalog }}</td>
         <td>{{ entry.state }}{{ entry.disabled ? " (off)" : "" }}</td>
         <td>{{ entry.overriddenBy ? `overridden by ${entry.overriddenBy}` : "" }}</td>
+        <td>
+          <button
+            v-if="!entry.overriddenBy"
+            :disabled="busy"
+            data-test="install"
+            @click="act(() => install(entry))"
+          >
+            Install
+          </button>
+        </td>
       </tr>
     </table>
+
+    <h2>Actions</h2>
+    <p class="debug-view__actions">
+      <button
+        :disabled="busy"
+        data-test="doctor"
+        @click="act(doctor)"
+      >
+        Doctor
+      </button>
+      <button
+        :disabled="busy"
+        data-test="sync"
+        @click="act(sync)"
+      >
+        Plan sync
+      </button>
+    </p>
+    <p class="debug-view__actions">
+      Set the description of
+      <select
+        v-model="editTarget"
+        data-test="edit-target"
+      >
+        <option
+          v-for="entry in entries"
+          :key="`${entry.catalog}:${entry.type}:${entry.name}`"
+          :value="entry"
+        >
+          {{ entry.catalog }}: {{ entry.name }}
+        </option>
+      </select>
+      to
+      <input
+        v-model="editText"
+        data-test="edit-text"
+      >
+      <button
+        :disabled="busy || !editTarget || !editText"
+        data-test="edit"
+        @click="act(editDescription)"
+      >
+        Plan edit
+      </button>
+    </p>
+
+    <section
+      v-if="panel"
+      class="debug-view__panel"
+      data-test="panel"
+    >
+      <h3>{{ panel.title }}</h3>
+      <ul>
+        <li
+          v-for="(line, i) in panel.lines"
+          :key="i"
+        >
+          {{ line }}
+        </li>
+      </ul>
+      <button
+        v-if="panel.apply"
+        :disabled="busy"
+        data-test="apply"
+        @click="runPanel('apply')"
+      >
+        Apply
+      </button>
+      <button
+        v-if="panel.replace"
+        :disabled="busy"
+        data-test="replace"
+        @click="runPanel('replace')"
+      >
+        Apply, replacing copies Loadout didn't install
+      </button>
+      <button
+        v-if="panel.discard"
+        :disabled="busy"
+        data-test="discard"
+        @click="runPanel('discard')"
+      >
+        Discard
+      </button>
+    </section>
 
     <h2>Audit log</h2>
     <ol
@@ -162,6 +395,15 @@ onUnmounted(unsubscribe);
 
 .debug-view__table td {
   padding: 2px 12px 2px 0;
+}
+
+.debug-view__actions button {
+  margin-right: 8px;
+}
+
+.debug-view__panel {
+  border: 1px solid #ccc;
+  padding: 8px 12px;
 }
 
 .debug-view__log {
