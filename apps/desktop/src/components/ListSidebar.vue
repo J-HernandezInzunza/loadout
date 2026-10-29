@@ -106,10 +106,11 @@ onMounted(() => accounts.load());
         class="sidebar__item"
         @click="views.accounts = true"
       >
-        <span class="sidebar__text">{{ HOST_NAMES[on] }}</span>
+        <span class="sidebar__host">{{ HOST_NAMES[on] }}</span>
         <span
-          class="sidebar__count"
+          class="sidebar__login"
           :class="{ 'sidebar__connect': !accounts.accounts[on] }"
+          :title="accounts.accounts[on]?.login"
         >{{ accounts.accounts[on]?.login ?? "Connect" }}</span>
       </button>
     </div>
@@ -184,6 +185,20 @@ onMounted(() => accounts.load());
   font-size: 0.75rem;
   opacity: 0.65;
   font-variant-numeric: tabular-nums;
+}
+/* The host always reads in full; a long login gives way instead, with its whole value in the tooltip. */
+.sidebar__host {
+  flex: none;
+}
+.sidebar__login {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-size: 0.75rem;
+  opacity: 0.65;
 }
 .sidebar__connect {
   color: var(--accent-ink);

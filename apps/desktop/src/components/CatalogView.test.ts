@@ -85,6 +85,9 @@ describe("UI-10: the list header and the sidebar", () => {
     const { wrapper } = await mountList({ ...seededState(), accounts: { github: accountInfo({ login: "octo" }) } });
     const rows = wrapper.findAll(".sidebar__accounts .sidebar__item").map(itemText);
     expect(rows).toEqual(["GitHub octo", "Bitbucket Connect"]);
+    // The host name never gives way; the login is the part that truncates.
+    expect(wrapper.find(".sidebar__accounts .sidebar__host").text()).toBe("GitHub");
+    expect(wrapper.find(".sidebar__accounts .sidebar__login").attributes("title")).toBe("octo");
     await browse(wrapper, "Bitbucket");
     expect(useViewStore().current.kind).toBe("accounts");
   });
