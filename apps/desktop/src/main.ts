@@ -1,9 +1,13 @@
 import { createLibrary, type Host } from "@loadout/core";
 import { createPinia } from "pinia";
 import { createApp } from "vue";
+// Before any component, so their scoped styles resolve against the tokens.
+import "./assets/tokens.css";
+import "./assets/app.css";
 import DebugView from "./DebugView.vue";
 import { createAuditLog } from "./host-tauri/audit.ts";
 import { createTauriHost, tauriPaths } from "./host-tauri/index.ts";
+import { applyAppearance, storedAppearance } from "./theme.ts";
 
 /** CLAUDE_CONFIG_DIR as the login-shell probe found it; Rust caches the probe in app data (src-tauri/src/path.rs). */
 async function claudeConfigDir(host: Host): Promise<string | undefined> {
@@ -15,6 +19,9 @@ async function claudeConfigDir(host: Host): Promise<string | undefined> {
     return undefined;
   }
 }
+
+// Here rather than in the toggle, which lives on one view and may not be the first shown.
+void applyAppearance(storedAppearance());
 
 const log = createAuditLog();
 const host = createTauriHost(await tauriPaths(), log);

@@ -1,0 +1,145 @@
+/* The app's global rules: the window frame, the button scale and the shared surfaces. Global because a
+   parent's scoped styles never reach a child component's elements. */
+:root {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif;
+}
+/* The window is a fixed frame; only a view's `.view__body` scrolls. A scrolling document rides the
+   WebView's rubber-band overscroll, taking every fixed element with it. */
+html,
+body,
+#app {
+  height: 100%;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--surface-page);
+  color: var(--text-primary);
+}
+
+/* The default is a view's own action, `.btn-sm` an action on a row or card, `.btn-xs` one inside a
+   line of running text. buttons.test.ts keeps every other button on this scale. */
+button {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--accent-bright);
+  color: var(--text-on-accent);
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  /* Fast on purpose: it acknowledges the click itself, so it lands in the same frame. */
+  transition:
+    transform 0.06s ease,
+    opacity 0.15s ease,
+    filter 0.15s ease;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+  filter: brightness(0.92);
+}
+button.btn-sm {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+}
+button.btn-xs {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+}
+button.ghost {
+  background: transparent;
+  color: inherit;
+  border-color: var(--border-control);
+}
+button.danger {
+  background: transparent;
+  color: var(--status-danger-ink);
+  border-color: var(--status-danger-edge);
+}
+button.danger:hover:not(:disabled) {
+  background: var(--status-danger-tint);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.card {
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+/* The content measure as padding, so each row stays full-bleed while its content lines up. */
+.column {
+  padding-inline: max(1.25rem, calc((100% - 860px) / 2));
+}
+
+/* A page's vertical rhythm, owned by the stack: a gap exists only between rows that rendered. */
+.view__body.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.view__body.stack > * {
+  margin-block: 0;
+}
+
+/* Every full-screen view: its own chrome, the one thing that scrolls, and an optional bottom row.
+   Rows are placed explicitly so a conditional sibling can't decide which row the body lands in. */
+.view {
+  /* Sized by the app's first track; `min-height: 0` lets that track be shorter than the content. */
+  grid-row: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+.view__head {
+  grid-row: 1;
+  padding-block: 0.75rem;
+  background: var(--surface-page);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.view__body {
+  grid-row: 2;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* The column is centred, so a body that starts scrolling would otherwise move both edges. */
+  scrollbar-gutter: stable;
+  padding-block: 0.5rem 1.5rem;
+}
+.view__foot {
+  grid-row: 3;
+}
+
+.fade-in {
+  animation: fade-in 0.22s ease-out;
+}
+/* A reload over a list already on screen: the dim waits, so a fast local read never flickers, and the
+   rows can't be clicked while they are about to be replaced. */
+.is-refreshing {
+  opacity: 0.6;
+  transition: opacity 0.12s ease 0.4s;
+  pointer-events: none;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-in {
+    animation: none;
+  }
+  .is-refreshing {
+    transition: none;
+  }
+}

@@ -539,11 +539,11 @@ onUnmounted(() => {
 
 .debug-view__status {
   font-weight: normal;
-  color: #666;
+  opacity: 0.7;
 }
 
 .debug-view__warnings {
-  color: #a15c00;
+  color: var(--status-attention-ink);
 }
 
 .debug-view__table td {
@@ -555,7 +555,7 @@ onUnmounted(() => {
 }
 
 .debug-view__panel {
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-control);
   padding: 8px 12px;
 }
 

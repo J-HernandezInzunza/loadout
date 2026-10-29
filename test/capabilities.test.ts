@@ -74,6 +74,10 @@ describe("capabilities", () => {
     expect(app).toEqual(["allow-real-path", "allow-secret-get", "allow-secret-set", "allow-secret-delete"]);
   });
 
+  it("lets the window follow the appearance toggle (setTheme isn't in core:default)", () => {
+    expect(permissions).toContain("core:app:allow-set-app-theme");
+  });
+
   it("never grants fs permissions with their own wider scope", () => {
     for (const p of scoped("fs:")) {
       if (p.identifier === "fs:scope") continue;

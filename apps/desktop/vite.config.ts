@@ -10,5 +10,6 @@ export default defineProject({
   // The OAuth clients from .env.local or CI. The Bitbucket secret ships inside the app by design: alone it
   // grants nothing (QUESTIONS.md Q5).
   envPrefix: ["VITE_", "LOADOUT_GITHUB_CLIENT_ID", "LOADOUT_BITBUCKET_CLIENT_ID", "LOADOUT_BITBUCKET_CLIENT_SECRET"],
-  test: { name: "desktop", environment: "jsdom" },
+  // css: the style guards read stylesheets with ?raw, which vitest otherwise stubs to "".
+  test: { name: "desktop", environment: "jsdom", css: true },
 });
