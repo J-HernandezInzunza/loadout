@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "label": "main", "title": "Loadout", "width": 1100, "height": 760 }],
+    "windows": [{ "label": "main", "title": "Loadout", "width": 1100, "height": 760, "minWidth": 860, "minHeight": 560 }],
     "security": {
       "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
     }

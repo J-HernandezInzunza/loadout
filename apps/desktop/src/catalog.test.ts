@@ -1,6 +1,6 @@
 import { entryRecord, installedRecord } from "@loadout/core/testing";
 import { describe, expect, it } from "vitest";
-import { catalogHue, describePush, installStatus, rowsFor, searchRows } from "./catalog.ts";
+import { catalogHue, describePush, installStatus, rowsFor, searchRows, type ListFilter } from "./catalog.ts";
 
 const label = (rows: ReturnType<typeof rowsFor>) => rows.map((r) => `${r.entry.name}@${r.entry.catalog}`);
 
@@ -27,33 +27,41 @@ describe("UI-19: the install badge", () => {
   });
 });
 
-describe("UI-12: which rows a tab shows", () => {
+describe("UI-12: which rows a filter shows", () => {
   const records = [
     entryRecord({ name: "x", catalog: "A", overrides: ["B"] }),
     entryRecord({ name: "lint", catalog: "A" }),
     entryRecord({ name: "x", catalog: "B", overriddenBy: "A" }),
     installedRecord("installed", { name: "off", catalog: "B", disabled: true }),
+    installedRecord("installed", { type: "prompt", name: "style", catalog: "A" }),
   ];
+  const all: ListFilter = { type: null, from: null, state: "any", hideOverridden: false };
 
-  it("shows every copy on All, a name's copies side by side, or only the winners with Hide overridden", () => {
-    expect(label(rowsFor({ kind: "all" }, records, false))).toEqual(["x@A", "x@B", "lint@A", "off@B"]);
-    expect(label(rowsFor({ kind: "all" }, records, true))).toEqual(["x@A", "lint@A", "off@B"]);
-    expect(rowsFor({ kind: "all" }, records, false).map((r) => r.overrides)).toEqual([["B"], [], [], []]);
+  it("shows every copy from every catalog, a name's copies side by side, or only the winners with Hide overridden", () => {
+    expect(label(rowsFor(all, records))).toEqual(["x@A", "x@B", "lint@A", "off@B", "style@A"]);
+    expect(label(rowsFor({ ...all, hideOverridden: true }, records))).toEqual(["x@A", "lint@A", "off@B", "style@A"]);
+    expect(rowsFor(all, records).map((r) => r.overrides)).toEqual([["B"], [], [], [], []]);
   });
 
-  it("shows a catalog's own copies on its tab, overridden ones included, and the switched-off winners on disabled", () => {
-    const tabB = rowsFor({ kind: "catalog", id: "B" }, records, true);
-    expect(label(tabB)).toEqual(["x@B", "off@B"]);
-    expect(tabB[0]!.status).toBe("not installed");
-    expect(label(rowsFor({ kind: "catalog", id: "A" }, records, false)).every((l) => l.endsWith("@A"))).toBe(true);
-    expect(rowsFor({ kind: "catalog", id: "A" }, records, false)[0]!.overrides).toEqual([]);
-    expect(label(rowsFor({ kind: "disabled" }, records, false))).toEqual(["off@B"]);
+  it("shows one catalog's own copies, overridden ones included, and the switched-off winners as Disabled", () => {
+    const fromB = rowsFor({ ...all, from: "B", hideOverridden: true }, records);
+    expect(label(fromB)).toEqual(["x@B", "off@B"]);
+    expect(fromB[0]!.status).toBe("not installed");
+    expect(rowsFor({ ...all, from: "A" }, records)[0]!.overrides).toEqual([]);
+    expect(label(rowsFor({ ...all, state: "disabled" }, records))).toEqual(["off@B"]);
+  });
+
+  it("combines the type, the catalog and the state", () => {
+    expect(label(rowsFor({ ...all, type: "skill" }, records))).toEqual(["x@A", "x@B", "lint@A", "off@B"]);
+    expect(label(rowsFor({ ...all, type: "prompt", state: "installed" }, records))).toEqual(["style@A"]);
+    expect(label(rowsFor({ ...all, type: "skill", from: "B", state: "installed" }, records))).toEqual(["off@B"]);
+    expect(label(rowsFor({ ...all, type: "agent" }, records))).toEqual([]);
   });
 });
 
 describe("UI-11: search", () => {
   const rows = rowsFor(
-    { kind: "all" },
+    { type: null, from: null, state: "any", hideOverridden: false },
     [
       entryRecord({ name: "notify", description: "Posts a Slack message" }),
       entryRecord({ name: "slack-thread", description: "Reads a thread" }),
@@ -61,7 +69,6 @@ describe("UI-11: search", () => {
       entryRecord({ name: "slack-thread", catalog: "team", overriddenBy: "personal", description: "Team copy" }),
       entryRecord({ name: "lint", description: "Lints" }),
     ],
-    false,
   );
 
   it("ranks a name prefix, then a name match, then a description match, and drops the rest", () => {

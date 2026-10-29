@@ -7,7 +7,7 @@ import EntryList from "./EntryList.vue";
 const catalogs = [catalogRow({ id: "personal" }), catalogRow({ id: "team", precedence: 2 })];
 
 function mountList(records: Parameters<typeof rowsFor>[1], showOrigin = true) {
-  return mountView(EntryList, { props: { rows: rowsFor({ kind: "all" }, records, false), catalogs, showOrigin } }).wrapper;
+  return mountView(EntryList, { props: { rows: rowsFor({ type: null, from: null, state: "any", hideOverridden: false }, records), catalogs, showOrigin } }).wrapper;
 }
 
 describe("UI-18: an entry card", () => {
@@ -24,6 +24,14 @@ describe("UI-18: an entry card", () => {
     expect(winner!.find(".entry-list__requires").text()).toBe("requires: skill:lint, prompt: style");
     expect(head(loser)).toEqual(["tidy", "personal", "overridden by team", "not installed"]);
     expect(loser!.find(".entry-list__requires").exists()).toBe(false);
+  });
+
+  it("puts the type under the switch on a card with one, and on the name's line on a card without", () => {
+    const list = mountList([installedRecord("installed", { name: "tidy", catalog: "team" }), entryRecord({ name: "lint", catalog: "team" })]);
+    const [withSwitch, without] = list.findAll(".entry-list__item");
+    const lead = (card: typeof withSwitch) => [...card!.element.children].map((el) => el.className).filter((c) => /switch|type/.test(c));
+    expect(lead(withSwitch)).toEqual(["entry-list__switch", "entry-list__type entry-list__type--under"]);
+    expect(lead(without)).toEqual(["entry-list__type"]);
   });
 
   it("opens the copy that was clicked, with its catalog, through a button named for it", async () => {

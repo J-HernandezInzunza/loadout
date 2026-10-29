@@ -7,6 +7,7 @@ import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
 
 type Plan = Parameters<Library["applyInstall"]>[0];
 type UninstallItem = Extract<Awaited<ReturnType<Library["uninstall"]>>, { ok: true }>["value"]["items"][number];
@@ -272,10 +273,9 @@ onUnmounted(() => void discard());
         v-if="drifted.length"
         class="bulk__ack"
       >
-        <input
+        <UiCheckbox
           v-model="acknowledged"
-          type="checkbox"
-        >
+        />
         Overwrite {{ drifted.length }} locally edited {{ plural(drifted.length, "copy", "copies") }}, discarding those edits.
       </label>
       <button

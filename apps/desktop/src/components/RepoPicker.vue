@@ -7,6 +7,7 @@ import { useActivityStore } from "../stores/activity.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import SignInProgress from "./SignInProgress.vue";
 import StatusBanner from "./StatusBanner.vue";
+import UiRadio from "./ui/UiRadio.vue";
 
 /** A repository chosen and checked: what registering it needs. */
 export interface RepoPick {
@@ -176,11 +177,10 @@ onMounted(() => accounts.load());
             :key="r.repo"
             class="repo-picker__option"
           >
-            <input
+            <UiRadio
               v-model="choice"
-              type="radio"
               :value="r.repo"
-            >
+            />
             <span>{{ r.org }}/{{ r.name }}</span>
             <span
               v-if="r.private"
@@ -200,11 +200,10 @@ onMounted(() => accounts.load());
             None of your repositories matches; paste its link below if you can read it.
           </p>
           <label class="repo-picker__option">
-            <input
+            <UiRadio
               v-model="choice"
-              type="radio"
               :value="OTHER"
-            >
+            />
             <span>Other: paste a link</span>
           </label>
         </div>

@@ -864,6 +864,69 @@ connected account, an installed skill and a PR on the shared catalog without the
 
 ---
 
+## M7. Sidebar (UI pivot before the release)
+
+Exit: every M7 task checked; the list view has the sidebar the owner chose (direction C of the
+sidebar proposals, 2026-10-29, without Catalog health and without icons); every list rule keeps a
+test with its id; `npm run check` green; the owner walked it in a Finder-launched build.
+
+Decided 2026-10-29: the sidebar is on the list view only (other views stay full width); the type stays
+on each card, below the switch; the window gets a minimum size instead of a collapsing sidebar.
+
+- [x] **M7.01 List sidebar and toolbar.** The list view becomes sidebar + list. Sidebar, top to
+  bottom: "Loadout" with the appearance toggle; **Browse**: All, Skills, Prompts, Agents, each with a
+  count (names of that type, winning copies, across every catalog); **Manage**: Sync, Catalogs (Catalog
+  health stays on the Catalogs page); at the bottom, **Accounts**: one row per host with its login, or
+  Connect, either opening the Accounts page. Plain text items, no icons. Above the list: the Browse
+  choice as the title, the search and Refresh; the header's Catalogs, Accounts and Sync buttons go.
+  A toolbar under it: **From** (every catalog, or one, each with its count; a skipped one says so),
+  **state** (Any, Installed, Disabled n; Disabled only while something is off), and Hide overridden
+  while From is every catalog. One catalog in From shows its summary strip (UI-15) and allows bulk
+  selection (UI-21). Type, From, state and search combine. From falls back to every catalog when its
+  catalog is unregistered, and state to Any when nothing is disabled any more (UI-13's fallbacks).
+  Empty states name the type ("{id} has no prompts yet.").
+  - Rules: UI-10, UI-12, UI-13, UI-15, UI-16, UI-17, UI-21 (rebuild, this task: tabs and header
+    buttons become the sidebar and toolbar)
+  - Depends: M6.06
+  - Done when: each listed rule's test is moved to the new layout with its id kept; type, From,
+    state and search combine in tests; the Accounts rows show a login or Connect and open Accounts;
+    Sync and Catalogs open their views and Back returns to the list with the sidebar choice kept.
+
+- [x] **M7.02 Type below the switch.** On every card the type label sits under the on/off switch
+  (alone where there is no switch), instead of above it.
+  - Rules: UI-18 (rebuild, this task)
+  - Depends: M7.01
+  - Done when: a test checks the order on a card with a switch and one without.
+
+- [x] **M7.03 Minimum window size.** `minWidth`/`minHeight` on the main window in
+  `tauri.conf.json`, wide enough for the sidebar plus a list card without wrapping its badges.
+  - Rules: none
+  - Depends: M7.01
+  - Done when: a test reads the config and checks the minimum against the sidebar's width.
+
+- [x] **M7.04 Form controls of our own.** A small component library in `apps/desktop/src/components/ui/`:
+  `UiCheckbox`, `UiRadio` and `UiSelect`, each a wrapper around the native element (kept for keyboard,
+  focus, `v-model` and the native macOS menu) restyled with `appearance: none` from the tokens, to
+  match the on/off switch (sizes, border, the switch's on colour, focus ring, disabled opacity). The
+  select draws its own chevron. Every native checkbox, radio and select in the app moves to them;
+  Hide overridden stays a checkbox (decided 2026-10-29). Attributes fall through to the native
+  element, and v-model works as a boolean, an array (the requires lists) and a radio or select value.
+  - Rules: none (UI-09's consistency)
+  - Depends: M7.01
+  - Done when: a guard test fails on any native `<select>` or checkbox/radio `<input>` outside
+    `components/ui/`; each wrapper has tests for its v-model forms, a disabled state and a passed-through
+    attribute; the existing screen tests pass unchanged in what they assert.
+
+- [x] **M7.05 Milestone check (manual).** From a Finder-launched build: each Browse item, From,
+  state and Hide overridden together with search; bulk select on one catalog; Sync and Catalogs from
+  the sidebar and back; the Accounts rows; the restyled checkboxes, radios and selects in both themes;
+  the window stops at its minimum size. Record it in PROGRESS.md.
+  - Rules: none
+  - Depends: M7.01, M7.02, M7.03, M7.04
+  - Done when: every M7 task is checked and the run is recorded.
+
+---
+
 Potentially next (not planned yet): R, the first release to teammates (arch §7: CI build with the
 OAuth clients as Actions secrets, Homebrew cask with the quarantine caveat, a manual smoke run of the
 signed `.app` on a clean user account). Roadmap: infrastructure to record workflows in the native app

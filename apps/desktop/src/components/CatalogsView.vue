@@ -14,6 +14,7 @@ import PageHeader from "./PageHeader.vue";
 import RegisterCatalog, { type RegisterMode } from "./RegisterCatalog.vue";
 import StatusBanner from "./StatusBanner.vue";
 import WriteLanding from "./WriteLanding.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
 
 type Pin = Extract<Awaited<ReturnType<Library["pins"]>>, { ok: true }>["value"][number];
 type Removed = Extract<Awaited<ReturnType<Library["removeCatalog"]>>, { ok: true }>["value"] & { id: string; askedToPurge: boolean; cloneKeptAt: string | null };
@@ -375,10 +376,9 @@ async function unregister() {
               list of catalogs changes, and registering it again brings it back.
             </p>
             <label class="catalogs__purge">
-              <input
+              <UiCheckbox
                 v-model="purgeInstalls"
-                type="checkbox"
-              >
+              />
               <span>
                 Also delete the copies installed from it{{ installedFrom ? ` — around ${installedFrom}` : "" }}. Otherwise
                 they stay on disk with no catalog left to remove them through. Copies Loadout didn't install are never
@@ -389,10 +389,9 @@ async function unregister() {
               v-if="option.kind !== 'local'"
               class="catalogs__purge"
             >
-              <input
+              <UiCheckbox
                 v-model="purgeClone"
-                type="checkbox"
-              >
+              />
               <span>Also delete the clone this machine keeps of that repository.</span>
             </label>
             <div class="catalogs__confirm-actions">

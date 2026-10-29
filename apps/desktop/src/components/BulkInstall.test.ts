@@ -55,7 +55,7 @@ const press = async (w: Wrapper, text: string) => {
   await flushPromises();
 };
 const openTab = async (w: Wrapper, id: string) => {
-  await w.findAll(".catalog-tabs__tab").find((t) => t.text().startsWith(id))!.trigger("click");
+  await w.find(".toolbar__from select").setValue(id);
   await flushPromises();
 };
 const pick = async (w: Wrapper, name: string) => {

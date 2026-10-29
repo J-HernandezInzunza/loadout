@@ -9,6 +9,7 @@ import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
 import WriteGate from "./WriteGate.vue";
 import WriteLanding from "./WriteLanding.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
 
 const props = defineProps<{ entry: EntryRecord }>();
 const emit = defineEmits<{ close: [] }>();
@@ -117,11 +118,10 @@ async function save() {
             :key="option"
             class="editor__check"
           >
-            <input
+            <UiCheckbox
               v-model="requires"
-              type="checkbox"
               :value="option"
-            >
+            />
             <span>{{ option }}</span>
           </label>
         </div>

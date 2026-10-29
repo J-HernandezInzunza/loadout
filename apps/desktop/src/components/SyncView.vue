@@ -9,6 +9,7 @@ import { useViewStore } from "../stores/views.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
+import UiCheckbox from "./ui/UiCheckbox.vue";
 
 type Plan = Parameters<Library["applySync"]>[0];
 type Report = Extract<Awaited<ReturnType<Library["applySync"]>>, { ok: true }>["value"];
@@ -171,10 +172,9 @@ onUnmounted(() => void discard());
           v-if="drifted.length"
           class="sync__ack"
         >
-          <input
+          <UiCheckbox
             v-model="acknowledged"
-            type="checkbox"
-          >
+          />
           Overwrite {{ drifted.length }} locally edited {{ plural(drifted.length, "copy", "copies") }}, discarding those edits.
         </label>
         <button

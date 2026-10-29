@@ -52,7 +52,7 @@ describe("UI-46: adding an entry", () => {
     expect(wrapper.find(".page-title__heading").text()).toBe("Add an entry to personal");
     expect(wrapper.find("[autofocus]").attributes("placeholder")).toBe("bug-investigator");
     expect((wrapper.find("select").element as HTMLSelectElement).value).toBe("skill");
-    expect(wrapper.findAll(".add-entry__check span").map((s) => s.text())).toEqual(["prompt:style", "skill:lint"]);
+    expect(wrapper.findAll(".add-entry__check > span:last-child").map((s) => s.text())).toEqual(["prompt:style", "skill:lint"]);
 
     await field(wrapper, "bug-investigator").setValue("tidy");
     await field(wrapper, "What it does").setValue(" Tidies things ");
