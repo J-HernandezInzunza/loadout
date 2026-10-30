@@ -973,7 +973,8 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   `tauri-apps/tauri-action@v1` (ad-hoc signed as configured, `releaseDraft: true`,
   `generateReleaseNotes: true`, the summary from R.03 as `releaseBody`, `prerelease` for a tag with a
   `-`); upload `Loadout_<version>_aarch64.dmg.sha256`. The job runs in a GitHub environment named
-  `release` that holds `LOADOUT_GITHUB_CLIENT_ID`, `LOADOUT_BITBUCKET_CLIENT_ID` and
+  `release` (created by the owner 2026-10-30 as "Release", with the three secrets; names are
+  case-insensitive; restricting it to `v*` tags is recommended) that holds `LOADOUT_GITHUB_CLIENT_ID`, `LOADOUT_BITBUCKET_CLIENT_ID` and
   `LOADOUT_BITBUCKET_CLIENT_SECRET`, and fails before building if one is missing (a build without them
   would ship sign-in as unavailable). `permissions: contents: write` on this job only.
   - Rules: none (arch §5.5, §7, §10 risk 13)
