@@ -950,7 +950,9 @@ Decided 2026-10-30 (owner): the first version is `0.1.0` (0.x: early, anything m
 drafts until a person publishes them; a release candidate (`v0.1.0-rc.1`) is published as a pre-release
 and never reaches the tap. The cask lives in a separate `J-HernandezInzunza/homebrew-tap`, one tap for
 every tool the owner ships (a repo named `homebrew-<name>` is a tap, and a tap holds any number of
-casks and formulae). Open: whether ad-hoc signing stays (Q2 B).
+casks and formulae). Ad-hoc signing stays for R (Q2 B, reconfirmed 2026-10-30): teammates run the
+quarantine step after installing and after each upgrade; a Developer ID can replace it in any later
+release without changing this route.
 
 Homebrew no longer trusts a whole tap on `brew tap` (docs.brew.sh/Taps, "Tap Trust"), so install
 instructions use the fully qualified name: `brew install --cask j-hernandezinzunza/tap/loadout`. An
