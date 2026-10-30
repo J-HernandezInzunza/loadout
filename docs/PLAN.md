@@ -959,7 +959,7 @@ instructions use the fully qualified name: `brew install --cask j-hernandezinzun
 ad-hoc signature changes with every build, so macOS may ask again after each `brew upgrade`; the
 caveats and README say to repeat the quarantine step after an upgrade, not only after the first install.
 
-- [ ] **R.01 One version, visible.** The version lives in `apps/desktop/package.json`; `tauri.conf.json`
+- [x] **R.01 One version, visible.** The version lives in `apps/desktop/package.json`; `tauri.conf.json`
   reads it from there (`"version": "../package.json"`), and a script sets it in the other
   package.json files and `Cargo.toml` (`npm run version:set 0.1.0`). The app shows its version at the
   foot of the sidebar and at the top of Doctor's report, so a bug report can say which build it is.
