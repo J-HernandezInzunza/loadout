@@ -1,0 +1,117 @@
+# On a pushed tag v<version>: check the tag against the version, run the gate, then build the app and
+# create a draft GitHub Release with the .dmg and its SHA-256. A person publishes the draft.
+# See CONTRIBUTING.md for the release runbook.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Tag matches the version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      # apps/desktop/package.json holds the version; the gate's version test keeps every other copy in step.
+      - name: Refuse a tag that isn't v<version>
+        run: |
+          version=$(node -p 'require("./apps/desktop/package.json").version')
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME doesn't match the version $version in apps/desktop/package.json (expected v$version)"
+            exit 1
+          fi
+
+  gate:
+    name: Gate
+    needs: version
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build the draft release
+    needs: gate
+    runs-on: macos-latest
+    timeout-minutes: 45
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      # Without them the app builds fine and ships sign-in as unavailable, so stop before building.
+      - name: Refuse to build without the OAuth clients
+        env:
+          LOADOUT_GITHUB_CLIENT_ID: ${{ secrets.LOADOUT_GITHUB_CLIENT_ID }}
+          LOADOUT_BITBUCKET_CLIENT_ID: ${{ secrets.LOADOUT_BITBUCKET_CLIENT_ID }}
+          LOADOUT_BITBUCKET_CLIENT_SECRET: ${{ secrets.LOADOUT_BITBUCKET_CLIENT_SECRET }}
+        run: |
+          missing=""
+          for name in LOADOUT_GITHUB_CLIENT_ID LOADOUT_BITBUCKET_CLIENT_ID LOADOUT_BITBUCKET_CLIENT_SECRET; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::the release environment is missing:$missing"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Installs the version pinned in rust-toolchain.toml.
+      - run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      - run: npm ci
+
+      - name: Read the release summary
+        id: summary
+        run: |
+          {
+            echo "body<<SUMMARY_EOF"
+            cat .github/release-summary.md
+            echo "SUMMARY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # Ad-hoc signed by tauri.conf.json (signingIdentity "-"). GitHub puts the summary above the generated notes.
+      - uses: tauri-apps/tauri-action@v1
+        id: build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LOADOUT_GITHUB_CLIENT_ID: ${{ secrets.LOADOUT_GITHUB_CLIENT_ID }}
+          LOADOUT_BITBUCKET_CLIENT_ID: ${{ secrets.LOADOUT_BITBUCKET_CLIENT_ID }}
+          LOADOUT_BITBUCKET_CLIENT_SECRET: ${{ secrets.LOADOUT_BITBUCKET_CLIENT_SECRET }}
+        with:
+          projectPath: apps/desktop
+          # The CLI is hoisted to the workspace root, so name the runner; `--` passes the flags to tauri, not npm.
+          tauriScript: npm run tauri --
+          args: --target aarch64-apple-darwin
+          tagName: ${{ github.ref_name }}
+          releaseName: Loadout ${{ github.ref_name }}
+          releaseBody: ${{ steps.summary.outputs.body }}
+          releaseDraft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generateReleaseNotes: true
+          uploadUpdaterJson: false
+
+      - name: Upload the .dmg's SHA-256
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACTS: ${{ steps.build.outputs.artifactPaths }}
+        run: |
+          dmg=$(jq -r '.[] | select(endswith(".dmg"))' <<<"$ARTIFACTS")
+          if [ "$(printf '%s\n' "$dmg" | grep -c .)" != 1 ]; then
+            echo "::error::expected one .dmg among the build's artifacts: $ARTIFACTS"
+            exit 1
+          fi
+          cd "$(dirname "$dmg")"
+          name=$(basename "$dmg")
+          shasum -a 256 "$name" > "$name.sha256"
+          gh release upload "$GITHUB_REF_NAME" "$name.sha256" --repo "$GITHUB_REPOSITORY"
