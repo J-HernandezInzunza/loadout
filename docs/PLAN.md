@@ -968,7 +968,7 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Done when: a test fails when any of the files disagree; `version:set` is tested on a copy of the
     files; the sidebar and Doctor show the version from `@tauri-apps/api/app` (mocked in tests).
 
-- [ ] **R.02 Release workflow.** `.github/workflows/release.yml`, on a pushed tag `v*`: refuse a tag that
+- [x] **R.02 Release workflow.** `.github/workflows/release.yml`, on a pushed tag `v*`: refuse a tag that
   doesn't match the version (R.01); run the gate; build `aarch64-apple-darwin` with
   `tauri-apps/tauri-action@v1` (ad-hoc signed as configured, `releaseDraft: true`,
   `generateReleaseNotes: true`, the summary from R.03 as `releaseBody`, `prerelease` for a tag with a
