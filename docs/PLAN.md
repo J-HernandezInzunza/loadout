@@ -983,7 +983,7 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
     the draft and pre-release settings and the missing-secret guard; `actionlint` passes; the
     `v0.1.0-rc.1` dry run in R.07 produced a draft with the `.dmg` and its checksum.
 
-- [ ] **R.03 How a release reads on GitHub.** `.github/release.yml` groups the generated notes by PR
+- [x] **R.03 How a release reads on GitHub.** `.github/release.yml` groups the generated notes by PR
   label (Features, Fixes, Docs and chores; `skip-changelog` leaves a PR out), with the labels created
   in the repo; a summary template (`.github/release-summary.md`, used as `releaseBody`) with Install
   (Homebrew, then the `.dmg` below as the fallback), Upgrade, the quarantine step and why it exists, and
