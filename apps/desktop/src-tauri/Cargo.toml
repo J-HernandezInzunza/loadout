@@ -1,6 +1,6 @@
 [package]
 name = "loadout"
-version = "0.0.0"
+version = "0.1.0"
 description = "Loadout: distribute skills, agents and prompts"
 edition = "2021"
 rust-version = "1.85"
