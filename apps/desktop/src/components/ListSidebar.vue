@@ -2,6 +2,7 @@
 import type { AccountHost, EntryType } from "@loadout/core";
 import { storeToRefs } from "pinia";
 import { computed, onMounted } from "vue";
+import { useAppVersion } from "../appVersion.ts";
 import { HOST_NAMES, useAccountStore } from "../stores/accounts.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import { useListStore } from "../stores/list.ts";
@@ -20,6 +21,7 @@ const { entries } = storeToRefs(useCatalogStore());
 const { type } = storeToRefs(useListStore());
 const views = useViewStore();
 const accounts = useAccountStore();
+const version = useAppVersion();
 
 /** names, not copies: what would install, across every catalog */
 const counts = computed(() => {
@@ -114,6 +116,13 @@ onMounted(() => accounts.load());
         >{{ accounts.accounts[on]?.login ?? "Connect" }}</span>
       </button>
     </div>
+
+    <p
+      v-if="version"
+      class="sidebar__version"
+    >
+      Version {{ version }}
+    </p>
   </aside>
 </template>
 
@@ -209,5 +218,12 @@ onMounted(() => accounts.load());
   margin-top: auto;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-subtle);
+}
+.sidebar__version {
+  margin: -0.6rem 0 0;
+  padding: 0 0.5rem;
+  font-size: 0.7rem;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Library } from "@loadout/core";
 import { onMounted, ref } from "vue";
+import { useAppVersion } from "../appVersion.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
@@ -22,6 +23,7 @@ const library = useLibrary();
 const activity = useActivityStore();
 const catalog = useCatalogStore();
 const views = useViewStore();
+const version = useAppVersion();
 
 const report = ref<Report | null>(null);
 const loading = ref(false);
@@ -99,6 +101,13 @@ onMounted(run);
         :detail="failure"
       />
       <template v-else-if="report">
+        <!-- First, so a report copied into a bug says which build it came from. -->
+        <p
+          v-if="version"
+          class="doctor__version"
+        >
+          Loadout {{ version }}
+        </p>
         <p class="doctor__summary fade-in">
           {{ report.entries }} entries · {{ report.errors.length }} errors · {{ report.warnings.length }} warnings
         </p>
@@ -168,6 +177,14 @@ onMounted(run);
   gap: 0.35rem;
   font-size: 0.8rem;
   opacity: 0.75;
+}
+.doctor__version {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+.doctor__version + .doctor__summary {
+  margin-top: 0.25rem;
 }
 .doctor__summary {
   margin: 0.75rem 0 0;
