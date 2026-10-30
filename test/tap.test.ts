@@ -37,6 +37,14 @@ describe("bump-cask", () => {
     expect(bumped).toContain('url "https://github.com/J-HernandezInzunza/loadout/releases/download/v#{version}/Loadout_#{version}_aarch64.dmg"');
   });
 
+  it("links its caveats to a README heading that exists", () => {
+    const anchor = /loadout#([a-z0-9-]+)/.exec(cask)![1];
+    const headings = readFileSync(join(root, "README.md"), "utf8").match(/^#+ .+$/gm)!;
+    // GitHub's anchor: lower case, punctuation dropped, spaces to hyphens.
+    const anchors = headings.map((h) => h.replace(/^#+ /, "").toLowerCase().replace(/[^a-z0-9 -]/g, "").replace(/ /g, "-"));
+    expect(anchors).toContain(anchor);
+  });
+
   it("refuses a pre-release, a malformed checksum, and a cask it can't read", () => {
     expect(() => bumpCask(cask, "0.2.0-rc.1", SHA)).toThrow("not a release version: 0.2.0-rc.1");
     expect(() => bumpCask(cask, "v0.2.0", SHA)).toThrow("not a release version");
