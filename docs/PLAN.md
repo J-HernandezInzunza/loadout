@@ -947,8 +947,9 @@ token; Q2 B: ad-hoc signing, the quarantine step is in the cask's caveats):
    teammates install or upgrade from there.
 
 Decided 2026-10-30 (owner): the first version is `0.1.0` (0.x: early, anything may change); releases are
-drafts until a person publishes them; a release candidate (`v0.1.0-rc.1`) is published as a pre-release
-and never reaches the tap. The cask lives in a separate `J-HernandezInzunza/homebrew-tap`, one tap for
+drafts until a person publishes them; a pre-release (a version with a `-`) never reaches the tap. No
+release candidate for 0.1.0 (owner, 2026-10-30, after main reached 0.1.0): the unpublished `v0.1.0`
+draft is the dry run, since the tap only changes on publish. The cask lives in a separate `J-HernandezInzunza/homebrew-tap`, one tap for
 every tool the owner ships (a repo named `homebrew-<name>` is a tap, and a tap holds any number of
 casks and formulae). Ad-hoc signing stays for R (Q2 B, reconfirmed 2026-10-30): teammates run the
 quarantine step after installing and after each upgrade; a Developer ID can replace it in any later
@@ -981,7 +982,7 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Depends: R.01
   - Done when: a test reads the workflow and checks the trigger, the version check, the environment,
     the draft and pre-release settings and the missing-secret guard; `actionlint` passes; the
-    `v0.1.0-rc.1` dry run in R.07 produced a draft with the `.dmg` and its checksum.
+    `v0.1.0` dry run in R.07 produced a draft with the `.dmg` and its checksum.
 
 - [x] **R.03 How a release reads on GitHub.** `.github/release.yml` groups the generated notes by PR
   label (Features, Fixes, Docs and chores; `skip-changelog` leaves a PR out), with the labels created
@@ -1006,8 +1007,8 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   `com.jhernandezinzunza.loadout`) that never touches `~/.claude`.
   - Rules: none (arch §7; Q2 B)
   - Depends: R.02
-  - Done when: `brew style` and `brew audit --cask --strict` pass on the tap. Installing the rc's `.dmg`
-    through the cask moved to R.07 (owner 2026-10-30): the rc is tagged there, after this task.
+  - Done when: `brew style` and `brew audit --cask --strict` pass on the tap. Installing the draft's
+    `.dmg` through the cask moved to R.07 (owner 2026-10-30): the release is tagged there, after this task.
 
 - [x] **R.05 Tap update on publish.** `.github/workflows/tap.yml`, on `release: published` and only when
   not a pre-release: download the `.dmg`, check it against the published `.sha256`, rewrite `version`
@@ -1032,17 +1033,19 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Depends: R.03, R.05
   - Done when: the runbook was followed for R.07 and R.08 without a step missing from it.
 
-- [ ] **R.07 Release candidate (manual).** Tag `v0.1.0-rc.1`; check the draft's assets, checksum and
-  notes; publish it as a pre-release (the tap must not change); install its `.dmg` on a clean macOS
-  user account (no Homebrew tap yet, no `~/.claude`, no keychain items); run the quarantine step,
-  first run, sign-in, install and toggle; on this machine, install the rc's `.dmg` through the tap's
-  cask with its version and checksum pinned by hand in a local edit that is never pushed (moved from
-  R.04), then put the cask back; record it in PROGRESS.md.
+- [ ] **R.07 Dry run on the v0.1.0 draft (manual).** No release candidate (owner 2026-10-30). Tag
+  `v0.1.0` from main (already at 0.1.0); check the draft's assets, checksum and notes without
+  publishing it; install its `.dmg` on a clean macOS user account (no Homebrew tap yet, no
+  `~/.claude`, no keychain items); run the quarantine step, first run, sign-in, install and toggle; on
+  this machine, install the draft's `.dmg` through the tap's cask with its checksum pinned by hand in a
+  local edit that is never pushed (moved from R.04), then put the cask back; record it in PROGRESS.md.
+  A problem that needs a code fix means deleting the draft and the tag, fixing on main, and tagging
+  again (CONTRIBUTING, Releasing step 6).
   - Rules: none
   - Depends: R.02, R.03, R.04, R.06
   - Done when: the run is recorded, and every problem found is a task or fixed.
 
-- [ ] **R.08 v0.1.0 (manual).** The version PR to `0.1.0`, tag, check and publish the draft; the tap
+- [ ] **R.08 v0.1.0 (manual).** Publish the draft R.07 checked; the tap
   commit lands; a teammate installs with `brew install --cask j-hernandezinzunza/tap/loadout`
   and reaches a signed-in, installed skill; the release is announced. Record it in PROGRESS.md.
   - Rules: none
