@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in Loadout doesn't work as it should
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Loadout version
+      description: At the foot of the sidebar, or the first line of Doctor's report.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor's output
+      description: Catalogs → Check catalog health. Copy the report from the "Loadout <version>" line down, and check it for anything private first.
+      render: text
+  - type: dropdown
+    id: installed-with
+    attributes:
+      label: Installed with
+      options:
+        - Homebrew
+        - The .dmg from Releases
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.6"

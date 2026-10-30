@@ -1,7 +1,8 @@
 import type { Library } from "@loadout/core";
 import { accountInfo, catalogRow, entryRecord, installedRecord, seededState, type FakeState } from "@loadout/core/testing";
+import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { flushPromises } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { useCatalogStore } from "../stores/catalog.ts";
 import { useViewStore } from "../stores/views.ts";
 import { mountView } from "../testing/mountView.ts";
@@ -37,6 +38,8 @@ const states = (w: Wrapper) => w.findAll(".toolbar__state button").map((b) => b.
 const two = [catalogRow({ id: "personal" }), catalogRow({ id: "team", precedence: 2, kind: "remote", writeMode: "pr", location: "git@bitbucket.org:acme/catalog.git (main, library.yaml)" })];
 
 describe("UI-10: the list header and the sidebar", () => {
+  afterEach(() => clearMocks());
+
   it("has the Browse choice as its title, a labelled search and Refresh; Enter in the search does nothing", async () => {
     const { wrapper } = await mountList();
     expect(wrapper.find("h1").text()).toBe("All");
@@ -90,6 +93,12 @@ describe("UI-10: the list header and the sidebar", () => {
     expect(wrapper.find(".sidebar__accounts .sidebar__login").attributes("title")).toBe("octo");
     await browse(wrapper, "Bitbucket");
     expect(useViewStore().current.kind).toBe("accounts");
+  });
+
+  it("shows the running build's version at its foot", async () => {
+    mockIPC((cmd) => (cmd === "plugin:app|version" ? "0.1.0-rc.1" : undefined));
+    const { wrapper } = await mountList();
+    expect(wrapper.find(".sidebar__version").text()).toBe("Version 0.1.0-rc.1");
   });
 
   it("opens the clicked copy's page", async () => {

@@ -1,4 +1,5 @@
-# Runs the gate (npm run check, with the network blocked) on every PR and every push to main.
+# Runs the gate (npm run check, with the network blocked) on every PR and every push to main, and for
+# release.yml before it builds.
 # See CONTRIBUTING.md for what the gate checks.
 name: CI
 
@@ -7,6 +8,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}

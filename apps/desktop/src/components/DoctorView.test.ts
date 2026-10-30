@@ -1,6 +1,7 @@
 import type { Library } from "@loadout/core";
+import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { flushPromises } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { useViewStore } from "../stores/views.ts";
 import { mountView } from "../testing/mountView.ts";
 import DoctorView from "./DoctorView.vue";
@@ -25,6 +26,15 @@ async function mountDoctor(reports: Report[], library: Partial<Library> = {}) {
 }
 
 describe("UI-39: doctor", () => {
+  afterEach(() => clearMocks());
+
+  it("starts its report with the running build's version", async () => {
+    mockIPC((cmd) => (cmd === "plugin:app|version" ? "0.1.0" : undefined));
+    const { wrapper } = await mountDoctor([{ status: "ok", entries: 1, errors: [], warnings: [] }]);
+    const lines = wrapper.findAll(".doctor__version, .doctor__summary").map((p) => p.text().replace(/\s+/g, " "));
+    expect(lines).toEqual(["Loadout 0.1.0", "1 entries · 0 errors · 0 warnings"]);
+  });
+
   it("checks on open and says so when there is nothing to report", async () => {
     const { wrapper, calls } = await mountDoctor([{ status: "ok", entries: 12, errors: [], warnings: [] }]);
     expect(calls).toEqual([["doctor", false]]);
