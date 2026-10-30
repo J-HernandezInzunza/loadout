@@ -134,6 +134,32 @@ describe("facade: registry, accounts and maintenance", () => {
     expect(await sb.host.secrets.get("github")).toBeNull();
   });
 
+  it("a connected account's token reaches git through the library's own git client, as the app builds it", async () => {
+    // The app passes no `git` option, so this is the client every real clone goes through. Without the
+    // account wired in, a teammate with no SSH key could list a private catalog but not clone it.
+    const sb = await createSandbox();
+    const stub = await createApiStub();
+    const remote = createGitHarness(sb).createRepo("bitbucket.org", "sedteam/agent-library");
+    remote.commit({ "library.yaml": catalogText("x") });
+    const clones: Record<string, string>[] = [];
+    const host = {
+      ...sb.host,
+      proc: {
+        run: ((program, args, o) => {
+          if (args.includes("clone")) clones.push(o.env ?? {});
+          return sb.host.proc.run(program, args, o);
+        }) satisfies typeof sb.host.proc.run,
+      },
+    };
+    const library = checked(createLibrary(host, { apiBases: stub.bases }));
+    stub.addToken("bitbucket", "bb-token", "jose");
+    value(await library.connect("bitbucket", { accessToken: "bb-token" }), ops.connect.output);
+
+    value(await library.planAddCatalog({ kind: "remote", id: "team", repo: remote.https, branch: "main", protected: true }), ops.planAddCatalog.output);
+
+    expect(clones[0]).toMatchObject({ LOADOUT_GIT_USER: "x-token-auth", LOADOUT_GIT_TOKEN: "bb-token" });
+  });
+
   it("listRepos and checkCatalogRepo answer through the instance's accounts and API bases", async () => {
     const { stub, library } = await setup({ A: ["x"] });
     stub.addToken("bitbucket", "bb-token", "jose");

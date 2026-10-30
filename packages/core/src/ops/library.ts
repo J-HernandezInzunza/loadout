@@ -213,9 +213,10 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
   const store = createConfigStore(host);
   const receiptStore = createReceiptStore(host);
   const settings = createClaudeSettings(host, opts.claudeConfigDir === undefined ? {} : { configDir: opts.claudeConfigDir });
-  const git = opts.git ?? createGitClient(host);
   const apiBases = opts.apiBases ?? defaultApiBases;
   const accounts = createAccounts(host, store, { apiBases, ...(opts.bitbucketClient && { bitbucketClient: opts.bitbucketClient }) });
+  // A connected account's token reaches git over https (architecture.md §5.5).
+  const git = opts.git ?? createGitClient(host, { tokenFor: (on) => accounts.tokenFor(on) });
   // Everything an op needs, built once per instance (architecture.md §8.7).
   const ctx = {
     host,
