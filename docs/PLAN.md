@@ -1009,7 +1009,7 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Done when: `brew style` and `brew audit --cask --strict` pass on the tap. Installing the rc's `.dmg`
     through the cask moved to R.07 (owner 2026-10-30): the rc is tagged there, after this task.
 
-- [ ] **R.05 Tap update on publish.** `.github/workflows/tap.yml`, on `release: published` and only when
+- [x] **R.05 Tap update on publish.** `.github/workflows/tap.yml`, on `release: published` and only when
   not a pre-release: download the `.dmg`, check it against the published `.sha256`, rewrite `version`
   and `sha256` in the tap's cask and push the commit with a fine-grained token (`TAP_TOKEN`, contents
   write on the tap repository only, stored in the `release` environment).
