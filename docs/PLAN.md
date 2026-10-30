@@ -932,7 +932,7 @@ on each card, below the switch; the window gets a minimum size instead of a coll
 Exit: every R task checked; `v0.1.0` is a published GitHub Release with its notes and checksums; a
 teammate on a clean Mac installs it with `brew install --cask`, gets past the quarantine step the
 install notes describe, signs in and installs a skill; the next release reaches them with
-`brew upgrade --cask`.
+`brew upgrade --cask loadout`.
 
 How a release flows (arch §7; Q1: the repo is public, so Homebrew downloads release assets without a
 token; Q2 B: ad-hoc signing, the quarantine step is in the cask's caveats):
@@ -946,9 +946,14 @@ token; Q2 B: ad-hoc signing, the quarantine step is in the cask's caveats):
 5. Publishing triggers the tap workflow, which updates `Casks/loadout.rb` in the tap repository;
    teammates install or upgrade from there.
 
-Proposed 2026-10-29, for the owner to confirm: the first version is `0.1.0` (0.x: early, anything may
-change); releases are drafts until a person publishes them; a release candidate (`v0.1.0-rc.1`) is
-published as a pre-release and never reaches the tap.
+Decided 2026-10-30 (owner): the first version is `0.1.0` (0.x: early, anything may change); releases are
+drafts until a person publishes them; a release candidate (`v0.1.0-rc.1`) is published as a pre-release
+and never reaches the tap. Open: where the cask lives (R.04) and whether ad-hoc signing stays (Q2 B).
+
+Homebrew no longer trusts a whole tap on `brew tap` (docs.brew.sh/Taps, "Tap Trust"), so install
+instructions use the fully qualified name: `brew install --cask j-hernandezinzunza/tap/loadout`. An
+ad-hoc signature changes with every build, so macOS may ask again after each `brew upgrade`; the
+caveats and README say to repeat the quarantine step after an upgrade, not only after the first install.
 
 - [ ] **R.01 One version, visible.** The version lives in `apps/desktop/package.json`; `tauri.conf.json`
   reads it from there (`"version": "../package.json"`), and a script sets it in the other
@@ -987,7 +992,7 @@ published as a pre-release and never reaches the tap.
 - [ ] **R.04 The tap.** A public repository `J-HernandezInzunza/homebrew-tap` (so `brew tap
   j-hernandezinzunza/tap` finds it) with `Casks/loadout.rb`: `version`, `sha256`, `url` to the
   release's `.dmg`, `name`, `desc`, `homepage`, `app "Loadout.app"`, `depends_on macos: ">= :sonoma"`,
-  `depends_on arch: :arm64`, `caveats` with the `xattr -dr com.apple.quarantine` command and a link
+  `depends_on arch: :arm64`, `caveats` with the `xattr -dr com.apple.quarantine` command (first install and each upgrade) and a link
   to why, and `zap` for the app data folder (`~/Library/Application Support/com.jhernandezinzunza.loadout`)
   that never touches `~/.claude`.
   - Rules: none (arch §7; Q2 B)
@@ -1022,7 +1027,7 @@ published as a pre-release and never reaches the tap.
   - Done when: the run is recorded, and every problem found is a task or fixed.
 
 - [ ] **R.08 v0.1.0 (manual).** The version PR to `0.1.0`, tag, check and publish the draft; the tap
-  commit lands; a teammate installs with `brew tap j-hernandezinzunza/tap && brew install --cask loadout`
+  commit lands; a teammate installs with `brew install --cask j-hernandezinzunza/tap/loadout`
   and reaches a signed-in, installed skill; the release is announced. Record it in PROGRESS.md.
   - Rules: none
   - Depends: R.05, R.07
