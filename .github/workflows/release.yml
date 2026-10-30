@@ -90,8 +90,9 @@ jobs:
           LOADOUT_BITBUCKET_CLIENT_SECRET: ${{ secrets.LOADOUT_BITBUCKET_CLIENT_SECRET }}
         with:
           projectPath: apps/desktop
-          # The CLI is hoisted to the workspace root, so name the runner; `--` passes the flags to tauri, not npm.
-          tauriScript: npm run tauri --
+          # The CLI is hoisted to the workspace root, so name the runner. tauri-action adds the `--` before args
+          # itself (npm run tauri build -- --target …); one more here would hand --target to cargo instead.
+          tauriScript: npm run tauri
           args: --target aarch64-apple-darwin
           tagName: ${{ github.ref_name }}
           releaseName: Loadout ${{ github.ref_name }}

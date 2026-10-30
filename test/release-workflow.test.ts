@@ -98,6 +98,18 @@ describe("release workflow", () => {
       prerelease: "${{ contains(github.ref_name, '-') }}",
     });
     for (const s of SECRETS) expect(action.env![s]).toBe(`\${{ secrets.${s} }}`);
+  });
+
+  it("hands --target to tauri, not to cargo", () => {
+    const action = build.steps!.find((s) => s.uses?.startsWith("tauri-apps/tauri-action@"))!;
+    // How tauri-action v1 builds the command (src/runner.ts, execTauriCommand): the script's words, then
+    // `build`, then for npm a `--`, then args. npm drops the first `--`; tauri hands anything after a second
+    // one to cargo, which then builds into a target folder tauri doesn't look in (the v0.1.0 run, 41076264620).
+    const [bin, ...script] = String(action.with!.tauriScript).split(" ");
+    const argv = [...script, "build", "--", ...String(action.with!.args).split(" ")];
+    expect(bin).toBe("npm");
+    expect(argv.filter((a) => a === "--")).toHaveLength(1);
+    expect(argv).toEqual(["run", "tauri", "build", "--", "--target", "aarch64-apple-darwin"]);
     expect(step(build, "Read the release summary").run).toContain("cat .github/release-summary.md");
   });
 
