@@ -1022,8 +1022,10 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
 - [x] **R.06 Install and release docs.** README: what Loadout is; Install with Homebrew first (the
   fully qualified install, the quarantine step and why), then the `.dmg` from the latest release for
   anyone without Homebrew (drag to Applications, the same quarantine step, how to check it against the
-  `.sha256`, and that updates then mean watching Releases); a heading "Why the xattr step", which the
-  cask's caveats link to (`#why-the-xattr-step`); moving from a `.dmg` install to Homebrew
+  `.sha256`, and that updates then mean watching Releases); a heading "Opening Loadout the first
+  time", which the cask's caveats link to (`#opening-loadout-the-first-time`), with two ways in: System
+  Settings → Privacy & Security → Open Anyway, and the `xattr` command (owner 2026-10-30, after the
+  R.07 run: many teammates won't use Terminal); moving from a `.dmg` install to Homebrew
   (`--adopt`, verified against Homebrew's docs first); Upgrade; Uninstall (and what `zap` removes);
   sign-in; where to report a bug. A
   release runbook in CONTRIBUTING.md: the version PR, tagging, checking the draft, publishing,
