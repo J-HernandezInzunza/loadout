@@ -980,8 +980,9 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
 
 - [ ] **R.03 How a release reads on GitHub.** `.github/release.yml` groups the generated notes by PR
   label (Features, Fixes, Docs and chores; `skip-changelog` leaves a PR out), with the labels created
-  in the repo; a summary template (`.github/release-summary.md`, used as `releaseBody`) with Install,
-  Upgrade, the quarantine step and why it exists, and Known issues; a tag ruleset so only the owner can
+  in the repo; a summary template (`.github/release-summary.md`, used as `releaseBody`) with Install
+  (Homebrew, then the `.dmg` below as the fallback), Upgrade, the quarantine step and why it exists, and
+  Known issues; a tag ruleset so only the owner can
   create or delete `v*` tags; a bug-report issue form asking for the version from R.01 and Doctor's
   output.
   - Rules: none
@@ -1009,8 +1010,12 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Done when: a test reads the workflow (trigger, pre-release guard, checksum comparison); the cask
     edit is a script with tests on a fixture cask; publishing `v0.1.0` produced the tap commit (R.08).
 
-- [ ] **R.06 Install and release docs.** README: what Loadout is, Install (tap, install, the quarantine
-  step and why), Upgrade, Uninstall (and what `zap` removes), sign-in, where to report a bug. A
+- [ ] **R.06 Install and release docs.** README: what Loadout is; Install with Homebrew first (the
+  fully qualified install, the quarantine step and why), then the `.dmg` from the latest release for
+  anyone without Homebrew (drag to Applications, the same quarantine step, how to check it against the
+  `.sha256`, and that updates then mean watching Releases); moving from a `.dmg` install to Homebrew
+  (`--adopt`, verified against Homebrew's docs first); Upgrade; Uninstall (and what `zap` removes);
+  sign-in; where to report a bug. A
   release runbook in CONTRIBUTING.md: the version PR, tagging, checking the draft, publishing,
   announcing (a short Slack post linking the release), and what to do when a release goes wrong
   (delete the draft and the tag, or publish a fix version; never move a published tag).
