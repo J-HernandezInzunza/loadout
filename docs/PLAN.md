@@ -1018,7 +1018,7 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Done when: a test reads the workflow (trigger, pre-release guard, checksum comparison); the cask
     edit is a script with tests on a fixture cask; publishing `v0.1.0` produced the tap commit (R.08).
 
-- [ ] **R.06 Install and release docs.** README: what Loadout is; Install with Homebrew first (the
+- [x] **R.06 Install and release docs.** README: what Loadout is; Install with Homebrew first (the
   fully qualified install, the quarantine step and why), then the `.dmg` from the latest release for
   anyone without Homebrew (drag to Applications, the same quarantine step, how to check it against the
   `.sha256`, and that updates then mean watching Releases); a heading "Why the xattr step", which the
