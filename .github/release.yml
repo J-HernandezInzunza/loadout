@@ -1,0 +1,14 @@
+# How GitHub groups the generated release notes, by PR label. A PR labelled skip-changelog is left out.
+# GitHub drops a PR that matches no category, so the last one catches the rest.
+changelog:
+  exclude:
+    labels: [skip-changelog]
+  categories:
+    - title: Features
+      labels: [enhancement]
+    - title: Fixes
+      labels: [bug]
+    - title: Docs and chores
+      labels: [documentation, chore]
+    - title: Other changes
+      labels: ["*"]
