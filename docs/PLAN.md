@@ -1035,12 +1035,12 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Depends: R.03, R.05
   - Done when: the runbook was followed for R.07 and R.08 without a step missing from it.
 
-- [ ] **R.07 Dry run on the v0.1.0 draft (manual).** No release candidate (owner 2026-10-30). Tag
+- [x] **R.07 Dry run on the v0.1.0 draft (manual).** No release candidate (owner 2026-10-30). Tag
   `v0.1.0` from main (already at 0.1.0); check the draft's assets, checksum and notes without
   publishing it; install its `.dmg` on a clean macOS user account (no Homebrew tap yet, no
-  `~/.claude`, no keychain items); run the quarantine step, first run, sign-in, install and toggle; on
-  this machine, install the draft's `.dmg` through the tap's cask with its checksum pinned by hand in a
-  local edit that is never pushed (moved from R.04), then put the cask back; record it in PROGRESS.md.
+  `~/.claude`, no keychain items); run the quarantine step, first run, sign-in, install and toggle;
+  record it in PROGRESS.md. Installing through the cask moved again, to R.08 (a draft's asset URL is a
+  404, so the cask can't fetch it until the release is published).
   A problem that needs a code fix means deleting the draft and the tag, fixing on main, and tagging
   again (CONTRIBUTING, Releasing step 6).
   - Rules: none
@@ -1048,7 +1048,7 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Done when: the run is recorded, and every problem found is a task or fixed.
 
 - [ ] **R.08 v0.1.0 (manual).** Publish the draft R.07 checked; the tap
-  commit lands; a teammate installs with `brew install --cask j-hernandezinzunza/tap/loadout`
+  commit lands; on this machine the old dev build goes to the Trash and the cask installs the release; a teammate installs with `brew install --cask j-hernandezinzunza/tap/loadout`
   and reaches a signed-in, installed skill; the release is announced. Record it in PROGRESS.md.
   - Rules: none
   - Depends: R.05, R.07
