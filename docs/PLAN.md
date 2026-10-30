@@ -995,16 +995,19 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
   - Done when: the files exist and a test checks the categories name labels the repo defines (the list
     kept in the test); the ruleset is in place (checked by hand, recorded in PROGRESS.md).
 
-- [ ] **R.04 The tap.** A public repository `J-HernandezInzunza/homebrew-tap` (so `brew tap
-  j-hernandezinzunza/tap` finds it) with `Casks/loadout.rb`: `version`, `sha256`, `url` to the
-  release's `.dmg`, `name`, `desc`, `homepage`, `app "Loadout.app"`, `depends_on macos: ">= :sonoma"`,
+- [x] **R.04 The tap.** A public repository `J-HernandezInzunza/homebrew-tap` (so `brew tap
+  j-hernandezinzunza/tap` finds it), scaffolded by `brew tap-new` with its default workflows kept
+  (docs.brew.sh/How-to-Create-and-Maintain-a-Tap; owner 2026-10-30), with `Casks/loadout.rb` from
+  `brew create --cask`: `version`, `sha256`, `url` to the
+  release's `.dmg`, `name`, `desc`, `homepage`, `app "Loadout.app"`, `depends_on macos: :sonoma` (the
+  Cask Cookbook's minimum-version form),
   `depends_on arch: :arm64`, `caveats` with the `xattr -dr com.apple.quarantine` command (first install and each upgrade) and a link
-  to why, and `zap` for the app data folder (`~/Library/Application Support/com.jhernandezinzunza.loadout`)
-  that never touches `~/.claude`.
+  to why, and `zap` for the app's own data (Application Support, Caches, Preferences and WebKit under
+  `com.jhernandezinzunza.loadout`) that never touches `~/.claude`.
   - Rules: none (arch §7; Q2 B)
   - Depends: R.02
-  - Done when: `brew style` and `brew audit --cask` pass on the tap; the cask installs the rc's `.dmg`
-    on this machine with the version and checksum pinned by hand.
+  - Done when: `brew style` and `brew audit --cask --strict` pass on the tap. Installing the rc's `.dmg`
+    through the cask moved to R.07 (owner 2026-10-30): the rc is tagged there, after this task.
 
 - [ ] **R.05 Tap update on publish.** `.github/workflows/tap.yml`, on `release: published` and only when
   not a pre-release: download the `.dmg`, check it against the published `.sha256`, rewrite `version`
@@ -1018,7 +1021,8 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
 - [ ] **R.06 Install and release docs.** README: what Loadout is; Install with Homebrew first (the
   fully qualified install, the quarantine step and why), then the `.dmg` from the latest release for
   anyone without Homebrew (drag to Applications, the same quarantine step, how to check it against the
-  `.sha256`, and that updates then mean watching Releases); moving from a `.dmg` install to Homebrew
+  `.sha256`, and that updates then mean watching Releases); a heading "Why the xattr step", which the
+  cask's caveats link to (`#why-the-xattr-step`); moving from a `.dmg` install to Homebrew
   (`--adopt`, verified against Homebrew's docs first); Upgrade; Uninstall (and what `zap` removes);
   sign-in; where to report a bug. A
   release runbook in CONTRIBUTING.md: the version PR, tagging, checking the draft, publishing,
@@ -1031,7 +1035,9 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
 - [ ] **R.07 Release candidate (manual).** Tag `v0.1.0-rc.1`; check the draft's assets, checksum and
   notes; publish it as a pre-release (the tap must not change); install its `.dmg` on a clean macOS
   user account (no Homebrew tap yet, no `~/.claude`, no keychain items); run the quarantine step,
-  first run, sign-in, install and toggle; record it in PROGRESS.md.
+  first run, sign-in, install and toggle; on this machine, install the rc's `.dmg` through the tap's
+  cask with its version and checksum pinned by hand in a local edit that is never pushed (moved from
+  R.04), then put the cask back; record it in PROGRESS.md.
   - Rules: none
   - Depends: R.02, R.03, R.04, R.06
   - Done when: the run is recorded, and every problem found is a task or fixed.
