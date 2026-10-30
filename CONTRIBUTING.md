@@ -90,6 +90,10 @@ git tag -a v0.1.0 -m "Loadout 0.1.0"
 git push origin v0.1.0
 ```
 
+The push prints "Bypassed rule violations for refs/tags/v0.1.0" and "Cannot create ref due to
+creations being restricted": that's the tag ruleset letting the admin through, and the tag is pushed
+(`* [new tag]`).
+
 Watch Actions → Release. If **Tag matches the version** fails, the tag isn't `v` plus the version in
 `apps/desktop/package.json`: delete the tag (step 6) and tag the right commit.
 
@@ -99,8 +103,8 @@ In Releases, open the draft `Loadout v0.1.0`:
 
 - Assets: `Loadout_0.1.0_aarch64.dmg` and `Loadout_0.1.0_aarch64.dmg.sha256`. Download both and run
   `shasum -a 256 -c Loadout_0.1.0_aarch64.dmg.sha256`.
-- Install that `.dmg`, run the `xattr` step from the README, and open it: the sidebar's foot shows
-  `Version 0.1.0`; sign in and install a skill.
+- Install that `.dmg`, open it the first time as the README says (Open Anyway or `xattr`): the
+  sidebar's foot shows `Version 0.1.0`; sign in and install a skill.
 - Notes: the summary on top, then the PRs by label. Edit **Known issues** if anything is known.
 
 ### 4. Publish
@@ -114,9 +118,10 @@ Actions → Tap pushes `loadout 0.1.0` to the tap; then on a Mac that has it ins
 A short Slack post in the team channel:
 
 > Loadout 0.1.0 is out: <link to the release>
-> New: `brew install --cask j-hernandezinzunza/tap/loadout`, then
-> `xattr -dr com.apple.quarantine /Applications/Loadout.app`.
-> Already have it: `brew upgrade --cask loadout` and the same `xattr` command.
+> New: `brew install --cask j-hernandezinzunza/tap/loadout`, or the `.dmg` from the release.
+> Already have it: `brew upgrade --cask loadout`.
+> macOS blocks it the first time (and after each upgrade): click Done, then System Settings →
+> Privacy & Security → Open Anyway. Details: <link to the README's "Opening Loadout the first time">
 > Bugs: <link to Issues → New issue → Bug report>
 
 ### 6. When a release goes wrong

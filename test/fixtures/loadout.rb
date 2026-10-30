@@ -27,9 +27,10 @@ cask "loadout" do
   ]
 
   caveats <<~EOS
-    Loadout is not notarized by Apple yet, so macOS blocks it the first time it opens.
-    After installing, and again after each upgrade, run:
+    Loadout is not notarized by Apple yet, so macOS blocks it the first time it opens
+    ("Loadout" Not Opened: click Done). After installing, and again after each upgrade, either
+    open System Settings → Privacy & Security → Open Anyway, or run:
       xattr -dr com.apple.quarantine "#{appdir}/Loadout.app"
-    Why: https://github.com/J-HernandezInzunza/loadout#why-the-xattr-step
+    More: https://github.com/J-HernandezInzunza/loadout#opening-loadout-the-first-time
   EOS
 end

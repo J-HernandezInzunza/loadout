@@ -13,17 +13,16 @@ if you don't have it).
 
 ```sh
 brew install --cask j-hernandezinzunza/tap/loadout
-xattr -dr com.apple.quarantine /Applications/Loadout.app
 ```
 
 The full name (`j-hernandezinzunza/tap/loadout`) taps this repository's tap and trusts only the
-Loadout cask in it. The second line is explained [below](#why-the-xattr-step).
+Loadout cask in it. Then [open it the first time](#opening-loadout-the-first-time).
 
 ### Without Homebrew
 
 1. From the [latest release](https://github.com/J-HernandezInzunza/loadout/releases/latest), download
    `Loadout_<version>_aarch64.dmg` and `Loadout_<version>_aarch64.dmg.sha256` into the same folder.
-2. Check the download. In that folder:
+2. Optional, if you use Terminal: check the download. In that folder:
 
    ```sh
    shasum -a 256 -c Loadout_<version>_aarch64.dmg.sha256
@@ -31,18 +30,32 @@ Loadout cask in it. The second line is explained [below](#why-the-xattr-step).
 
    It should print `Loadout_<version>_aarch64.dmg: OK`. Anything else: don't open it, download again.
 3. Open the `.dmg` and drag Loadout to Applications.
-4. Run `xattr -dr com.apple.quarantine /Applications/Loadout.app`.
+4. [Open it the first time](#opening-loadout-the-first-time).
 
 A copy installed this way doesn't update itself. To hear about new versions, watch this repository
 for releases (Watch → Custom → Releases).
 
-### Why the xattr step
+### Opening Loadout the first time
 
-Loadout isn't notarized by Apple yet (that takes a paid Apple Developer ID), so macOS blocks a
-downloaded copy the first time it opens and offers only to move it to the Trash. The command removes
-the "downloaded from the internet" flag (`com.apple.quarantine`) from Loadout.app, and from nothing
-else, so it opens normally. Each upgrade is a new download with the flag set again, and each build is
-signed afresh, so run the command again after every upgrade.
+Loadout isn't notarized by Apple yet (that takes a paid Apple Developer ID), so the first time you open
+it macOS says **"Loadout" Not Opened** ("Apple could not verify…"). That's expected: click **Done**, not
+Move to Trash. Then use either way below; macOS remembers the choice for this copy of Loadout.
+
+**With System Settings** (no Terminal):
+
+1. Open System Settings → **Privacy & Security** and scroll down to Security, where it says
+   "Loadout" was blocked to protect your Mac.
+2. Click **Open Anyway**, then **Open** (enter your password if asked).
+
+**With Terminal**, before opening it:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Loadout.app
+```
+
+This removes the "downloaded from the internet" flag from Loadout.app, and from nothing else.
+
+Do this again after every upgrade: each upgrade is a new download, signed afresh, so macOS asks again.
 
 ### Moving from a `.dmg` install to Homebrew
 
@@ -60,10 +73,10 @@ and sign-ins stay: they live in `~/Library/Application Support` and the keychain
 
 ```sh
 brew upgrade --cask loadout
-xattr -dr com.apple.quarantine /Applications/Loadout.app
 ```
 
-From a `.dmg`: download the new one, replace Loadout in Applications, and run the `xattr` command.
+From a `.dmg`: download the new one and replace Loadout in Applications. Either way, macOS blocks the
+new copy once: [open it the first time](#opening-loadout-the-first-time) again.
 
 ## Sign in
 
