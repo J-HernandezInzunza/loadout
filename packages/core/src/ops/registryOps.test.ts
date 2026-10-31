@@ -139,7 +139,7 @@ describe("facade: registry, accounts and maintenance", () => {
     // account wired in, a teammate with no SSH key could list a private catalog but not clone it.
     const sb = await createSandbox();
     const stub = await createApiStub();
-    const remote = createGitHarness(sb).createRepo("bitbucket.org", "sedteam/agent-library");
+    const remote = createGitHarness(sb).createRepo("bitbucket.org", "myworkspace/agent-library");
     remote.commit({ "library.yaml": catalogText("x") });
     const clones: Record<string, string>[] = [];
     const host = {
@@ -163,12 +163,12 @@ describe("facade: registry, accounts and maintenance", () => {
   it("listRepos and checkCatalogRepo answer through the instance's accounts and API bases", async () => {
     const { stub, library } = await setup({ A: ["x"] });
     stub.addToken("bitbucket", "bb-token", "jose");
-    stub.addRepo("bitbucket", { org: "sedteam", name: "agent-library", defaultBranch: "main", readers: ["jose"], files: { main: ["library.yaml"] } });
+    stub.addRepo("bitbucket", { org: "myworkspace", name: "agent-library", defaultBranch: "main", readers: ["jose"], files: { main: ["library.yaml"] } });
     value(await library.connect("bitbucket", { accessToken: "bb-token" }), ops.connect.output);
     expect(value(await library.listRepos("bitbucket"), ops.listRepos.output)).toEqual([
-      { org: "sedteam", name: "agent-library", private: false, repo: "https://bitbucket.org/sedteam/agent-library.git" },
+      { org: "myworkspace", name: "agent-library", private: false, repo: "https://bitbucket.org/myworkspace/agent-library.git" },
     ]);
-    expect(value(await library.checkCatalogRepo({ on: "bitbucket", org: "sedteam", name: "agent-library" }), ops.checkCatalogRepo.output)).toEqual({
+    expect(value(await library.checkCatalogRepo({ on: "bitbucket", org: "myworkspace", name: "agent-library" }), ops.checkCatalogRepo.output)).toEqual({
       defaultBranch: "main",
       branch: "main",
       yamlPath: "library.yaml",

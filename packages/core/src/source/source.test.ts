@@ -39,22 +39,22 @@ describe("parseRepoLink", () => {
       { repo: "https://github.com/acme/agentics.git", on: "github", org: "acme", name: "agentics", branch: "dev", yamlPath: "catalog/library.yaml" },
     ],
     ["a GitHub tree link", "https://github.com/acme/agentics/tree/main", { repo: "https://github.com/acme/agentics.git", on: "github", org: "acme", name: "agentics", branch: "main" }],
-    ["a Bitbucket repo page", "https://bitbucket.org/sedteam/agent-library/", { repo: "https://bitbucket.org/sedteam/agent-library.git", on: "bitbucket", org: "sedteam", name: "agent-library" }],
+    ["a Bitbucket repo page", "https://bitbucket.org/myworkspace/agent-library/", { repo: "https://bitbucket.org/myworkspace/agent-library.git", on: "bitbucket", org: "myworkspace", name: "agent-library" }],
     [
       "a Bitbucket link to the file",
-      "https://bitbucket.org/sedteam/agent-library/src/main/library.yaml",
-      { repo: "https://bitbucket.org/sedteam/agent-library.git", on: "bitbucket", org: "sedteam", name: "agent-library", branch: "main", yamlPath: "library.yaml" },
+      "https://bitbucket.org/myworkspace/agent-library/src/main/library.yaml",
+      { repo: "https://bitbucket.org/myworkspace/agent-library.git", on: "bitbucket", org: "myworkspace", name: "agent-library", branch: "main", yamlPath: "library.yaml" },
     ],
     [
       "a Bitbucket link at a commit, whose branch is in ?at=",
-      "https://bitbucket.org/sedteam/agent-library/src/0123456789ab/library.yaml?at=release",
-      { repo: "https://bitbucket.org/sedteam/agent-library.git", on: "bitbucket", org: "sedteam", name: "agent-library", branch: "release", yamlPath: "library.yaml" },
+      "https://bitbucket.org/myworkspace/agent-library/src/0123456789ab/library.yaml?at=release",
+      { repo: "https://bitbucket.org/myworkspace/agent-library.git", on: "bitbucket", org: "myworkspace", name: "agent-library", branch: "release", yamlPath: "library.yaml" },
     ],
-    ["a Bitbucket https clone URL with a user", "https://jose@bitbucket.org/sedteam/agent-library.git", { repo: "https://bitbucket.org/sedteam/agent-library.git", on: "bitbucket", org: "sedteam", name: "agent-library" }],
+    ["a Bitbucket https clone URL with a user", "https://jose@bitbucket.org/myworkspace/agent-library.git", { repo: "https://bitbucket.org/myworkspace/agent-library.git", on: "bitbucket", org: "myworkspace", name: "agent-library" }],
     [
       "Bitbucket's new ssh host, kept as given",
-      "git@ssh.bitbucket.org:sedteam/agent-library.git",
-      { repo: "git@ssh.bitbucket.org:sedteam/agent-library.git", on: "bitbucket", org: "sedteam", name: "agent-library" },
+      "git@ssh.bitbucket.org:myworkspace/agent-library.git",
+      { repo: "git@ssh.bitbucket.org:myworkspace/agent-library.git", on: "bitbucket", org: "myworkspace", name: "agent-library" },
     ],
     ["another host's page", "https://gitlab.com/acme/agentics", { repo: "https://gitlab.com/acme/agentics.git", on: null, org: "acme", name: "agentics" }],
   ] as const)("reads %s", (_, input, expected) => {
@@ -83,7 +83,7 @@ describe("remoteWeb", () => {
   });
 
   it("reads Bitbucket's new SSH host as Bitbucket, whose web pages stay on bitbucket.org", () => {
-    expect(remoteWeb("git@ssh.bitbucket.org:sedteam/agent-library.git")).toEqual(["bitbucket.org", "sedteam", "agent-library"]);
-    expect(remoteWeb("ssh://git@ssh.bitbucket.org/sedteam/agent-library.git")).toEqual(["bitbucket.org", "sedteam", "agent-library"]);
+    expect(remoteWeb("git@ssh.bitbucket.org:myworkspace/agent-library.git")).toEqual(["bitbucket.org", "myworkspace", "agent-library"]);
+    expect(remoteWeb("ssh://git@ssh.bitbucket.org/myworkspace/agent-library.git")).toEqual(["bitbucket.org", "myworkspace", "agent-library"]);
   });
 });

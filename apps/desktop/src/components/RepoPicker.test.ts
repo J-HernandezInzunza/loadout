@@ -35,7 +35,7 @@ function mountShared(library: Partial<Library> = {}, accounts: Partial<Record<Ac
     seed: { accounts },
     props: { catalogs: [catalogRow()], start: "remote" },
     library: {
-      listRepos: async (on) => (calls.push(["listRepos", on]), ok(on === "github" ? githubRepos : [repo("sedteam", "agent-library", "bitbucket")])),
+      listRepos: async (on) => (calls.push(["listRepos", on]), ok(on === "github" ? githubRepos : [repo("myworkspace", "agent-library", "bitbucket")])),
       checkCatalogRepo: async (req) => {
         calls.push(["checkCatalogRepo", { ...req, signal: undefined }]);
         if (req.org === "acme" && req.name === "hidden") return refused("NOT_FOUND", "GitHub shows no acme/hidden to this account: it doesn't exist, or the account can't read it");
@@ -98,7 +98,7 @@ describe("picking a shared catalog from a connected account", () => {
     await link.setValue("https://github.com/acme/hidden");
     await flushPromises();
     expect(wrapper.find(".repo-picker").text()).toContain("GitHub shows no acme/hidden to this account");
-    await link.setValue("https://bitbucket.org/sedteam/agent-library");
+    await link.setValue("https://bitbucket.org/myworkspace/agent-library");
     await flushPromises();
     expect(wrapper.find(".repo-picker__problem").text()).toBe("That isn't a GitHub repository; choose where it lives above.");
     expect(submit(wrapper).attributes("disabled")).toBeDefined();
@@ -147,7 +147,7 @@ describe("picking a shared catalog from a connected account", () => {
     await emit("deep-link://new-url", ["loadout://oauth/bitbucket?code=c&state=s"]);
     await flushPromises();
     expect(calls).toEqual([["listRepos", "bitbucket"]]);
-    expect(options(wrapper)).toEqual(["sedteam/agent-library", "Other: paste a link"]);
+    expect(options(wrapper)).toEqual(["myworkspace/agent-library", "Other: paste a link"]);
   });
 
   it("a failed sign-in (here: unavailable) says why and leaves Somewhere else for a clone URL", async () => {

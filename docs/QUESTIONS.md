@@ -52,7 +52,7 @@ M4: cache the probed PATH in app data, use it at once, refresh it in the backgro
 
 Browser sign-in (architecture.md §5.5) needs two registrations outside the code:
 
-1. **Bitbucket OAuth consumer**, in a Bitbucket workspace (the Workstand workspace, so teammates
+1. **Bitbucket OAuth consumer**, in a Bitbucket workspace (the team's workspace, so teammates
    recognise it), by a workspace admin. Scopes: account read, repository read/write, pull requests
    write. Users still sign in and grant access themselves; the consumer's secret only identifies
    the app. Bitbucket's token exchange requires it and Atlassian documents no PKCE, so it is kept
@@ -60,7 +60,7 @@ Browser sign-in (architecture.md §5.5) needs two registrations outside the code
    inside every installed copy and can be extracted (architecture.md §10 risk 13: no access on its
    own, a phishing risk; rotate if leaked). Is that acceptable to whoever owns the workspace, or do
    you prefer a small token-exchange service that holds it instead?
-2. **GitHub OAuth app** (or GitHub App): under your account or a Workstand org. Device flow needs no
+2. **GitHub OAuth app** (or GitHub App): under your account or the team's org. Device flow needs no
    secret.
 
 M2 and M3 test with injected tokens, so nothing waits on this until M4.

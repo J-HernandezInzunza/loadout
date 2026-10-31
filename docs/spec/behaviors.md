@@ -1,6 +1,6 @@
 # The Library: behavior spec for the native rebuild
 
-Source of truth: `the-library-skill` at commit `a29e816` (branch `workstand-main`), read 2026-10-14.
+Source of truth: `the-library-skill` at commit `a29e816` (the team's main branch), read 2026-10-14.
 Every claim cites `file:line` relative to that repo's root. Where docs and code disagree, the code
 wins and the disagreement is listed in §7. This document is the test plan for the new repo: every
 numbered rule is written to be turned into a test.

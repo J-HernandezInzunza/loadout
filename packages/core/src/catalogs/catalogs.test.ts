@@ -195,17 +195,17 @@ describe("Bitbucket's new SSH host", () => {
   const ref = (repo: string) => ({ id: "shared", kind: "remote" as const, repo, branch: "develop", yamlPath: "library.yaml", protected: true });
 
   it("tries the ssh URL as registered, then https on bitbucket.org", async () => {
-    expect(await catalogUrls(git, ref("git@ssh.bitbucket.org:sedteam/agent-library.git"))).toEqual([
-      "git@ssh.bitbucket.org:sedteam/agent-library.git",
-      "https://bitbucket.org/sedteam/agent-library.git",
+    expect(await catalogUrls(git, ref("git@ssh.bitbucket.org:myworkspace/agent-library.git"))).toEqual([
+      "git@ssh.bitbucket.org:myworkspace/agent-library.git",
+      "https://bitbucket.org/myworkspace/agent-library.git",
     ]);
-    expect(await catalogUrls(git, ref("https://bitbucket.org/sedteam/agent-library.git"))).toEqual([
-      "git@bitbucket.org:sedteam/agent-library.git",
-      "https://bitbucket.org/sedteam/agent-library.git",
+    expect(await catalogUrls(git, ref("https://bitbucket.org/myworkspace/agent-library.git"))).toEqual([
+      "git@bitbucket.org:myworkspace/agent-library.git",
+      "https://bitbucket.org/myworkspace/agent-library.git",
     ]);
   });
 
   it("is the same repo as the old host's spelling of it", () => {
-    expect(sameRepo("git@ssh.bitbucket.org:sedteam/agent-library.git", "git@bitbucket.org:sedteam/agent-library.git")).toBe(true);
+    expect(sameRepo("git@ssh.bitbucket.org:myworkspace/agent-library.git", "git@bitbucket.org:myworkspace/agent-library.git")).toBe(true);
   });
 });

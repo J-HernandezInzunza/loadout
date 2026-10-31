@@ -753,7 +753,7 @@ Users connect a GitHub and/or Bitbucket account from an Accounts screen with a b
     secret injected at build time), but anyone with the installed app can extract it. On its own it
     opens no repository: it lets someone build a fake app that shows up as "Loadout" on Bitbucket's
     consent screen, so a teammate who signs in and grants access to that fake hands it a token.
-    Mitigations: register the consumer in the Workstand workspace with the narrowest scopes
+    Mitigations: register the consumer in the team's workspace with the narrowest scopes
     (repository read/write, pull requests write); rotate it if leaked (the next build carries the new
     one). Alternatives if that is not acceptable: a small token-exchange service that holds the secret
     (the app sends it the one-time code; adds hosting), or Bitbucket's implicit grant (no secret, but no
