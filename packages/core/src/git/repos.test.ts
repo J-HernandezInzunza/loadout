@@ -19,8 +19,8 @@ async function setup() {
   stub.addRepo("github", { org: "octo", name: "dotfiles", defaultBranch: "main", readers: ["octo"], files: {} });
   stub.addRepo("github", { org: "acme", name: "agentics", defaultBranch: "main", private: true, readers: ["octo", "other"], files });
   stub.addRepo("github", { org: "acme", name: "secret", defaultBranch: "main", readers: ["other"], files });
-  stub.addRepo("bitbucket", { org: "sedteam", name: "agent-library", defaultBranch: "trunk", private: true, readers: ["jose"], files: { trunk: ["library.yaml"] } });
-  stub.addRepo("bitbucket", { org: "sedteam", name: "pos", defaultBranch: "main", readers: ["jose"], files: {} });
+  stub.addRepo("bitbucket", { org: "myworkspace", name: "agent-library", defaultBranch: "trunk", private: true, readers: ["jose"], files: { trunk: ["library.yaml"] } });
+  stub.addRepo("bitbucket", { org: "myworkspace", name: "website", defaultBranch: "main", readers: ["jose"], files: {} });
   stub.addRepo("bitbucket", { org: "jose", name: "scratch", defaultBranch: "main", readers: ["jose"], files: {} });
   stub.addRepo("bitbucket", { org: "elsewhere", name: "hidden", defaultBranch: "main", readers: ["someone"], files: {} });
   return { sb, stub, ctx };
@@ -57,10 +57,10 @@ describe("listRepos", () => {
     const listed = await listRepos(ctx, "bitbucket");
     expect(listed.ok && listed.value).toEqual([
       { org: "jose", name: "scratch", private: false, repo: "https://bitbucket.org/jose/scratch.git" },
-      { org: "sedteam", name: "agent-library", private: true, repo: "https://bitbucket.org/sedteam/agent-library.git" },
-      { org: "sedteam", name: "pos", private: false, repo: "https://bitbucket.org/sedteam/pos.git" },
+      { org: "myworkspace", name: "agent-library", private: true, repo: "https://bitbucket.org/myworkspace/agent-library.git" },
+      { org: "myworkspace", name: "website", private: false, repo: "https://bitbucket.org/myworkspace/website.git" },
     ]);
-    expect(stub.requests.filter((r) => r.path.startsWith("/repositories/sedteam?")).every((r) => r.path.includes("role=member"))).toBe(true);
+    expect(stub.requests.filter((r) => r.path.startsWith("/repositories/myworkspace?")).every((r) => r.path.includes("role=member"))).toBe(true);
   });
 
   it("is NOT_CONNECTED without an account, and AUTH_FAILED when the host refuses the token", async () => {
@@ -91,8 +91,8 @@ describe("checkCatalogRepo", () => {
 
   it("Bitbucket: the main branch, and a repo without library.yaml says so", async () => {
     const { ctx } = await setup();
-    expect(await checkCatalogRepo(ctx, { on: "bitbucket", org: "sedteam", name: "agent-library" })).toMatchObject({ ok: true, value: { defaultBranch: "trunk", branch: "trunk", found: true } });
-    expect(await checkCatalogRepo(ctx, { on: "bitbucket", org: "sedteam", name: "pos" })).toMatchObject({ ok: true, value: { branch: "main", found: false } });
+    expect(await checkCatalogRepo(ctx, { on: "bitbucket", org: "myworkspace", name: "agent-library" })).toMatchObject({ ok: true, value: { defaultBranch: "trunk", branch: "trunk", found: true } });
+    expect(await checkCatalogRepo(ctx, { on: "bitbucket", org: "myworkspace", name: "website" })).toMatchObject({ ok: true, value: { branch: "main", found: false } });
   });
 
   it("a repo the account can't read is NOT_FOUND, saying access may be what's missing", async () => {

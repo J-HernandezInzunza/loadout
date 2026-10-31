@@ -231,7 +231,7 @@ upgrades (doctor can compare the init list's spelling if it ever changes).
 
 The M4.11 debug build (`target/debug/bundle/macos/Loadout.app`), opened from Finder on 2026-10-29,
 with the registry imported from the Python CLI: `my-engineering-library` (local, its sources on
-GitHub over ssh) and `shared` (`git@bitbucket.org:sedteam/agent-library.git`, branch `develop`,
+GitHub over ssh) and `shared` (`git@bitbucket.org:myworkspace/agent-library.git`, branch `develop`,
 protected). No account connected. The owner reported every step as expected; the audit log, by step:
 
 | Step | git calls | Notes |
@@ -247,7 +247,7 @@ protected). No account connected. The owner reported every step as expected; the
 including `push`. Every operation's temp dir was removed. Cost worth knowing for M5: each install
 plan clones its source afresh (~1 s), since the clone cache lives for one operation; a UI that plans
 on every click may want to keep the plan, or the clone, around. The branch
-`library/update-grilling-20261029T075931` was pushed to `sedteam/agent-library`; delete it if no PR
+`library/update-grilling-20261029T075931` was pushed to `myworkspace/agent-library`; delete it if no PR
 is wanted.
 
 ## S12. OAuth redirects (M4.12)

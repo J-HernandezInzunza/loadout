@@ -31,7 +31,7 @@ with the recommendation."
 
 Homebrew installs the cask by downloading the release asset. A private GitHub repo's release assets
 need an auth token, which a plain `brew install --cask` doesn't send. Today's repo has two remotes:
-`github.com/J-HernandezInzunza/the-library-skill` and `bitbucket.org/sedteam/the-library-skill`.
+`github.com/J-HernandezInzunza/the-library-skill` and `bitbucket.org/myworkspace/the-library-skill`.
 
 
 
@@ -44,7 +44,7 @@ need an auth token, which a plain `brew install --cask` doesn't send. Today's re
 - [x] A. Public GitHub repo under your personal account (works with a personal tap as planned)
 - [ ] B. Private GitHub repo, with release assets published somewhere public
 - [ ] C. Private repo; teammates build from source or download releases by hand (drops the one-command install)
-- [ ] D. Workstand org (GitHub or Bitbucket): say which, and who owns releases
+- [ ] D. The team's org (GitHub or Bitbucket): say which, and who owns releases
 
 Repo name: [https://github.com/J-HernandezInzunza/loadout](https://github.com/J-HernandezInzunza/loadout)
 
@@ -67,7 +67,7 @@ Gatekeeper blocks its first launch (arch §7).
 - [ ] C. Ad-hoc signing; the cask runs that `xattr` itself after install (unverified that Homebrew allows this in a personal tap)
 - [ ] D. Skip Homebrew for v1; a DMG on GitHub Releases plus "Open Anyway" instructions
 
-If A: personal Apple account or Workstand's? \_\_\_\_\_\_
+If A: personal Apple account or the team's? \_\_\_\_\_\_
 
 ### Q3. Should the app edit remote (shared) catalogs? (Blocks: M3, UI)
 
