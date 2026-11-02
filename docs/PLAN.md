@@ -1056,6 +1056,89 @@ caveats and README say to repeat the quarantine step after an upgrade, not only 
 
 ---
 
+## M8. Content Loadout didn't install
+
+Exit: every M8 task checked; the sidebar's Unmanaged item lists what sits in `~/.claude` without a
+receipt, says where each item came from as far as Loadout can tell, and turns skills and prompts on
+and off; the owner walked it in a Finder-launched build.
+
+Decided 2026-11-02:
+
+- Claude Code doesn't load `~/.agents/skills` (its skills docs; on this machine the `plannotator-*`
+  skills that live only there don't load). `~/.agents` is used only as an origin: `npx skills`
+  (vercel-labs/skills) keeps its copies in `~/.agents/skills/<name>/` and links them into
+  `~/.claude/skills`. Skills only in `~/.agents` aren't listed.
+- The view is read-only plus on/off (skills and prompts; agents aren't toggled, Q15 A), Reveal in
+  Finder, and a link to the catalog entry of the same name. Adopting an item into a catalog is
+  not in M8: for a link it means replacing it (breaking `npx skills update`) or keeping two sources.
+- Symlinks: the scan resolves where a link points and what kind of thing is there; it still never
+  reads, moves or deletes the content (amends arch §4.4's "never followed").
+- Listed: every unmanaged item, catalog name or not, the ones sharing a catalog name marked.
+  Not listed: `parked-by-python-cli` (M6.02's view handles those).
+- Origins come from known files only: `npx skills`' lock and BrowserOS's
+  `.browserclaw-managed.json`. Anything else stays `foreign`.
+- The lock is read at `~/.agents/.skill-lock.json` only. The CLI writes it under
+  `$XDG_STATE_HOME/skills/` when that is set, which a Finder-launched app can't see; those users get
+  the `npx skills` origin from the link's path without its source and dates. Known gap, accepted.
+
+- [ ] **M8.01 Link targets.** `scan/`: an unmanaged item that is a symlink carries
+  `link: { target, kind: "dir" | "file" } | { target: null, broken: true }`, from `realPath` and an
+  `lstat` of the target (one level: no reads inside it). Each item gets `loadable`: a skill's target
+  is a dir, an agent's or prompt's `.md` target is a file, a `commands/<ns>` target is a dir; a broken
+  link never is. `topLevel` lists a link in `commands/` whose target is a dir as a namespace item (it
+  is dropped today) and a link in `skills/` to a file as an item that isn't loadable (listed as a
+  skill today). The `scan` op's schema (`ScanReport`) carries both fields. Amend arch §4.4 step 1 and
+  the `symlink` origin's line to match.
+  - Rules: SCAN-01 (rebuild, this task: link targets are resolved, never read)
+  - Depends: M7.05
+  - Done when: tests cover a linked skill dir, a link to a file in `skills/`, a linked prompt
+    namespace, a linked agent `.md`, a broken link and a link chain; none read the target's files.
+
+- [ ] **M8.02 Origins from other tools.** `scan/`: a link whose target lies under `~/.agents/skills/`
+  gets `tool: { name: "npx-skills", source, installedAt, updatedAt }`, the last three from
+  `~/.agents/.skill-lock.json` keyed by the target folder's name (not the link's), each null when the
+  lock is missing, unreadable, not `version: 3` or has no entry (as `readLegacyInstalls`: no details,
+  never an error). A real dir in `skills/` holding `.browserclaw-managed.json` gets
+  `tool: { name: "browseros" }`. Both in the `scan` op's schema.
+  - Rules: none (arch §4.4 as amended by M8.01)
+  - Depends: M8.01
+  - Done when: tests cover a link into `~/.agents/skills` with a v3 lock entry (fixture copied from
+    skills@1.5.18's lock), with the lock missing, malformed, at another version and without the
+    entry, a link and target named differently, and the BrowserOS marker; a link outside
+    `~/.agents` has no `tool`.
+
+- [ ] **M8.03 Scan in the app.** A store holds `scan()`'s unmanaged items (without
+  `parked-by-python-cli`), loaded with the catalog and again after every load, install, uninstall,
+  sync, toggle and Refresh; a failed scan shows as the view's error, not a toast on every reload.
+  - Rules: none
+  - Depends: M8.02
+  - Done when: the reload points and the parked filter are tested against the fake.
+
+- [ ] **M8.04 Unmanaged in the sidebar.** Browse gets **Unmanaged** with its count, after Agents;
+  it shows in the list pane with the sidebar kept (M7.01's layout), grouped by type. Each row: name,
+  path, and its origin in words ("Linked from npx skills · vercel-labs/skills · installed
+  2026-09-25", "Kept by BrowserOS", "Installed by the old Python CLI", "Edited since the Python CLI
+  installed it", "Linked to {target}", "Added by hand or by another tool"); "Claude Code can't load
+  this" with the reason when `loadable` is false; "Shares a name with {catalog}'s {type}; installing
+  it asks before replacing" opening that entry's page; the on/off switch for skills and prompts
+  (`setSkillState`); Reveal in Finder (`revealItemInDir`; the link itself, not its target). The
+  search applies; From and state don't (they're catalog filters), so the toolbar hides them. Empty
+  state: "Everything in ~/.claude was installed by Loadout."
+  - Rules: none
+  - Depends: M8.03
+  - Done when: each origin's wording, the unloadable and shared-name lines, the switch (absent on
+    agents), Reveal, the count, search and the empty state are tested.
+
+- [ ] **M8.05 Milestone check (manual).** From a Finder-launched build on this machine: Unmanaged
+  lists `find-skills` and `orchestration` as npx skills links with their sources, `browseros-neo` as
+  BrowserOS's, and `library` as a link; a hand-made broken link and a link to a file say they can't
+  load; turning one off and on reaches the next Claude Code session. Record it in PROGRESS.md.
+  - Rules: none
+  - Depends: M8.01, M8.02, M8.03, M8.04
+  - Done when: every M8 task is checked and the run is recorded.
+
+---
+
 Roadmap (not planned): Developer ID signing and notarization, which removes the quarantine step
 (arch §7, Q2 A), then `tauri-plugin-updater`; infrastructure to record workflows in the native app
 (Q13 c).
