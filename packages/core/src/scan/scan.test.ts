@@ -146,6 +146,61 @@ describe("scanInstallDirs", () => {
     expect(items.find((i) => i.name === "parked")!.path).toBe(join(dirs.skill + "-disabled", "parked"));
   });
 
+  it("SCAN-01 (rebuild): resolves where each link points and whether Claude Code can load it", async () => {
+    const { sb, dirs, scan } = await setup();
+    const elsewhere = (p: string) => join(sb.root, "elsewhere", p);
+    await put(elsewhere("skill/SKILL.md"));
+    await put(elsewhere("notes.md"));
+    await put(elsewhere("ns/deploy.md"));
+    await mkdir(dirs.skill, { recursive: true });
+    await mkdir(dirs.agent, { recursive: true });
+    await mkdir(dirs.prompt, { recursive: true });
+    await symlink(elsewhere("skill"), join(dirs.skill, "linked"));
+    await symlink(elsewhere("notes.md"), join(dirs.skill, "to-file"));
+    await symlink(elsewhere("gone"), join(dirs.skill, "broken"));
+    await symlink(elsewhere("skill"), elsewhere("hop"));
+    await symlink(elsewhere("hop"), join(dirs.skill, "chain"));
+    await symlink(elsewhere("notes.md"), join(dirs.agent, "helper.md"));
+    await symlink(elsewhere("skill"), join(dirs.agent, "dir.md"));
+    await symlink(elsewhere("ns"), join(dirs.prompt, "team"));
+    await symlink(elsewhere("notes.md"), join(dirs.prompt, "not-a-namespace"));
+    await put(join(dirs.skill, "real/SKILL.md"));
+
+    const { items } = await scan();
+    expect(items.map((i) => [i.type, i.name, i.link, i.loadable])).toEqual([
+      ["skill", "broken", { target: null, broken: true }, false],
+      ["skill", "chain", { target: elsewhere("skill"), kind: "dir" }, true],
+      ["skill", "linked", { target: elsewhere("skill"), kind: "dir" }, true],
+      ["skill", "real", undefined, true],
+      ["skill", "to-file", { target: elsewhere("notes.md"), kind: "file" }, false],
+      ["agent", "dir", { target: elsewhere("skill"), kind: "dir" }, false],
+      ["agent", "helper", { target: elsewhere("notes.md"), kind: "file" }, true],
+      ["prompt", "team", { target: elsewhere("ns"), kind: "dir" }, true],
+    ]);
+    expect(items.filter((i) => i.link).every((i) => i.state.state === "unmanaged" && i.state.origin === "symlink")).toBe(true);
+  });
+
+  it("SCAN-01 (rebuild): never reads inside a link's target", async () => {
+    const { sb, dirs, store } = await setup();
+    const target = join(sb.root, "elsewhere");
+    await put(join(target, "skill/SKILL.md"));
+    await put(join(target, "ns/deploy.md"));
+    await mkdir(dirs.skill, { recursive: true });
+    await mkdir(dirs.prompt, { recursive: true });
+    await symlink(join(target, "skill"), join(dirs.skill, "linked"));
+    await symlink(join(target, "ns"), join(dirs.prompt, "team"));
+
+    const read: string[] = [];
+    const record = <A extends unknown[], R>(f: (path: string, ...rest: A) => Promise<R>) => (path: string, ...rest: A) => {
+      read.push(path);
+      return f(path, ...rest);
+    };
+    const fs = { ...sb.host.fs, readDir: record(sb.host.fs.readDir), readText: record(sb.host.fs.readText), readBytes: record(sb.host.fs.readBytes) };
+    const r = await scanInstallDirs({ ...sb.host, fs }, store);
+    expect(r.ok && r.value.items.map((i) => i.name)).toEqual(["linked", "team"]);
+    expect(read.filter((p) => p.startsWith(target))).toEqual([]);
+  });
+
   it("SYNC-06: reports receipts whose destination is gone, and leaves them alone", async () => {
     const { sb, dirs, store, receive, scan } = await setup();
     await put(join(dirs.agent, "gone.md"));

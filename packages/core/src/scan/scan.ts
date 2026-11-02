@@ -1,7 +1,7 @@
 // What sits in the install dirs and who put it there (architecture.md §4.4). Top level only (R9):
 // that is where installs land and what Claude Code loads. A receipt makes an item managed; anything
 // else is unmanaged and reported with its likely origin, never touched by the core unless a request
-// names its exact path. Symlinks are reported, never followed.
+// names its exact path. A symlink's target is resolved to say what it points at, never read.
 import type { Host } from "../host.ts";
 import { ok, type EntryType, type Result } from "../model/model.ts";
 import { contentHashV1, fileManifest } from "../receipts/hash.ts";
@@ -33,11 +33,18 @@ export type DestState =
   | { state: "drifted"; receipt: ReceiptV2; edits: Edits }
   | { state: "unmanaged"; origin: Origin };
 
+/** Where a symlink points and what is there, or broken when nothing is (dangling, a loop). */
+export type Link = { target: string; kind: "dir" | "file" } | { target: null; broken: true };
+
 export interface ScanItem {
   type: EntryType;
   name: string;
   path: string;
   state: Exclude<DestState, { state: "absent" }>;
+  /** set on a symlink */
+  link?: Link;
+  /** Claude Code would load it from where it sits: the kind of thing its dir holds, not parked */
+  loadable: boolean;
   /** set when the caller says whether a catalog entry of that type and name exists */
   inCatalog?: boolean;
 }
@@ -96,19 +103,42 @@ export async function destState(
 /** SCAN-01's skip rule: dot names (`.trash`, the CLI's own dot dirs) and claude.ai's `synced`. */
 const skipped = (name: string) => name.startsWith(".") || name.toLowerCase() === "synced";
 
-/** Top-level items of an install dir: dirs (and links) in skills/; `*.md` files (and links) plus namespace dirs elsewhere. */
-async function topLevel(host: Host, type: EntryType, dir: string): Promise<{ name: string; path: string }[]> {
+/** The resolved target of the symlink at `path`: realPath and a stat, nothing read inside it. */
+async function linkAt(host: Host, path: string): Promise<Link> {
+  try {
+    const target = await host.fs.realPath(path);
+    const { kind } = await host.fs.stat(target);
+    return { target, kind: kind === "dir" ? "dir" : "file" };
+  } catch {
+    return { target: null, broken: true };
+  }
+}
+
+/** What Claude Code loads at `path`: a skill folder, a folder of namespaced prompts, else an `.md` file. */
+const loadsAs = (type: EntryType, path: string) => (type === "skill" || !path.endsWith(".md") ? "dir" : "file");
+
+/**
+ * Top-level items of an install dir: dirs (and links) in skills/; `*.md` files (and links) plus namespace
+ * dirs (and links to dirs) elsewhere.
+ */
+async function topLevel(host: Host, type: EntryType, dir: string): Promise<{ name: string; path: string; link?: Link }[]> {
   const entries = await host.fs.readDir(dir).catch(() => []);
-  return entries
-    .filter((e) => !skipped(e.name))
-    .flatMap((e) => {
-      const path = `${dir}/${e.name}`;
-      if (type === "skill") return e.kind === "file" ? [] : [{ name: e.name, path }];
-      if (e.name.endsWith(".md") && e.kind !== "dir") return [{ name: e.name.slice(0, -3), path }];
+  const items: { name: string; path: string; link?: Link }[] = [];
+  for (const e of entries) {
+    if (skipped(e.name)) continue;
+    const path = `${dir}/${e.name}`;
+    const link = e.kind === "symlink" ? await linkAt(host, path) : undefined;
+    const item = { name: e.name, path, ...(link && { link }) };
+    if (type === "skill") {
+      if (e.kind !== "file") items.push(item);
+    } else if (e.name.endsWith(".md") && e.kind !== "dir") {
+      items.push({ ...item, name: e.name.slice(0, -3) });
+    } else if (type === "prompt" && (e.kind === "dir" || (link?.target != null && link.kind === "dir"))) {
       // `commands/<ns>/` holds namespaced prompts: listed as one unmanaged item, not descended.
-      return type === "prompt" && e.kind === "dir" ? [{ name: e.name, path }] : [];
-    })
-    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      items.push(item);
+    }
+  }
+  return items.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
 export async function scanInstallDirs(
@@ -125,13 +155,14 @@ export async function scanInstallDirs(
   const note = (item: ScanItem) => items.push(opts.inCatalog ? { ...item, inCatalog: opts.inCatalog(item.type, item.name) } : item);
 
   for (const type of ["skill", "agent", "prompt"] as const) {
-    for (const { name, path } of await topLevel(host, type, dirs[type])) {
+    for (const { name, path, link } of await topLevel(host, type, dirs[type])) {
       const state = await destState(host, path, byDest.get(path) ?? null, legacy);
-      if (state.state !== "absent") note({ type, name, path, state });
+      const loadable = link === undefined || (link.target !== null && link.kind === loadsAs(type, path));
+      if (state.state !== "absent") note({ type, name, path, state, ...(link && { link }), loadable });
     }
     // Only to find what the Python CLI parked (§4.5 rule 7); the app never writes there.
-    for (const { name, path } of await topLevel(host, type, `${dirs[type]}-disabled`)) {
-      note({ type, name, path, state: { state: "unmanaged", origin: "parked-by-python-cli" } });
+    for (const { name, path, link } of await topLevel(host, type, `${dirs[type]}-disabled`)) {
+      note({ type, name, path, state: { state: "unmanaged", origin: "parked-by-python-cli" }, ...(link && { link }), loadable: false });
     }
   }
 
