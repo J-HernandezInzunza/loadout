@@ -1081,7 +1081,7 @@ Decided 2026-11-02:
   `$XDG_STATE_HOME/skills/` when that is set, which a Finder-launched app can't see; those users get
   the `npx skills` origin from the link's path without its source and dates. Known gap, accepted.
 
-- [ ] **M8.01 Link targets.** `scan/`: an unmanaged item that is a symlink carries
+- [x] **M8.01 Link targets.** `scan/`: an unmanaged item that is a symlink carries
   `link: { target, kind: "dir" | "file" } | { target: null, broken: true }`, from `realPath` and an
   `lstat` of the target (one level: no reads inside it). Each item gets `loadable`: a skill's target
   is a dir, an agent's or prompt's `.md` target is a file, a `commands/<ns>` target is a dir; a broken
