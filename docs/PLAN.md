@@ -1112,7 +1112,7 @@ Decided 2026-11-02:
     link and target named differently; a link outside `~/.agents`); `attribute()`'s order and
     first-match are tested with stand-in detectors; the scan attributes unmanaged items only.
 
-- [ ] **M8.03 Scan in the app.** A store holds `scan()`'s unmanaged items (without
+- [x] **M8.03 Scan in the app.** A store holds `scan()`'s unmanaged items (without
   `parked-by-python-cli`), loaded with the catalog and again after every load, install, uninstall,
   sync, toggle and Refresh; a failed scan shows as the view's error, not a toast on every reload.
   - Rules: none
