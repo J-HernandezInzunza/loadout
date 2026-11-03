@@ -1134,7 +1134,7 @@ Decided 2026-11-02:
   - Done when: each origin's wording, the unloadable and shared-name lines, the switch (absent on
     agents), Reveal, the count, search and the empty state are tested.
 
-- [ ] **M8.05 Milestone check (manual).** From a Finder-launched build on this machine: Unmanaged
+- [x] **M8.05 Milestone check (manual).** From a Finder-launched build on this machine: Unmanaged
   lists `find-skills` and `orchestration` as from npx skills with their sources, `browseros-neo` as
   from BrowserOS, and `library` as a link; a hand-made broken link and a link to a file say they can't
   load; turning one off and on reaches the next Claude Code session. Record it in PROGRESS.md.
