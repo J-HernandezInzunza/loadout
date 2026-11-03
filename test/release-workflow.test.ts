@@ -113,6 +113,15 @@ describe("release workflow", () => {
     expect(step(build, "Read the release summary").run).toContain("cat .github/release-summary.md");
   });
 
+  it("builds what app:build:release builds, so a local rehearsal runs the release's command", () => {
+    const action = build.steps!.find((s) => s.uses?.startsWith("tauri-apps/tauri-action@"))!;
+    const scripts = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts as Record<string, string>;
+    // The action runs `npm run tauri build -- <args>` in projectPath; npm drops the `--`, so tauri gets
+    // `build <args>`. The script reaches the same tauri, in the same folder, with the same words.
+    expect(action.with!.tauriScript).toBe("npm run tauri");
+    expect(scripts["app:build:release"]).toBe(`npm run tauri -w ${action.with!.projectPath} -- build ${action.with!.args}`);
+  });
+
   it("uploads Loadout_<version>_aarch64.dmg.sha256 to the release, a checksum shasum -c accepts", () => {
     const upload = step(build, "Upload the .dmg's SHA-256");
     const dir = tempDir();
