@@ -16,6 +16,24 @@ cargo fetch --manifest-path apps/desktop/src-tauri/Cargo.toml
 
 The first `npm run check` compiles Tauri's Rust dependencies (a few minutes). Later runs take seconds.
 
+## Running the app
+
+| Script | Does | Output |
+|---|---|---|
+| `app:dev` | the app window over Vite, reloading as you edit | none |
+| `app:build` | a release build of the `.app` only (the quick one) | `apps/desktop/src-tauri/target/release/bundle/macos/Loadout.app` |
+| `app:build:release` | exactly what the release workflow builds, `.dmg` included | `apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/` |
+
+Quit an installed Loadout first: the app is single-instance, so opening a second copy only brings the
+first forward. Every build uses the installed app's data folder (the same identifier), so it reads your
+real catalogs and accounts, and its on/off switches write your real `~/.claude/settings.json`. Sign-in
+needs the OAuth client IDs in `apps/desktop/.env.local`; the release workflow takes them from the
+`release` environment instead. Open a built `.app` from Finder to check it as users run it, without
+your shell's environment.
+
+`app:build:release` is a rehearsal, not a release: only a pushed tag makes one (Releasing, below). The
+release workflow test fails if the workflow's build command and this script stop matching.
+
 ## The gate: `npm run check`
 
 Nothing merges unless this is green. It runs five checks in order and stops at the first failure:

@@ -20,7 +20,10 @@
     "golden:check": "npm run golden -- --check",
     "golden:test": "cd tools/golden && PYTHONDONTWRITEBYTECODE=1 \"${LIBRARY_SKILL_DIR:-$HOME/Projects/my-tools/the-library-skill}/.venv/bin/python\" -B -m unittest test_rebuild_ref",
     "version:set": "node tools/version.ts",
-    "cargo:test": "cargo test --locked --offline -q --manifest-path apps/desktop/src-tauri/Cargo.toml"
+    "cargo:test": "cargo test --locked --offline -q --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "app:dev": "npm run tauri -w apps/desktop -- dev",
+    "app:build": "npm run tauri -w apps/desktop -- build --bundles app",
+    "app:build:release": "npm run tauri -w apps/desktop -- build --target aarch64-apple-darwin"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
