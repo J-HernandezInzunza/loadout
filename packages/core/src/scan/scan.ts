@@ -6,6 +6,7 @@ import type { Host } from "../host.ts";
 import { ok, type EntryType, type Result } from "../model/model.ts";
 import { contentHashV1, fileManifest } from "../receipts/hash.ts";
 import type { ReceiptStore, ReceiptV2 } from "../receipts/receipts.ts";
+import { attribute, type Attribution } from "./tools.ts";
 
 /** INST-01 (rebuild: fixed, no `default_dirs`). */
 export function installDirs(home: string): Record<EntryType, string> {
@@ -45,6 +46,8 @@ export interface ScanItem {
   link?: Link;
   /** Claude Code would load it from where it sits: the kind of thing its dir holds, not parked */
   loadable: boolean;
+  /** set on an unmanaged item another tool put there (tools.ts); display only */
+  attribution?: Attribution;
   /** set when the caller says whether a catalog entry of that type and name exists */
   inCatalog?: boolean;
 }
@@ -158,7 +161,9 @@ export async function scanInstallDirs(
     for (const { name, path, link } of await topLevel(host, type, dirs[type])) {
       const state = await destState(host, path, byDest.get(path) ?? null, legacy);
       const loadable = link === undefined || (link.target !== null && link.kind === loadsAs(type, path));
-      if (state.state !== "absent") note({ type, name, path, state, ...(link && { link }), loadable });
+      if (state.state === "absent") continue;
+      const attribution = state.state === "unmanaged" ? await attribute(host, { type, path, ...(link && { link }) }) : undefined;
+      note({ type, name, path, state, ...(link && { link }), loadable, ...(attribution && { attribution }) });
     }
     // Only to find what the Python CLI parked (§4.5 rule 7); the app never writes there.
     for (const { name, path, link } of await topLevel(host, type, `${dirs[type]}-disabled`)) {

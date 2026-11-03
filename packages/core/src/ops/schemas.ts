@@ -29,6 +29,7 @@ const Link = z.union([
   z.strictObject({ target: z.string(), kind: z.enum(["dir", "file"]) }),
   z.strictObject({ target: z.null(), broken: z.literal(true) }),
 ]);
+const Attribution = z.strictObject({ tool: z.string(), source: z.string().nullable(), installedAt: z.string().nullable(), updatedAt: z.string().nullable() });
 
 const ScanReport = z.strictObject({
   items: z.array(
@@ -43,6 +44,7 @@ const ScanReport = z.strictObject({
       ]),
       link: Link.exactOptional(),
       loadable: z.boolean(),
+      attribution: Attribution.exactOptional(),
       inCatalog: z.boolean().exactOptional(),
     }),
   ),

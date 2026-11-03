@@ -412,7 +412,16 @@ Run on `scan()` and before every install, sync, uninstall and toggle:
    - `parked-by-python-cli`: the item sits in a `-disabled` folder;
    - `symlink`: the item is a symlink (its target resolved as in step 1, never read or touched);
    - `foreign`: anything else (hand-copied, another tool).
-   Each unmanaged item also notes whether a catalog entry of that name and type exists.
+   Each unmanaged item also notes whether a catalog entry of that name and type exists, and may carry an
+   **attribution** naming another tool that put it there (M8.02): `{ tool, source, installedAt,
+   updatedAt }`, each detail null when the tool doesn't say. Attributions come from detectors in
+   `scan/tools.ts`, one per tool, asked in order (first match wins), each reading only files that tool is
+   known to keep. They are display only: nothing in the core decides anything from them, so `origin`
+   stays the field behaviour depends on. A new tool is a new detector; the op's schema and the UI don't
+   change. Current detectors: `npx skills` (a link into `~/.agents/skills/<folder>`, details from
+   `~/.agents/.skill-lock.json` v3 for `<folder>`; its `$XDG_STATE_HOME` location isn't read, since a
+   Finder-launched app can't see that variable) and BrowserOS (a real folder holding
+   `.browserclaw-managed.json`).
 4. Receipts whose dest is gone → **missing** (reported, never acted on, SYNC-06).
 5. Policy: the core never overwrites, moves or deletes an unmanaged item unless the request names that
    exact path in `overwrite.unmanaged` / `forcePaths`. Sync skips unmanaged items and reports them

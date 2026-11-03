@@ -201,6 +201,23 @@ describe("scanInstallDirs", () => {
     expect(read.filter((p) => p.startsWith(target))).toEqual([]);
   });
 
+  it("attributes an unmanaged item to the tool that put it there, never a managed one", async () => {
+    const { dirs, receive, scan } = await setup();
+    await put(join(dirs.skill, "browseros-neo/SKILL.md"));
+    await put(join(dirs.skill, "browseros-neo/.browserclaw-managed.json"), "{}");
+    await put(join(dirs.skill, "managed/SKILL.md"));
+    await put(join(dirs.skill, "managed/.browserclaw-managed.json"), "{}");
+    await receive("skill", "managed");
+    await put(join(dirs.skill, "plain/SKILL.md"));
+
+    const { items } = await scan();
+    expect(items.map((i) => [i.name, i.attribution?.tool])).toEqual([
+      ["browseros-neo", "BrowserOS"],
+      ["managed", undefined],
+      ["plain", undefined],
+    ]);
+  });
+
   it("SYNC-06: reports receipts whose destination is gone, and leaves them alone", async () => {
     const { sb, dirs, store, receive, scan } = await setup();
     await put(join(dirs.agent, "gone.md"));
