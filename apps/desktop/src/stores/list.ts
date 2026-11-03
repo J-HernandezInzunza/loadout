@@ -10,5 +10,7 @@ export const useListStore = defineStore("list", () => {
   const state = ref<ListFilter["state"]>("any");
   const hideOverridden = ref(false);
   const query = ref("");
-  return { type, from, state, hideOverridden, query };
+  /** Browse's Unmanaged: what Loadout didn't install, in place of the catalog's entries */
+  const browsingUnmanaged = ref(false);
+  return { type, from, state, hideOverridden, query, browsingUnmanaged };
 });

@@ -54,7 +54,7 @@ describe("UI-10: the list header and the sidebar", () => {
   it("browses by type with a count of names for each, and the title follows", async () => {
     const { wrapper } = await mountList();
     const items = wrapper.findAll("nav .sidebar__item").map(itemText);
-    expect(items).toEqual(["All 10", "Skills 8", "Prompts 1", "Agents 1"]);
+    expect(items).toEqual(["All 10", "Skills 8", "Prompts 1", "Agents 1", "Unmanaged 6"]);
     expect(wrapper.find("nav [aria-pressed=true]").text()).toContain("All");
 
     await browse(wrapper, "Prompts");

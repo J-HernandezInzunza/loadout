@@ -17,6 +17,8 @@ const ALLOWED = new Set([
   // The on/off switch: a track with a knob, not a button-shaped button.
   "components/EntryList.vue: .entry-list__switch",
   "components/EntryList.vue: .entry-list__switch::after",
+  "components/UnmanagedList.vue: .unmanaged__switch",
+  "components/UnmanagedList.vue: .unmanaged__switch::after",
   // A card that happens to be a button, sized as one of the page's cards.
   "components/EntryDetail.vue: .entry-detail__dep",
   // The invisible hit target stretched over an entry card.
@@ -34,6 +36,7 @@ const ALLOWED_DISABLED = new Set<string>([
   // Only lightly faded, with a progress cursor: the switch has already moved where the user put it,
   // and the toggle is in flight, not refused.
   "components/EntryList.vue: .entry-list__switch:disabled",
+  "components/UnmanagedList.vue: .unmanaged__switch:disabled",
 ]);
 const DISABLED_STATE = /^\s*(opacity|cursor)\b/;
 
