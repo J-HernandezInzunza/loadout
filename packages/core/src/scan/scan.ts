@@ -50,6 +50,10 @@ export interface ScanItem {
   attribution?: Attribution;
   /** set when the caller says whether a catalog entry of that type and name exists */
   inCatalog?: boolean;
+  /** set by the scan op on skills and prompts: turned off through skillOverrides */
+  disabled?: boolean;
+  /** set by the scan op on skills and prompts: a value Loadout shows but never changes (Q14 A) */
+  skillOverride?: "name-only" | "user-invocable-only" | null;
 }
 
 export interface ScanReport {

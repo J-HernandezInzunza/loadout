@@ -46,6 +46,8 @@ const ScanReport = z.strictObject({
       loadable: z.boolean(),
       attribution: Attribution.exactOptional(),
       inCatalog: z.boolean().exactOptional(),
+      disabled: z.boolean().exactOptional(),
+      skillOverride: z.enum(["name-only", "user-invocable-only"]).nullable().exactOptional(),
     }),
   ),
   missing: z.array(ReceiptV2),

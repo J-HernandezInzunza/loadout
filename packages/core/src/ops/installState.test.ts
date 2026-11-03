@@ -175,6 +175,23 @@ describe("install state in reads", () => {
     expect(procs()).toBeGreaterThan(before);
   });
 
+  it("scan() reports whether each skill and prompt is on, whoever installed it, never for an agent", async () => {
+    const { library, home } = await setup({ team: [] });
+    await put(join(home, ".claude/skills/off/SKILL.md"));
+    await put(join(home, ".claude/skills/on/SKILL.md"));
+    await put(destFor(home, "prompt", "named"));
+    await put(destFor(home, "agent", "off"));
+    await put(join(home, ".claude/settings.json"), JSON.stringify({ skillOverrides: { off: "off", named: "name-only" } }));
+    const scanned = await library.scan();
+    expect(scanned.ok && scanned.value.items.map((i) => [i.type, i.name, i.disabled, i.skillOverride])).toEqual([
+      ["skill", "off", true, null],
+      ["skill", "on", false, null],
+      ["agent", "off", undefined, undefined],
+      ["prompt", "named", false, "name-only"],
+    ]);
+    expect(scanned.ok && ops.scan.output.safeParse(scanned.value).success).toBe(true);
+  });
+
   it("scan() reports the install dirs and whether a catalog has each item; refresh() clones remote catalogs", async () => {
     const { sb, h, library, home } = await setup(
       { team: [{ type: "prompt", name: "known", source: gh("prompts/known.md") }] },

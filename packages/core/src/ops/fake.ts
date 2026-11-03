@@ -4,6 +4,7 @@ import type { AccountHost } from "../accounts/accounts.ts";
 import type { AccountInfo } from "../config/config.ts";
 import { err, ok } from "../model/model.ts";
 import type { EntryRecord } from "../registry/registry.ts";
+import type { ScanItem } from "../scan/scan.ts";
 import type { Library } from "./library.ts";
 import type { CatalogRow, EntryDetail, PinRecord } from "./schemas.ts";
 
@@ -15,12 +16,14 @@ export interface FakeState {
   entries: EntryRecord[];
   pins: PinRecord[];
   accounts: Partial<Record<AccountHost, AccountInfo>>;
+  /** what scan() reports in the install dirs */
+  scanned: ScanItem[];
 }
 
 const refused = async () => err({ code: "REFUSED" as const, message: "not modelled by the fake; override it in the test" });
 
 export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Partial<Library> = {}): Library & { state: FakeState } {
-  const state: FakeState = { catalogs: [], entries: [], pins: [], accounts: {}, ...seed };
+  const state: FakeState = { catalogs: [], entries: [], pins: [], accounts: {}, scanned: [], ...seed };
   const inCatalog = (catalog?: string) => state.entries.filter((e) => catalog === undefined || e.catalog === catalog);
   // Remote catalogs only, as the real refresh does; the fake never pulls, so each serves its cached copy.
   const refreshed = () => state.catalogs.filter((c) => c.kind === "remote").map((c) => ({ id: c.id, outcome: "cached" as const }));
@@ -61,7 +64,7 @@ export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Part
       return ok(state.pins);
     },
     async scan() {
-      return ok({ items: [], missing: [] });
+      return ok({ items: state.scanned, missing: [] });
     },
     async refresh() {
       return ok(refreshed());
