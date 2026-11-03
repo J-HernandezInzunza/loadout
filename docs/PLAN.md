@@ -1119,10 +1119,10 @@ Decided 2026-11-02:
   - Depends: M8.02
   - Done when: the reload points and the parked filter are tested against the fake.
 
-- [ ] **M8.04 Unmanaged in the sidebar.** Browse gets **Unmanaged** with its count, after Agents;
+- [x] **M8.04 Unmanaged in the sidebar.** Browse gets **Unmanaged** with its count, after Agents;
   it shows in the list pane with the sidebar kept (M7.01's layout), grouped by type. Each row: name,
-  path, and its origin in words ("Linked from npx skills · vercel-labs/skills · installed
-  2026-09-25", "Kept by BrowserOS", "Installed by the old Python CLI", "Edited since the Python CLI
+  path, and its origin in words ("From {tool} · {source} · installed {date}" for any attribution,
+  e.g. "From npx skills · vercel-labs/skills · installed 2026-09-25", "Installed by the old Python CLI", "Edited since the Python CLI
   installed it", "Linked to {target}", "Added by hand or by another tool"); "Claude Code can't load
   this" with the reason when `loadable` is false; "Shares a name with {catalog}'s {type}; installing
   it asks before replacing" opening that entry's page; the on/off switch for skills and prompts
@@ -1135,8 +1135,8 @@ Decided 2026-11-02:
     agents), Reveal, the count, search and the empty state are tested.
 
 - [ ] **M8.05 Milestone check (manual).** From a Finder-launched build on this machine: Unmanaged
-  lists `find-skills` and `orchestration` as npx skills links with their sources, `browseros-neo` as
-  BrowserOS's, and `library` as a link; a hand-made broken link and a link to a file say they can't
+  lists `find-skills` and `orchestration` as from npx skills with their sources, `browseros-neo` as
+  from BrowserOS, and `library` as a link; a hand-made broken link and a link to a file say they can't
   load; turning one off and on reaches the next Claude Code session. Record it in PROGRESS.md.
   - Rules: none
   - Depends: M8.01, M8.02, M8.03, M8.04
