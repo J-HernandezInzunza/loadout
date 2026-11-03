@@ -13,6 +13,8 @@ export type {
 export { CatalogRef, CoreError, Entry, EntryType, ErrorCode, Result, Source, Warning, err, ok } from "./model/model.ts";
 export { createLibrary, type IssuedSignIn, type LaunchReport, type Library } from "./ops/library.ts";
 export type { EntryRecord } from "./registry/registry.ts";
+export type { Link, ScanItem } from "./scan/scan.ts";
+export type { Attribution } from "./scan/tools.ts";
 export type { PlanItem } from "./install/plan.ts";
 export type { AccountHost } from "./accounts/accounts.ts";
 export type { CatalogRepo, HostedRepo } from "./git/repos.ts";

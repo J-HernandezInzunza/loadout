@@ -395,8 +395,12 @@ Run on `scan()` and before every install, sync, uninstall and toggle:
 
 1. For each install dir (`~/.claude/skills`, `~/.claude/agents`, `~/.claude/commands`, or the
    configured overrides), list top-level items: directories in the skills dir, `*.md` files in the
-   others. Skip dot-prefixed names and `synced` (any case), as SCAN-01 does; record symlinks (e.g. the
-   Python tool's own `library` link) without following them. Also list `<dir>-disabled/` (e.g.
+   others, plus namespace dirs (and links to dirs) in the commands dir. Skip dot-prefixed names and
+   `synced` (any case), as SCAN-01 does. For a symlink (e.g. the Python tool's own `library` link, or
+   `npx skills`' links into `~/.agents/skills`), record its target and the target's kind (`realPath`
+   and a stat), or broken when nothing is there; nothing inside the target is read (M8.01). Each item
+   notes whether Claude Code would load it: a skill must be a dir, an `.md` item a file, a namespace a
+   dir; a broken link or a parked item never loads. Also list `<dir>-disabled/` (e.g.
    `~/.claude/skills-disabled/`), only to find copies the Python CLI parked there (§4.5).
 2. For each item: receipt for that path? → **managed**: compare `files` with the disk → `installed`
    or `drifted` (with the list of edited, added and deleted files). Whether it is on or off comes from
@@ -406,9 +410,18 @@ Run on `scan()` and before every install, sync, uninstall and toggle:
      `content_hash` algorithm (`library.py:191-211`, golden-tested) matches it;
    - `python-cli-edited`: such a receipt exists but the hash differs;
    - `parked-by-python-cli`: the item sits in a `-disabled` folder;
-   - `symlink`: the item is a symlink (reported, never followed or touched);
+   - `symlink`: the item is a symlink (its target resolved as in step 1, never read or touched);
    - `foreign`: anything else (hand-copied, another tool).
-   Each unmanaged item also notes whether a catalog entry of that name and type exists.
+   Each unmanaged item also notes whether a catalog entry of that name and type exists, and may carry an
+   **attribution** naming another tool that put it there (M8.02): `{ tool, source, installedAt,
+   updatedAt }`, each detail null when the tool doesn't say. Attributions come from detectors in
+   `scan/tools.ts`, one per tool, asked in order (first match wins), each reading only files that tool is
+   known to keep. They are display only: nothing in the core decides anything from them, so `origin`
+   stays the field behaviour depends on. A new tool is a new detector; the op's schema and the UI don't
+   change. Current detectors: `npx skills` (a link into `~/.agents/skills/<folder>`, details from
+   `~/.agents/.skill-lock.json` v3 for `<folder>`; its `$XDG_STATE_HOME` location isn't read, since a
+   Finder-launched app can't see that variable) and BrowserOS (a real folder holding
+   `.browserclaw-managed.json`).
 4. Receipts whose dest is gone → **missing** (reported, never acted on, SYNC-06).
 5. Policy: the core never overwrites, moves or deletes an unmanaged item unless the request names that
    exact path in `overwrite.unmanaged` / `forcePaths`. Sync skips unmanaged items and reports them

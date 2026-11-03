@@ -25,6 +25,11 @@ const EntryRecord = Entry.extend({
 
 const Edits = z.strictObject({ modified: z.array(z.string()), added: z.array(z.string()), deleted: z.array(z.string()) });
 const Origin = z.enum(["python-cli", "python-cli-edited", "parked-by-python-cli", "symlink", "foreign"]);
+const Link = z.union([
+  z.strictObject({ target: z.string(), kind: z.enum(["dir", "file"]) }),
+  z.strictObject({ target: z.null(), broken: z.literal(true) }),
+]);
+const Attribution = z.strictObject({ tool: z.string(), source: z.string().nullable(), installedAt: z.string().nullable(), updatedAt: z.string().nullable() });
 
 const ScanReport = z.strictObject({
   items: z.array(
@@ -37,7 +42,12 @@ const ScanReport = z.strictObject({
         z.strictObject({ state: z.literal("drifted"), receipt: ReceiptV2, edits: Edits }),
         z.strictObject({ state: z.literal("unmanaged"), origin: Origin }),
       ]),
+      link: Link.exactOptional(),
+      loadable: z.boolean(),
+      attribution: Attribution.exactOptional(),
       inCatalog: z.boolean().exactOptional(),
+      disabled: z.boolean().exactOptional(),
+      skillOverride: z.enum(["name-only", "user-invocable-only"]).nullable().exactOptional(),
     }),
   ),
   missing: z.array(ReceiptV2),

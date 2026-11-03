@@ -42,7 +42,7 @@ afterEach(() => clearMocks());
 
 /** Nothing registered; `register` is what a successful setup adds. */
 function emptyState() {
-  const state: FakeState = { catalogs: [], entries: [], pins: [], accounts: {} };
+  const state: FakeState = { catalogs: [], entries: [], pins: [], accounts: {}, scanned: [] };
   const register = () => {
     state.catalogs.push(catalogRow({ id: "shared", kind: "remote", writeMode: "pr" }));
     state.entries.push(entryRecord({ name: "grilling", catalog: "shared" }));

@@ -370,13 +370,19 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
     async scan() {
       const all = await loadAll();
       if (!all.ok) return all;
-      const { reg, installs } = all.value;
+      const { reg, view, installs } = all.value;
       const entries = reg.entries();
       const known = new Set((entries.ok ? entries.value : []).map((e) => `${e.type}:${e.name}`));
-      return scanInstallDirs(host, receiptStore, {
+      const scanned = await scanInstallDirs(host, receiptStore, {
         ...(installs !== undefined && { legacyInstalls: installs }),
         inCatalog: (type, name) => known.has(`${type}:${name}`),
       });
+      if (!scanned.ok) return scanned;
+      // Whether each is on, as list() says it for catalog entries: the setting is by name, whoever installed it.
+      const items = scanned.value.items.map((i) =>
+        i.type === "agent" ? i : { ...i, disabled: view.overrides.get(i.name) === "off", skillOverride: partialOverride(view.overrides.get(i.name)) },
+      );
+      return ok({ ...scanned.value, items }, [...scanned.warnings, ...view.warnings]);
     },
 
     async refresh() {

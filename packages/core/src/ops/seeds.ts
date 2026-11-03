@@ -4,7 +4,7 @@ import type { AccountInfo } from "../config/config.ts";
 import type { EntryType } from "../model/model.ts";
 import type { ReceiptV2 } from "../receipts/receipts.ts";
 import type { EntryRecord, InstallState } from "../registry/registry.ts";
-import { destFor } from "../scan/scan.ts";
+import { destFor, type ScanItem } from "../scan/scan.ts";
 import type { FakeState } from "./fake.ts";
 import type { CatalogRow, PinRecord } from "./schemas.ts";
 
@@ -85,6 +85,22 @@ export function installedRecord(state: Exclude<InstallState, "not_installed">, o
   };
 }
 
+/** An unmanaged skill scan() found by hand-copy, on and loadable; prompts and skills carry their switch state. */
+export function scanItem(overrides: Partial<ScanItem> = {}): ScanItem {
+  const type = overrides.type ?? "skill";
+  const name = overrides.name ?? "stray";
+  return {
+    type,
+    name,
+    path: destFor(seedHome, type, name),
+    state: { state: "unmanaged", origin: "foreign" },
+    loadable: true,
+    inCatalog: false,
+    ...(type !== "agent" && { disabled: false, skillOverride: null }),
+    ...overrides,
+  };
+}
+
 export function pinRecord(overrides: Partial<PinRecord> = {}): PinRecord {
   return { name: "a-skill", catalog: "team", holders: ["personal", "team"], dangling: false, resolvesTo: "team", ...overrides };
 }
@@ -132,5 +148,18 @@ export function seededState(): FakeState {
     entries,
     pins: [pinRecord({ name: "deploy" })],
     accounts: { bitbucket: accountInfo({ login: "dev-acme", scopes: ["account", "pullrequest:write"] }) },
+    scanned: [
+      scanItem({
+        name: "find-skills",
+        state: { state: "unmanaged", origin: "symlink" },
+        link: { target: `${seedHome}/.agents/skills/find-skills`, kind: "dir" },
+        attribution: { tool: "npx skills", source: "vercel-labs/skills", installedAt: "2026-09-25T17:35:14.235Z", updatedAt: "2026-09-25T17:35:14.235Z" },
+      }),
+      scanItem({ name: "grill", inCatalog: true }),
+      scanItem({ name: "neo", attribution: { tool: "BrowserOS", source: null, installedAt: null, updatedAt: null }, disabled: true }),
+      scanItem({ name: "gone", state: { state: "unmanaged", origin: "symlink" }, link: { target: null, broken: true }, loadable: false }),
+      scanItem({ type: "agent", name: "helper", state: { state: "unmanaged", origin: "python-cli" } }),
+      scanItem({ type: "prompt", name: "team", path: `${seedHome}/.claude/commands/team` }),
+    ],
   };
 }

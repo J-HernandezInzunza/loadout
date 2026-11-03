@@ -1,4 +1,4 @@
-import type { CatalogRow, EntryRecord, Result } from "@loadout/core";
+import type { CatalogRow, EntryRecord, Result, ScanItem } from "@loadout/core";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useLibrary } from "../services.ts";
@@ -25,6 +25,10 @@ export const useCatalogStore = defineStore("catalog", () => {
   const pullWarnings = ref<string[]>([]);
   /** the last launch found no catalog registered, so the app has to be set up before it can list anything */
   const unregistered = ref(false);
+  /** what sits in ~/.claude without a receipt; not the Python CLI's parked copies, which M6.02's view handles */
+  const unmanaged = ref<ScanItem[]>([]);
+  /** why the last scan failed, verbatim; the catalog still lists without it */
+  const scanFailure = ref<string | null>(null);
 
   const firstLoad = computed(() => loading.value && entries.value.length === 0);
 
@@ -33,10 +37,11 @@ export const useCatalogStore = defineStore("catalog", () => {
     failure.value = message;
     entries.value = [];
     catalogs.value = [];
+    unmanaged.value = [];
   }
 
   async function read(): Promise<boolean> {
-    const [listed, rows] = await Promise.all([library.list(), library.catalogs()]);
+    const [listed, rows, scanned] = await Promise.all([library.list(), library.catalogs(), library.scan()]);
     if (!listed.ok) {
       fail(listed.error.message);
       return false;
@@ -47,6 +52,8 @@ export const useCatalogStore = defineStore("catalog", () => {
     }
     entries.value = listed.value;
     catalogs.value = rows.value;
+    unmanaged.value = scanned.ok ? scanned.value.items.filter((i) => i.state.state === "unmanaged" && i.state.origin !== "parked-by-python-cli") : [];
+    scanFailure.value = scanned.ok ? null : scanned.error.message;
     views.prune(new Set(listed.value.map((e) => e.name)));
     return true;
   }
@@ -81,5 +88,5 @@ export const useCatalogStore = defineStore("catalog", () => {
   /** After a write: read what is on disk now. */
   const reload = () => run("reading the catalog…", async () => void (await read()));
 
-  return { entries, catalogs, loading, failure, lastPulled, pullWarnings, unregistered, firstLoad, launch, refresh, reload };
+  return { entries, catalogs, loading, failure, lastPulled, pullWarnings, unregistered, unmanaged, scanFailure, firstLoad, launch, refresh, reload };
 });

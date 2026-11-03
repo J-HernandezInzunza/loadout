@@ -1,6 +1,6 @@
 // Wording, ranking and colour for the catalog list; what the rows are (winners, provenance, install state)
 // is decided in the core and read off its records.
-import { groupByName, type CatalogRow, type EntryRecord, type EntryType, type Library, type PlanItem } from "@loadout/core";
+import { groupByName, type CatalogRow, type EntryRecord, type EntryType, type Library, type PlanItem, type ScanItem } from "@loadout/core";
 
 const HUES = [211, 275, 25, 320];
 
@@ -87,6 +87,32 @@ export function searchRows(rows: Row[], query: string): Row[] {
     .filter(({ rank }) => rank < 3)
     .sort((a, b) => a.rank - b.rank)
     .map(({ row }) => row);
+}
+
+/** Where an unmanaged item came from, as far as the scan can tell. */
+export function unmanagedOrigin(item: ScanItem): string {
+  if (item.attribution) {
+    const { tool, source, installedAt } = item.attribution;
+    return [`From ${tool}`, source, installedAt && `installed ${installedAt.slice(0, 10)}`].filter(Boolean).join(" · ");
+  }
+  if (item.link) return item.link.target === null ? "A link to something that is gone" : `Linked to ${item.link.target}`;
+  switch (item.state.state === "unmanaged" ? item.state.origin : null) {
+    case "python-cli":
+      return "Installed by the old Python CLI";
+    case "python-cli-edited":
+      return "Edited since the Python CLI installed it";
+    default:
+      return "Added by hand or by another tool";
+  }
+}
+
+/** Why Claude Code skips an item the scan found, or null when it loads it. */
+export function unloadableReason(item: ScanItem): string | null {
+  if (item.loadable) return null;
+  if (!item.link || item.link.target === null) return "Claude Code can't load this: the link points at nothing.";
+  return item.link.kind === "file"
+    ? "Claude Code can't load this: a skill is a folder, and this links to a file."
+    : "Claude Code can't load this: it should be an .md file, and this links to a folder.";
 }
 
 /** What writing to a catalog costs, in words. */

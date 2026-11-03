@@ -11,13 +11,14 @@ import CatalogSummary from "./CatalogSummary.vue";
 import EntryList from "./EntryList.vue";
 import ListSidebar from "./ListSidebar.vue";
 import StatusBanner from "./StatusBanner.vue";
+import UnmanagedList from "./UnmanagedList.vue";
 import UiCheckbox from "./ui/UiCheckbox.vue";
 import UiSelect from "./ui/UiSelect.vue";
 
 const catalog = useCatalogStore();
 const { entries, catalogs, loading, failure, lastPulled, pullWarnings, firstLoad } = storeToRefs(catalog);
 const views = useViewStore();
-const { type, from, state, hideOverridden, query } = storeToRefs(useListStore());
+const { type, from, state, hideOverridden, query, browsingUnmanaged } = storeToRefs(useListStore());
 
 const selectedCatalog = computed(() => catalogs.value.find((c) => c.id === from.value) ?? null);
 const multiCatalog = computed(() => catalogs.value.length > 1);
@@ -28,7 +29,10 @@ const fromChoice = computed({
   get: () => from.value ?? "",
   set: (id: string) => (from.value = id || null),
 });
-const title = computed(() => (type.value === null ? "All" : `${type.value[0]!.toUpperCase()}${type.value.slice(1)}s`));
+const title = computed(() => {
+  if (browsingUnmanaged.value) return "Unmanaged";
+  return type.value === null ? "All" : `${type.value[0]!.toUpperCase()}${type.value.slice(1)}s`;
+});
 /** what the rows are called in counts and empty states */
 const noun = computed(() => (type.value === null ? "entries" : `${type.value}s`));
 
@@ -129,8 +133,9 @@ const freshness = computed(() => {
           Refresh
         </button>
       </form>
+      <!-- Catalog filters: Unmanaged lists what no catalog installed. -->
       <div
-        v-if="catalogs.length"
+        v-if="catalogs.length && !browsingUnmanaged"
         class="toolbar"
       >
         <label class="toolbar__from">
@@ -186,7 +191,16 @@ const freshness = computed(() => {
         </label>
       </div>
     </header>
-    <div class="view__body column stack">
+    <div
+      v-if="browsingUnmanaged"
+      class="view__body column stack"
+    >
+      <UnmanagedList />
+    </div>
+    <div
+      v-else
+      class="view__body column stack"
+    >
       <StatusBanner
         v-if="pullWarnings.length"
         kind="warning"

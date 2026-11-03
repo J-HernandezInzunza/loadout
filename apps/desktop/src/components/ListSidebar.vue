@@ -17,8 +17,8 @@ const BROWSE: { type: EntryType | null; label: string }[] = [
 ];
 const HOSTS: AccountHost[] = ["github", "bitbucket"];
 
-const { entries } = storeToRefs(useCatalogStore());
-const { type } = storeToRefs(useListStore());
+const { entries, unmanaged } = storeToRefs(useCatalogStore());
+const { type, browsingUnmanaged } = storeToRefs(useListStore());
 const views = useViewStore();
 const accounts = useAccountStore();
 const version = useAppVersion();
@@ -28,6 +28,11 @@ const counts = computed(() => {
   const winners = entries.value.filter((e) => e.overriddenBy === null);
   return new Map(BROWSE.map((item) => [item.type, winners.filter((e) => item.type === null || e.type === item.type).length]));
 });
+
+function browse(choice: EntryType | null) {
+  browsingUnmanaged.value = false;
+  type.value = choice;
+}
 
 onMounted(() => accounts.load());
 </script>
@@ -54,12 +59,22 @@ onMounted(() => accounts.load());
         :key="item.label"
         type="button"
         class="sidebar__item"
-        :class="{ 'sidebar__item--on': type === item.type }"
-        :aria-pressed="type === item.type"
-        @click="type = item.type"
+        :class="{ 'sidebar__item--on': !browsingUnmanaged && type === item.type }"
+        :aria-pressed="!browsingUnmanaged && type === item.type"
+        @click="browse(item.type)"
       >
         <span class="sidebar__text">{{ item.label }}</span>
         <span class="sidebar__count">{{ counts.get(item.type) }}</span>
+      </button>
+      <button
+        type="button"
+        class="sidebar__item"
+        :class="{ 'sidebar__item--on': browsingUnmanaged }"
+        :aria-pressed="browsingUnmanaged"
+        @click="browsingUnmanaged = true"
+      >
+        <span class="sidebar__text">Unmanaged</span>
+        <span class="sidebar__count">{{ unmanaged.length }}</span>
       </button>
     </nav>
 
