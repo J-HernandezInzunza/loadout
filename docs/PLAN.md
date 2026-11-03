@@ -1075,8 +1075,11 @@ Decided 2026-11-02:
   reads, moves or deletes the content (amends arch §4.4's "never followed").
 - Listed: every unmanaged item, catalog name or not, the ones sharing a catalog name marked.
   Not listed: `parked-by-python-cli` (M6.02's view handles those).
-- Origins come from known files only: `npx skills`' lock and BrowserOS's
-  `.browserclaw-managed.json`. Anything else stays `foreign`.
+- Which tool put an item there comes from detectors, one per tool, in `scan/tools.ts`, each reading
+  only files its tool is known to keep (today `npx skills`' lock and BrowserOS's
+  `.browserclaw-managed.json`). The result is a generic, display-only attribution, so a new tool is a
+  new detector with no schema or UI change, and `origin` stays the field behaviour depends on.
+  Decided 2026-11-03, after first building it as a closed list of tools.
 - The lock is read at `~/.agents/.skill-lock.json` only. The CLI writes it under
   `$XDG_STATE_HOME/skills/` when that is set, which a Finder-launched app can't see; those users get
   the `npx skills` origin from the link's path without its source and dates. Known gap, accepted.
@@ -1094,18 +1097,20 @@ Decided 2026-11-02:
   - Done when: tests cover a linked skill dir, a link to a file in `skills/`, a linked prompt
     namespace, a linked agent `.md`, a broken link and a link chain; none read the target's files.
 
-- [ ] **M8.02 Origins from other tools.** `scan/`: a link whose target lies under `~/.agents/skills/`
-  gets `tool: { name: "npx-skills", source, installedAt, updatedAt }`, the last three from
-  `~/.agents/.skill-lock.json` keyed by the target folder's name (not the link's), each null when the
-  lock is missing, unreadable, not `version: 3` or has no entry (as `readLegacyInstalls`: no details,
-  never an error). A real dir in `skills/` holding `.browserclaw-managed.json` gets
-  `tool: { name: "browseros" }`. Both in the `scan` op's schema.
+- [x] **M8.02 Attributions from other tools.** `scan/tools.ts`: a `Detector` per tool, asked in
+  order by `attribute()` (first match wins), each returning `{ tool, source, installedAt, updatedAt }`
+  (details null when the tool doesn't say) or null; the scan sets `attribution` on unmanaged items
+  only, and the `scan` op's schema carries it. Two detectors: `npx skills`, for a link whose target
+  lies under `~/.agents/skills/`, with details from `~/.agents/.skill-lock.json` keyed by the target
+  folder's name (not the link's), none when the lock is missing, unreadable, not `version: 3` or has
+  no entry (as `readLegacyInstalls`: never an error); BrowserOS, for a real dir in `skills/` holding
+  `.browserclaw-managed.json`.
   - Rules: none (arch §4.4 as amended by M8.01)
   - Depends: M8.01
-  - Done when: tests cover a link into `~/.agents/skills` with a v3 lock entry (fixture copied from
-    skills@1.5.18's lock), with the lock missing, malformed, at another version and without the
-    entry, a link and target named differently, and the BrowserOS marker; a link outside
-    `~/.agents` has no `tool`.
+  - Done when: each detector's tests cover what it names and what it passes on (fixture copied from
+    skills@1.5.18's lock; the lock missing, malformed, at another version and without the entry; a
+    link and target named differently; a link outside `~/.agents`); `attribute()`'s order and
+    first-match are tested with stand-in detectors; the scan attributes unmanaged items only.
 
 - [ ] **M8.03 Scan in the app.** A store holds `scan()`'s unmanaged items (without
   `parked-by-python-cli`), loaded with the catalog and again after every load, install, uninstall,
