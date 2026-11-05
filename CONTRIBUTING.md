@@ -119,30 +119,45 @@ Watch Actions → Release. If **Tag matches the version** fails, the tag isn't `
 
 ### 3. Check the draft
 
+The gate tested the source; this is the one check of the build people download. Nothing is public
+yet, and a published tag can't be taken back (step 6), so this is the last cheap place to catch a bad
+build. The checks below cover what only the built app can break, so they're the same every release.
+
 In Releases, open the draft `Loadout v0.1.0`:
 
-- Assets: `Loadout_0.1.0_aarch64.dmg` and `Loadout_0.1.0_aarch64.dmg.sha256`. Download both and run
-  `shasum -a 256 -c Loadout_0.1.0_aarch64.dmg.sha256`.
-- Install that `.dmg`, open it the first time as the README says (Open Anyway or `xattr`): the
-  sidebar's foot shows `Version 0.1.0`; sign in and install a skill.
+- Assets: `Loadout_0.1.0_aarch64.dmg` and `Loadout_0.1.0_aarch64.dmg.sha256`.
+- Install that `.dmg` and open it the first time as the README says (Open Anyway or `xattr`).
+  - **Version:** the sidebar's foot shows `Version 0.1.0`.
+  - **Sign-in:** sign in with each provider. The OAuth client IDs are baked in at build time from the
+    `release` environment; a missing or expired secret leaves CI green and breaks only here.
+  - **Install a skill:** the app runs git as Finder launched it, with a different PATH from your shell.
+  - **What's new:** try each item under Features in the notes once.
 - Notes: the summary on top, then the PRs by label. Edit **Known issues** if anything is known.
 
 ### 4. Publish
 
-Publish the draft. A pre-release stays marked as one and the tap doesn't change. For a release,
-Actions → Tap pushes `loadout 0.1.0` to the tap; then on a Mac that has it installed,
+Publish the draft. That one click also updates Homebrew: publishing starts `.github/workflows/tap.yml`,
+which downloads the `.dmg`, checks it against its `.sha256`, and pushes `loadout 0.1.0` to the tap
+with the cask pointing at it. A pre-release stays marked as one and skips that job, so the tap stays
+on the last release.
+
+Check Actions → Tap is green, then on a Mac that has Loadout installed,
 `brew update && brew upgrade --cask loadout` reaches the new version.
 
 ### 5. Announce
 
-A short Slack post in the team channel:
+Tell the people who use Loadout, wherever they'll see it. Say what's new in a line or two per item
+under Features in the notes, how to get it, and that macOS blocks it the first time:
 
 > Loadout 0.1.0 is out: <link to the release>
+> What's new: <a line or two per feature>
 > New: `brew install --cask j-hernandezinzunza/tap/loadout`, or the `.dmg` from the release.
 > Already have it: `brew upgrade --cask loadout`.
-> macOS blocks it the first time (and after each upgrade): click Done, then System Settings →
-> Privacy & Security → Open Anyway. Details: <link to the README's "Opening Loadout the first time">
 > Bugs: <link to Issues → New issue → Bug report>
+>
+> macOS blocks it the first time (and sometimes after upgrade): To fix, go to System Settings →
+> Privacy & Security → Open Anyway.
+> Details: <link to the README's "Opening Loadout the first time">
 
 ### 6. When a release goes wrong
 

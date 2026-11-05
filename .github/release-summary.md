@@ -24,7 +24,7 @@ That's expected: click **Done**, not Move to Trash, then either:
   (enter your password if asked).
 - **Terminal:** `xattr -dr com.apple.quarantine /Applications/Loadout.app`, then open Loadout.
 
-Do this again after every upgrade: each one is a new download, signed afresh.
+macOS sometimes asks again after an upgrade. If it does, do this again.
 
 ## Upgrade
 
@@ -32,7 +32,7 @@ Do this again after every upgrade: each one is a new download, signed afresh.
 brew upgrade --cask loadout
 ```
 
-Then open it the first time again, as above.
+If macOS blocks it again, open it the first time again, as above.
 
 ## Known issues
 
