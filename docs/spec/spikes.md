@@ -281,3 +281,48 @@ and could show a "you can close this tab" page, at the cost of a local HTTP list
 port that can collide. Given Q5's decision (the secret ships in builds; interception needs
 something already on the machine), the deep link is the simpler fit; switching later is a
 callback-URL edit plus that listener.
+
+## S13. Per-session layers for loadouts
+
+What a `claude` launch can add to one session, and what it can hide, so a loadout can be a layer
+over the user's global configuration. Run on 2026-11-04 against Claude Code 2.1.318: `claude -p
+--model haiku --output-format stream-json --verbose`, reading the `system`/`init` message (its
+`skills`, `slash_commands`, `agents` and `plugins` lists) against a baseline launched the same way
+from an empty folder. Fixtures: a loadout folder with a skill, a symlinked skill folder, a skill
+named like a global one (`grilling`), a command, an agent and a `CLAUDE.md`; a second loadout with
+one skill; a plugin folder with a skill, a command and an agent.
+
+**`--add-dir <dir>` adds `<dir>/.claude/` to the session.** Its skills (the symlinked one too),
+commands and agents all appeared, and nothing else changed. The flag takes every following word as
+another directory, so a prompt after it is read as a path: pass the prompt first or on stdin.
+
+**A clash keeps the global copy.** The loadout's `grilling` appeared as `lo-a:grilling` (the folder's
+name, then the skill's), and the bare `grilling` stayed the user's: a loadout can't shadow a global
+skill, and its own copy is reachable under the prefixed name.
+
+**`CLAUDE.md` in an added dir is read only when asked.** Without the variable the model knew no
+codeword; with `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` on the launch it answered with it.
+
+**`--plugin-dir <dir>` namespaces everything.** The plugin's skill, command and agent appeared as
+`spike-kit:spike-gamma`, `spike-kit:kit-cmd` and `spike-kit:kit-agent`, and `spike-kit` joined the
+`plugins` list.
+
+**Concurrent sessions don't mix.** Two sessions launched at once with different `--add-dir` folders
+each listed only their own folder's additions.
+
+**`skillOverrides` from `--settings` merges per key, and wins.** With `find-skills: off` in the
+folder's `.claude/settings.local.json`: `--settings '{"skillOverrides":{"grilling":"off"}}'` hid both;
+`--settings '{"skillOverrides":{"find-skills":"on"}}'` brought `find-skills` back. So a launch can
+hide named skills, or show ones the user turned off, without touching any settings file.
+
+**`--setting-sources project,local` drops the whole user layer.** Gone: every skill in
+`~/.claude/skills`, the user's commands, and the plugins the user installed (with their skills and
+agents). Kept: Claude Code's bundled skills, its built-in plugins, and the claude.ai connectors. It
+also drops the user's settings (permissions, hooks, model, env), so it is a blunt way to run with
+only a loadout.
+
+**Chosen for loadouts:** a loadout is a folder launched with `--add-dir` (members keep their own
+names unless they clash), so the user's global setup stays and two loadouts can run side by side.
+A plugin is the export for sharing (`--plugin-dir` or `--plugin-url`, everything prefixed). "Only
+this loadout" is optional: generated `skillOverrides` in a `--settings` file keeps the user's other
+settings, where `--setting-sources` would lose them.
