@@ -1144,4 +1144,100 @@ Decided 2026-11-02:
 
 ---
 
+## M9. Loadouts
+
+Exit: every M9 task checked; a user saves named loadouts of catalog entries, copies a loadout's launch
+command, and two Claude Code sessions launched at once each get their own loadout on top of the
+user's global setup; the owner walked it in a Finder-launched build.
+
+Decided 2026-11-04 (owner; spikes.md S13, ROADMAP.md):
+
+- A loadout is a layer: it adds its members to one session and switches nothing off. `~/.claude`,
+  bundled skills, plugins and MCP servers load as usual. "Only this loadout" is a roadmap item.
+- Applied per session, by a launch command: `claude --add-dir <loadout folder>`. No change to
+  `~/.claude` or Claude Code's settings.
+- Saved locally, in `config.json`. Sharing (a plugin export, loadouts in a catalog) comes later.
+- Members are installed into the loadout's own folder by the install pipeline with another root:
+  `<appData>/loadouts/<name>/.claude/{skills,commands,agents}`, with that loadout's own receipts, so
+  fetching, verification and staleness work as for installs. Not symlinks into clones: a remote
+  entry's source lives in its own repo, outside any clone.
+- A member brings its `requires`, as an install does (DEP-06), shown as added for that member.
+- A member resolves by the usual catalog order and pins; a member can name its catalog instead.
+- Names are slugs (lowercase letters, digits, hyphens): the name is the folder, and the folder is the
+  prefix Claude Code gives a member whose name clashes with a global item (`<loadout>:<name>`).
+- Defaults, reversible: Loadouts is a sidebar item under Manage; a loadout's folder is rebuilt when it
+  is saved and by Sync; there is no rename (delete and create).
+
+- [ ] **M9.01 The command's form.** Extend S13: with a path holding a space (the Application Support
+  path), launch with `--add-dir '<path>'` followed by a prompt, `--add-dir=<path>`, `--add-dir '<path>'
+  --` and the flag last, and record which keep the path to one directory and the prompt a prompt.
+  Choose the command and a shell function form (`lo-<name>() { … }`) that take the user's own
+  arguments safely.
+  - Rules: none (spikes.md S13)
+  - Depends: none
+  - Done when: S13 records each form's result and the chosen command and function.
+
+- [ ] **M9.02 Loadouts in the config.** `config.json` gains optional `loadouts`: name → `{ members:
+  { type, name, catalog? }[] }` (absent means none, so existing configs read unchanged). Ops:
+  `loadouts()`; `planSaveLoadout` / `applySaveLoadout` (create or replace one loadout, with a
+  fingerprint; a new name that exists is `DUPLICATE`; a name that isn't a slug is refused; members no
+  catalog defines are kept and reported, as a dangling pin is); `planDeleteLoadout` /
+  `applyDeleteLoadout` (the config entry and the loadout's folder, which only Loadout writes).
+  Document loadouts in arch (new §4.x).
+  - Rules: none (arch §4.x, this task)
+  - Depends: none
+  - Done when: create, replace, delete, a duplicate, a bad name and an unknown member are tested, and
+    a config without `loadouts` reads and saves unchanged.
+
+- [ ] **M9.03 Building a loadout's folder.** The install context gains a destination root (the home
+  for global installs, the loadout's folder otherwise) and the receipt store a file
+  (`<appData>/loadouts/<name>/receipts.json` for a loadout). Building a loadout plans an install of
+  its members and their requires into its folder and removes what it holds that left the loadout
+  (only paths with that loadout's receipt). `applySaveLoadout` builds; a failed build keeps the saved
+  loadout and reports which members didn't land. Global installs, sync, the scan and `list()` keep the
+  home root and the global receipts.
+  - Rules: none (DEP-06's closure, applied to a loadout)
+  - Depends: M9.02
+  - Done when: a build installs members and requires under the loadout's folder only; a removed
+    member is removed; another loadout's and the global install dirs are untouched; a failed fetch
+    reports the member; the global receipts never see a loadout's paths.
+
+- [ ] **M9.04 Keeping loadouts current.** `loadouts()` reports each member's state from its loadout's
+  receipts (built, stale against its catalog, missing, failed). Sync's plan lists stale loadout
+  members per loadout and applies them with the rest (`sourceUnchanged` skips as for installs).
+  - Rules: none (UPD-04/05's skip, applied to a loadout)
+  - Depends: M9.03
+  - Done when: a catalog change makes a member stale, Sync rebuilds it, and an unchanged member is
+    skipped, tested against the git harness.
+
+- [ ] **M9.05 Launch command.** `launchCommand(name)`: the command and shell function from M9.01 with
+  the folder quoted, and the clashes: members whose type and name match an item Claude Code loads
+  globally (an installed or unmanaged item in `~/.claude`, from the scan), each with the name it will
+  have in the session (`<loadout>:<name>`). Bundled and plugin clashes aren't knowable from the disk
+  and are not claimed.
+  - Rules: none
+  - Depends: M9.01, M9.03
+  - Done when: quoting (space, single quote), the function form and the clash list are tested.
+
+- [ ] **M9.06 Loadouts screen.** Manage → Loadouts. The list: each loadout's name, member count and
+  state, with Copy command, Copy shell function, Edit and Delete (which asks). The editor: name (slug,
+  checked as typed), members picked from the catalog with search and the type filter, each member's
+  requires shown as added for it, and each clash shown with its prefixed name; Save builds and shows
+  the result in the view's StatusBanner. A stale loadout says so and offers Sync.
+  - Rules: none
+  - Depends: M9.04, M9.05
+  - Done when: create, edit, delete, both copies, a clash, a stale state and a failed build are tested
+    against the fake.
+
+- [ ] **M9.07 Milestone check (manual).** From a Finder-launched build: two loadouts with different
+  members, one with a member named like a global skill; launch both commands in two terminals at once;
+  each session's `/skills` lists its loadout's members and the global set unchanged, the clash under
+  its prefixed name; change a member's catalog, Sync, and a new session gets the change. Record it in
+  PROGRESS.md.
+  - Rules: none
+  - Depends: M9.01, M9.02, M9.03, M9.04, M9.05, M9.06
+  - Done when: every M9 task is checked and the run is recorded.
+
+---
+
 Roadmap (not planned): `docs/ROADMAP.md`.
