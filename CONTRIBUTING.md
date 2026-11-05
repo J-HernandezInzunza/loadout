@@ -96,9 +96,11 @@ npm run check
 git commit -am "chore(release): 0.1.0"
 ```
 
-Open the PR to `main` with the `skip-changelog` label, and merge it when CI is green. Label the
-other PRs going into the release (`enhancement`, `bug`, `documentation`, `chore`, or `skip-changelog`):
-the notes are grouped by label.
+Open the PR to `main` with the `skip-changelog` label, and merge it when CI is green.
+
+Before tagging, label every PR merged since the last tag (`enhancement`, `bug`, `documentation`,
+`chore`, or `skip-changelog`). The notes are grouped by label and generated once, when the tag creates
+the draft: an unlabeled PR lands under **Other changes**, and a label added later doesn't move it.
 
 ### 2. Tag
 
