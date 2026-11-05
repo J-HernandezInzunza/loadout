@@ -55,7 +55,7 @@ xattr -dr com.apple.quarantine /Applications/Loadout.app
 
 This removes the "downloaded from the internet" flag from Loadout.app, and from nothing else.
 
-Do this again after every upgrade: each upgrade is a new download, signed afresh, so macOS asks again.
+macOS sometimes asks again after an upgrade. If it does, do this again.
 
 ### Moving from a `.dmg` install to Homebrew
 
