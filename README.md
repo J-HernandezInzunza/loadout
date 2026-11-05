@@ -109,8 +109,8 @@ It asks for your Loadout version (at the foot of the sidebar) and Doctor's outpu
 ## Support Loadout
 
 Loadout is free and open source. If it saves you time, you can
-[sponsor it on GitHub](https://github.com/sponsors/J-HernandezInzunza) (the **Sponsor** button at
-the top of this page). A few dollars helps.
+[leave a one-time tip or sponsor it monthly](https://github.com/sponsors/J-HernandezInzunza) on
+GitHub (the **Sponsor** button at the top of this page). A few dollars helps.
 
 ## Contributing
 
