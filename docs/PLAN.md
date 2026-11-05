@@ -1144,6 +1144,4 @@ Decided 2026-11-02:
 
 ---
 
-Roadmap (not planned): Developer ID signing and notarization, which removes the quarantine step
-(arch §7, Q2 A), then `tauri-plugin-updater`; infrastructure to record workflows in the native app
-(Q13 c).
+Roadmap (not planned): `docs/ROADMAP.md`.
