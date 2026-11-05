@@ -106,6 +106,12 @@ Installed from a `.dmg`: move Loadout to the Trash (and that folder too, for its
 It asks for your Loadout version (at the foot of the sidebar) and Doctor's output (**Catalogs** →
 **Check catalog health**).
 
+## Support Loadout
+
+Loadout is free and open source. If it saves you time, you can
+[leave a one-time tip or sponsor it monthly](https://github.com/sponsors/J-HernandezInzunza) on
+GitHub (the **Sponsor** button at the top of this page). A few dollars helps.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the `npm run check` gate, CI and the release runbook.
