@@ -1168,7 +1168,7 @@ Decided 2026-11-04 (owner; spikes.md S13, ROADMAP.md):
 - Defaults, reversible: Loadouts is a sidebar item under Manage; a loadout's folder is rebuilt when it
   is saved and by Sync; there is no rename (delete and create).
 
-- [ ] **M9.01 The command's form.** Extend S13: with a path holding a space (the Application Support
+- [x] **M9.01 The command's form.** Extend S13: with a path holding a space (the Application Support
   path), launch with `--add-dir '<path>'` followed by a prompt, `--add-dir=<path>`, `--add-dir '<path>'
   --` and the flag last, and record which keep the path to one directory and the prompt a prompt.
   Choose the command and a shell function form (`lo-<name>() { … }`) that take the user's own
