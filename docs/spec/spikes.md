@@ -326,3 +326,40 @@ names unless they clash), so the user's global setup stays and two loadouts can 
 A plugin is the export for sharing (`--plugin-dir` or `--plugin-url`, everything prefixed). "Only
 this loadout" is optional: generated `skillOverrides` in a `--settings` file keeps the user's other
 settings, where `--setting-sources` would lose them.
+
+### The launch command's form (M9.01)
+
+Run on 2026-11-06 against Claude Code 2.1.319, the same way (`-p`, the `init` message's `skills` for
+a fixture skill in the loadout's folder, and a prompt asking for one word to show whether the prompt
+arrived). The folder's path held a space: it lay under a folder named `Application Support`, as
+`<appData>` does.
+
+| Form | The path | The prompt |
+|---|---|---|
+| `--add-dir '<path>' <prompt>` | one directory, and the prompt is taken as a second | lost: `-p` exits 1, "Input must be provided either through stdin or as a prompt argument" |
+| `--add-dir='<path>' <prompt>` | one directory | a prompt |
+| `--add-dir '<path>' -- <prompt>` | one directory | a prompt |
+| `<prompt> --add-dir '<path>'` | one directory | a prompt |
+
+The `=` form takes exactly one value; the space form keeps taking words until the next option. As
+shell functions given the user's options then a prompt, and the user's own `--` then a prompt, in
+zsh and bash:
+
+| Function body | Options, then a prompt | The user's `--`, then a prompt |
+|---|---|---|
+| `claude --add-dir='<path>' "$@"` | works | works |
+| `claude "$@" --add-dir '<path>'` | works | the flag lands after `--` and becomes prompt text; the folder isn't added |
+| `claude --add-dir '<path>' -- "$@"` | the user's options become prompt text | the same |
+
+With the `=` form, a prompt before the options also works, the user's own `--add-dir=/tmp` adds a
+directory beside the loadout's rather than replacing it, and a path holding a single quote written
+as `'\''` loads in both shells.
+
+**Chosen:** the command is `claude --add-dir='<folder>'`, with `<folder>` the loadout's
+`<appData>/loadouts/<name>`, single-quoted and each `'` in it written `'\''`; the user types a
+prompt or flags after it. The function is `lo-<name>() { claude --add-dir='<folder>' "$@"; }`.
+Names are slugs, so `lo-<name>` is a valid function name in zsh and bash (bash outside POSIX mode),
+and the prefix keeps a loadout named `git` or `ls` from shadowing that command. Not covered: fish
+(its function syntax differs; not installed here, not tested), and interactive launches (`-p` only
+here; M9.07 launches interactive sessions). The `=` form's single value is how Claude Code's
+argument parser behaves, not something its docs promise.
