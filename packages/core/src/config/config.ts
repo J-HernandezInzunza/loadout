@@ -3,7 +3,7 @@
 // reported and left alone rather than rewritten without the parts it dropped.
 import { z } from "zod";
 import type { Host } from "../host.ts";
-import { CatalogRef, err, ok, type Result } from "../model/model.ts";
+import { CatalogRef, EntryType, err, ok, type Result } from "../model/model.ts";
 
 const [LocalCatalog, RemoteCatalog] = CatalogRef.options;
 
@@ -15,11 +15,25 @@ export const AccountInfo = z.strictObject({
 });
 export type AccountInfo = z.infer<typeof AccountInfo>;
 
+/**
+ * A loadout's name is its folder under app data and the prefix Claude Code shows on a clashing member,
+ * so it is a slug. No leading hyphen, which would read as an option on a command line.
+ */
+export const LoadoutName = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+
+/** Resolved by catalog order and pins unless it names its catalog. */
+export const LoadoutMember = z.strictObject({ type: EntryType, name: z.string(), catalog: z.string().exactOptional() });
+export type LoadoutMember = z.infer<typeof LoadoutMember>;
+
+export const Loadout = z.strictObject({ members: z.array(LoadoutMember) });
+export type Loadout = z.infer<typeof Loadout>;
+
 export const AppConfigV1 = z.strictObject({
   version: z.literal(1),
   catalogs: z.array(z.discriminatedUnion("kind", [LocalCatalog.strict(), RemoteCatalog.strict()])),
   pins: z.record(z.string(), z.string()),
   settings: z.strictObject({}),
+  loadouts: z.record(LoadoutName, Loadout).exactOptional(),
   accounts: z
     .strictObject({ github: AccountInfo.exactOptional(), bitbucket: AccountInfo.exactOptional() })
     .exactOptional(),

@@ -161,5 +161,6 @@ export function seededState(): FakeState {
       scanItem({ type: "agent", name: "helper", state: { state: "unmanaged", origin: "python-cli" } }),
       scanItem({ type: "prompt", name: "team", path: `${seedHome}/.claude/commands/team` }),
     ],
+    loadouts: [],
   };
 }

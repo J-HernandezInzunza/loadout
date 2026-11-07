@@ -2,7 +2,7 @@
 // generated rather than hand-written. Outputs are the `value` of the op's Result.
 import { z } from "zod";
 import { TokenSet } from "../accounts/accounts.ts";
-import { AccountInfo } from "../config/config.ts";
+import { AccountInfo, LoadoutMember } from "../config/config.ts";
 import { CatalogRef, Entry, EntryType, Source } from "../model/model.ts";
 import { ReceiptV2 } from "../receipts/receipts.ts";
 
@@ -116,6 +116,8 @@ const ImportPlan = plan<"ImportPlan">("config");
 const CatalogEditPlan = plan<"CatalogEditPlan">("op");
 const PushPlan = plan<"PushPlan">("files");
 const PinPlan = plan<"PinPlan">("switch");
+const SaveLoadoutPlan = plan<"SaveLoadoutPlan">("unknown");
+const DeleteLoadoutPlan = plan<"DeleteLoadoutPlan">("folder");
 
 const Ref = z.strictObject({ type: EntryType, name: z.string(), catalog: z.string() });
 const files = z.array(z.string());
@@ -168,6 +170,13 @@ export const PinRecord = z.strictObject({
   resolvesTo: z.string().nullable(),
 });
 export type PinRecord = z.infer<typeof PinRecord>;
+
+export const LoadoutRecord = z.strictObject({
+  name: z.string(),
+  /** resolvesTo: the catalog the member resolves to, null when no catalog defines it */
+  members: z.array(LoadoutMember.extend({ resolvesTo: z.string().nullable() })),
+});
+export type LoadoutRecord = z.infer<typeof LoadoutRecord>;
 
 const Finding = z.strictObject({
   check: z.string(),
@@ -373,5 +382,13 @@ export const ops = {
     input: z.strictObject({ name: z.string() }),
     output: z.strictObject({ name: z.string(), was: z.string(), resolvesTo: z.string().nullable() }),
   },
+  loadouts: { input: z.strictObject({}), output: z.array(LoadoutRecord) },
+  planSaveLoadout: {
+    input: z.strictObject({ name: z.string(), members: z.array(LoadoutMember), replace: z.boolean().exactOptional() }),
+    output: SaveLoadoutPlan,
+  },
+  applySaveLoadout: { input: z.strictObject({ plan: SaveLoadoutPlan }), output: LoadoutRecord },
+  planDeleteLoadout: { input: z.strictObject({ name: z.string() }), output: DeleteLoadoutPlan },
+  applyDeleteLoadout: { input: z.strictObject({ plan: DeleteLoadoutPlan }), output: z.strictObject({ name: z.string(), removedFolder: z.boolean() }) },
   suggestSource: { input: z.strictObject({ path: z.string() }), output: z.strictObject({ url: z.string().nullable(), why: z.string() }) },
 };

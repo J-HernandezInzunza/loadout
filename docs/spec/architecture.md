@@ -129,6 +129,7 @@ export type AuditEvent =
 | `write` | WRITE-* | `writeTarget(req)`, `applyCatalogEdit(cat, edit, mode)` (local / direct / pr), `openPullRequest` |
 | `authoring` | add/update/remove/push/pin/unpin ops | `plan*` / `apply*` pairs |
 | `doctor` | §2.10 | `doctor({ deep }): DoctorReport` |
+| `loadouts` | §4.6 below | `listLoadouts()`, `planSaveLoadout` / `applySaveLoadout`, `planDeleteLoadout` / `applyDeleteLoadout`, `loadoutDir(appData, name)` |
 | `ops` | §3 of behaviors | `createLibrary(host): Library` facade; every op has `input`/`output` zod schemas |
 
 The facade, with plan/apply pairs for every mutation (W12) and decisions returned as results rather
@@ -173,6 +174,13 @@ export interface Library {
   planPin(req: { name: string; catalog: string }): Promise<Result<PinPlan, NameErr>>;
   applyPin(plan: PinPlan, opts: { switchInstalled: boolean }): Promise<Result<PinResult>>;
   unpin(name: string): Promise<Result<UnpinResult>>;
+
+  // loadouts (§4.6)
+  loadouts(): Promise<Result<LoadoutRecord[]>>;
+  planSaveLoadout(req: { name: string; members: LoadoutMember[]; replace?: boolean }): Promise<Result<SaveLoadoutPlan>>;
+  applySaveLoadout(plan: SaveLoadoutPlan): Promise<Result<LoadoutRecord>>;
+  planDeleteLoadout(name: string): Promise<Result<DeleteLoadoutPlan>>;
+  applyDeleteLoadout(plan: DeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
 
   // one-time import
   planImport(toolDir?: string): Promise<Result<ImportPlan>>;
@@ -322,6 +330,7 @@ config.json          registry, pins, settings (schema below)
 receipts.json        install receipts, version 2
 clones/<catalog id>/ persistent clones of remote catalogs (RCAT-01 without the 'shared' special case)
 tmp/<op id>/         per-operation temp clones and staging; swept at launch (fixes FETCH-09's leak)
+loadouts/<name>/     one loadout's folder, launched with --add-dir (§4.6)
 ```
 
 `config.json`:
@@ -335,6 +344,7 @@ interface AppConfigV1 {
         protected: boolean; writable?: boolean }>;
   pins: Record<string, string>;
   settings: Record<string, never>;   // reserved; autopush, default_add_catalog, default_dirs dropped (Q10, Q11)
+  loadouts?: Record<string, { members: Array<{ type: EntryType; name: string; catalog?: string }> }>;  // §4.6
   imported?: { from: string; at: string; configSha256: string };
 }
 ```
@@ -512,6 +522,29 @@ in a new `claudeSettings` module; `SettingsErr` covers an unparseable or unwrita
 
 Tests: golden cases for the JSON edit (formatting preserved byte-for-byte outside the changed key;
 missing file; empty object; invalid JSON refused; symlink preserved; concurrent change detected).
+
+### 4.6 Loadouts (decided 2026-11-04)
+
+A loadout is a named set of catalog entries a user brings into one Claude Code session on top of the
+global setup, by launching `claude --add-dir='<appData>/loadouts/<name>'` (spikes.md S13). It
+switches nothing off and changes nothing in `~/.claude` or Claude Code's settings.
+
+- **Saved** in `config.json` under `loadouts`: name → `{ members }`, each member a `type` and `name`
+  and optionally the `catalog` to take it from. Absent means none, so configs from before loadouts read
+  and save unchanged, and deleting the last loadout drops the key.
+- **Names are slugs** (`^[a-z0-9]+(-[a-z0-9]+)*$`): the name is the folder under `loadouts/` and the
+  prefix Claude Code gives a member that clashes with a global item (`<name>:<member>`). The config
+  schema enforces it too, so a hand-edited name can't point a delete outside `loadouts/`.
+- **Members resolve** by type and name through catalog order and pins, or in the catalog they name.
+  A member no catalog defines is kept and reported (`resolvesTo: null`), as a dangling pin is. A
+  loadout holds one member per type and name, since both copies would land in one folder.
+- **Saving** is `planSaveLoadout` / `applySaveLoadout`: a create, or a replace with `replace: true`
+  (a new name that exists is `DUPLICATE`; replacing one that doesn't is `NOT_FOUND`). The plan
+  carries the loadout as it was (`previous`) as its fingerprint, and apply returns `STALE_PLAN` if it
+  changed.
+- **Deleting** removes the folder, then the config entry: a failed config write leaves a saved
+  loadout with nothing built, never a launchable folder no loadout lists. Only Loadout writes the
+  folder, so it is removed whole.
 
 ## 5. Git and network
 

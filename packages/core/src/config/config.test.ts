@@ -30,6 +30,16 @@ describe("config store", () => {
     expect(await store.loadConfig()).toEqual({ ok: true, value: { state: "ready", config }, warnings: [] });
   });
 
+  it("round-trips loadouts", async () => {
+    const { store } = await setup();
+    const withLoadouts: AppConfigV1 = {
+      ...config,
+      loadouts: { review: { members: [{ type: "skill", name: "grilling" }, { type: "agent", name: "reviewer", catalog: "team" }] } },
+    };
+    await store.saveConfig(withLoadouts);
+    expect(await store.loadConfig()).toMatchObject({ ok: true, value: { config: withLoadouts } });
+  });
+
   it("reports no catalogs registered when the file is missing or lists none", async () => {
     const { store } = await setup();
     const empty = { version: 1, catalogs: [], pins: {}, settings: {} };
@@ -44,6 +54,8 @@ describe("config store", () => {
     ["a key Loadout dropped", JSON.stringify({ ...config, settings: { autopush: true } })],
     ["an unknown key", JSON.stringify({ ...config, extra: 1 })],
     ["a catalog with an unknown field", JSON.stringify({ ...config, catalogs: [{ ...config.catalogs[0], gitCommit: true }] })],
+    // The name is a folder under app data, so a path in it could point a delete anywhere.
+    ["a loadout name that isn't a slug", JSON.stringify({ ...config, loadouts: { "../x": { members: [] } } })],
   ])("LOCK-01: refuses %s and never overwrites it", async (_, text) => {
     const { store, file } = await setup();
     await writeFile(file, text);

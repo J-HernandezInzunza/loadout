@@ -34,6 +34,17 @@ import { createGitClient, type GitClient } from "../git/git.ts";
 import { createOperation, sweepTemp } from "../git/operation.ts";
 import type { Host } from "../host.ts";
 import { applyInstall, type ApplyOpts, type ApplyReport } from "../install/apply.ts";
+import {
+  applyDeleteLoadout,
+  applySaveLoadout,
+  listLoadouts,
+  planDeleteLoadout,
+  planSaveLoadout,
+  type DeleteLoadoutPlan,
+  type LoadoutRecord,
+  type SaveLoadoutPlan,
+  type SaveLoadoutRequest,
+} from "../loadouts/loadouts.ts";
 import { discardPlan, planInstall, type InstallPlan } from "../install/plan.ts";
 import { applySync, planSync, type SyncPlan, type SyncReport } from "../install/sync.ts";
 import { uninstall, type UninstallItem } from "../install/uninstall.ts";
@@ -63,6 +74,8 @@ export type IssuedAddCatalogPlan = Issued<AddCatalogPlan, "AddCatalogPlan">;
 export type IssuedImportPlan = Issued<ImportPlan, "ImportPlan">;
 export type IssuedPushPlan = Issued<PushPlan, "PushPlan">;
 export type IssuedPinPlan = Issued<PinPlan, "PinPlan">;
+export type IssuedSaveLoadoutPlan = Issued<SaveLoadoutPlan, "SaveLoadoutPlan">;
+export type IssuedDeleteLoadoutPlan = Issued<DeleteLoadoutPlan, "DeleteLoadoutPlan">;
 /** A sign-in in progress: GitHub's code to enter, or Bitbucket's page to open; hand it back to completeSignIn. */
 export type IssuedSignIn = Issued<GitHubSignIn | BitbucketSignIn, "SignIn">;
 
@@ -163,6 +176,14 @@ export interface Library {
   planPin(req: { name: string; catalog: string }): Promise<Result<IssuedPinPlan>>;
   applyPin(plan: IssuedPinPlan, opts: { switchInstalled: boolean; signal?: AbortSignal }): Promise<Result<PinResult>>;
   unpin(name: string): Promise<Result<{ name: string; was: string; resolvesTo: string | null }>>;
+  /** Saved loadouts by name, each member with the catalog it resolves to (null when no catalog defines it). */
+  loadouts(): Promise<Result<LoadoutRecord[]>>;
+  /** Creates a loadout, or replaces one with `replace`; DUPLICATE for a new name that exists, REFUSED for a name that isn't a slug. */
+  planSaveLoadout(req: SaveLoadoutRequest): Promise<Result<IssuedSaveLoadoutPlan>>;
+  applySaveLoadout(plan: IssuedSaveLoadoutPlan): Promise<Result<LoadoutRecord>>;
+  /** The config entry and the loadout's folder. */
+  planDeleteLoadout(name: string): Promise<Result<IssuedDeleteLoadoutPlan>>;
+  applyDeleteLoadout(plan: IssuedDeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
   /** WRITE-05's hint: the browser URL of a local file in a GitHub or Bitbucket repo. */
   suggestSource(path: string): Promise<Result<SourceSuggestion>>;
 }
@@ -558,6 +579,26 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
 
     async unpin(name) {
       return unpin(ctx, name);
+    },
+
+    async loadouts() {
+      return listLoadouts(ctx);
+    },
+
+    async planSaveLoadout(req) {
+      return (await planSaveLoadout(ctx, req)) as Result<IssuedSaveLoadoutPlan>;
+    },
+
+    async applySaveLoadout(plan) {
+      return applySaveLoadout(ctx, plan);
+    },
+
+    async planDeleteLoadout(name) {
+      return (await planDeleteLoadout(ctx, name)) as Result<IssuedDeleteLoadoutPlan>;
+    },
+
+    async applyDeleteLoadout(plan) {
+      return applyDeleteLoadout(ctx, plan);
     },
 
     async suggestSource(path) {
