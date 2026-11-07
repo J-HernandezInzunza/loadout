@@ -1,22 +1,40 @@
 // Loadouts: named sets of catalog entries a user brings into one Claude Code session. Each is saved in
 // config.json and built into its own folder under app data, which only Loadout writes.
 import { LoadoutName, type AppConfigV1, type Loadout, type LoadoutMember } from "../config/config.ts";
+import { resolveDeps } from "../deps/deps.ts";
 import type { CallOpts } from "../git/git.ts";
+import { createOperation, type Operation } from "../git/operation.ts";
 import { checkItems, installItem } from "../install/apply.ts";
-import { discardPlan, planEntries, type InstallCtx } from "../install/plan.ts";
-import { err, ok, type Entry, type EntryType, type Result } from "../model/model.ts";
-import { createReceiptStore } from "../receipts/receipts.ts";
+import { buildItem, catalogKeys, discardPlan, planEntries, type InstallCtx, type PlanItem } from "../install/plan.ts";
+import { err, ok, type Entry, type EntryType, type Result, type Warning } from "../model/model.ts";
+import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type Registry } from "../registry/registry.ts";
-import { destFor } from "../scan/scan.ts";
+import { destFor, destState } from "../scan/scan.ts";
+import { checkUpdate, isStale, localSourceMoved } from "../update/update.ts";
 
 export type { LoadoutMember };
 
 type LoadoutCtx = Pick<InstallCtx, "host" | "config">;
 
+/**
+ * failed: no catalog defines the member. missing: nothing it built is in the folder. stale: the copy
+ * isn't what its catalog entry would build now (repointed, edited in the folder, or its source moved).
+ */
+export type MemberState = "built" | "stale" | "missing" | "failed";
+
 export interface LoadoutRecord {
   name: string;
-  /** each with the catalog it resolves to; null when no catalog defines it */
-  members: (LoadoutMember & { resolvesTo: string | null })[];
+  /** each with the catalog it resolves to (null when no catalog defines it) and the state of its copy */
+  members: (LoadoutMember & { resolvesTo: string | null; state: MemberState })[];
+}
+
+type Ref = Pick<Entry, "type" | "name" | "catalog">;
+
+/** What Sync does for one loadout: like an install's sync, but what's missing or unreceipted is built too. */
+export interface LoadoutSyncPlan {
+  name: string;
+  items: PlanItem[];
+  upToDate: (Ref & { status: "up-to-date" | "unmoved" })[];
 }
 
 export interface SaveLoadoutRequest {
@@ -70,16 +88,114 @@ async function savedLoadouts(ctx: LoadoutCtx): Promise<Result<Record<string, Loa
   return ok(loaded.value.config.loadouts ?? {});
 }
 
-function recordOf(registry: Registry, name: string, loadout: Loadout): LoadoutRecord {
-  return { name, members: loadout.members.map((m) => ({ ...m, resolvesTo: entryOf(registry, m)?.catalog ?? null })) };
+/** The install context for a loadout's folder: its root and its own receipts. */
+export function loadoutCtx(ctx: InstallCtx, name: string): InstallCtx {
+  const folder = loadoutDir(ctx.host.paths.appData, name);
+  return { ...ctx, root: folder, receipts: createReceiptStore(ctx.host, `${folder}/receipts.json`) };
 }
 
-export async function listLoadouts(ctx: LoadoutCtx): Promise<Result<LoadoutRecord[]>> {
+/** Without `op`, a remote source that moved isn't noticed: that takes the network. */
+async function memberState(into: InstallCtx, byDest: Map<string, ReceiptV2>, member: LoadoutMember, entry: Entry | null, op: Operation | null): Promise<MemberState> {
+  const { host } = into;
+  if (entry === null) return "failed";
+  const dest = destFor(into.root!, member.type, member.name);
+  const receipt = byDest.get(dest) ?? null;
+  const present = await host.fs.exists(dest);
+  if (receipt === null || !present) return "missing";
+  if (receipt.source !== entry.source) return "stale";
+  const copy = await destState(host, dest, receipt);
+  if (copy.state !== "installed") return "stale";
+  if (await localSourceMoved(host, entry, receipt)) return "stale";
+  const remoteMoved = op !== null && (await isStale({ host, op, receipts: into.receipts }, entry, receipt));
+  if (remoteMoved) return "stale";
+  return "built";
+}
+
+async function recordOf(ctx: InstallCtx, registry: Registry, name: string, loadout: Loadout, op: Operation | null): Promise<Result<LoadoutRecord>> {
+  const into = loadoutCtx(ctx, name);
+  const receipts = await into.receipts.all();
+  if (!receipts.ok) return receipts;
+  const byDest = new Map(receipts.value.map((r) => [r.dest, r]));
+  const members: LoadoutRecord["members"] = [];
+  for (const m of loadout.members) {
+    const entry = entryOf(registry, m);
+    members.push({ ...m, resolvesTo: entry?.catalog ?? null, state: await memberState(into, byDest, m, entry, op) });
+  }
+  return ok({ name, members }, receipts.warnings);
+}
+
+/** With `checkRemote`, each remote source is asked whether it moved, as list() does. */
+export async function listLoadouts(ctx: InstallCtx, opts: { checkRemote?: boolean } = {}): Promise<Result<LoadoutRecord[]>> {
   const loaded = await ctx.config.loadConfig();
   if (!loaded.ok) return loaded;
   const registry = await loadRegistry(ctx.host, loaded.value.config);
   const byName = Object.entries(loaded.value.config.loadouts ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return ok(byName.map(([name, loadout]) => recordOf(registry, name, loadout)));
+  const op = opts.checkRemote ? await createOperation(ctx.host, ctx.git) : null;
+  try {
+    const records: LoadoutRecord[] = [];
+    const warnings: Warning[] = [];
+    for (const [name, loadout] of byName) {
+      const record = await recordOf(ctx, registry, name, loadout, op);
+      if (!record.ok) return record;
+      records.push(record.value);
+      warnings.push(...record.warnings);
+    }
+    return ok(records, warnings);
+  } finally {
+    await op?.dispose();
+  }
+}
+
+/**
+ * Sync for one loadout: each resolved member's closure, checked against the loadout's receipts as Sync
+ * checks installs (UPD-04/05 skips what is provably unchanged). What's missing or unreceipted is built,
+ * since only Loadout writes the folder.
+ */
+export async function planLoadoutSync(
+  ctx: InstallCtx,
+  op: Operation,
+  registry: Registry,
+  name: string,
+  loadout: Loadout,
+  req: { catalog?: string; force?: boolean },
+  opts: CallOpts = {},
+): Promise<Result<LoadoutSyncPlan>> {
+  const { host } = ctx;
+  const into = loadoutCtx(ctx, name);
+  const receipts = await into.receipts.all();
+  if (!receipts.ok) return receipts;
+  const byDest = new Map(receipts.value.map((r) => [r.dest, r]));
+  const keys = await catalogKeys(host, registry);
+  const warnings: Warning[] = [...receipts.warnings];
+
+  const plan: LoadoutSyncPlan = { name, items: [], upToDate: [] };
+  const seen = new Set<string>();
+  for (const member of loadout.members) {
+    const target = entryOf(registry, member);
+    const isSynced = target !== null && (req.catalog === undefined || target.catalog === req.catalog);
+    if (!isSynced) continue;
+    const deps = resolveDeps(registry.entriesOf(target.catalog), target);
+    warnings.push(...deps.warnings);
+    for (const entry of deps.order) {
+      const key = `${entry.type}:${entry.name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const dest = destFor(into.root!, entry.type, entry.name);
+      const receipt = byDest.get(dest) ?? null;
+      const state = await destState(host, dest, receipt);
+      const hasCopy = state.state === "installed" || state.state === "drifted";
+      if (hasCopy) {
+        const check = await checkUpdate({ host, op, receipts: into.receipts }, entry, receipt, { force: req.force ?? false });
+        if (check.status !== "changed") {
+          plan.upToDate.push({ type: entry.type, name: entry.name, catalog: entry.catalog, status: check.status });
+          continue;
+        }
+      }
+      const requiredBy = entry === target ? [] : [target.name];
+      plan.items.push(await buildItem(into, op, entry, state, { catalogKey: keys.get(entry.catalog)!, requiredBy, provenance: registry.overrideSplit(entry), opts }));
+    }
+  }
+  return ok(plan, warnings);
 }
 
 export async function planSaveLoadout(ctx: LoadoutCtx, req: SaveLoadoutRequest): Promise<Result<SaveLoadoutPlan>> {
@@ -117,11 +233,12 @@ export async function applySaveLoadout(ctx: InstallCtx, plan: SaveLoadoutPlan, o
   const loadout: Loadout = { members: plan.members };
   const updated = await ctx.config.updateConfig((c) => ({ ...c, loadouts: { ...c.loadouts, [plan.name]: loadout } }));
   if (!updated.ok) return updated;
-  const registry = await loadRegistry(ctx.host, updated.value);
-  const record = recordOf(registry, plan.name, loadout);
   const build = await buildLoadout(ctx, plan.name, loadout, opts);
   if (!build.ok) return err({ ...build.error, message: `'${plan.name}' is saved, but its folder couldn't be built: ${build.error.message}` }, build.warnings);
-  return ok({ ...record, build: build.value }, build.warnings);
+  const registry = await loadRegistry(ctx.host, updated.value);
+  const record = await recordOf(ctx, registry, plan.name, loadout, null);
+  if (!record.ok) return record;
+  return ok({ ...record.value, build: build.value }, [...build.warnings, ...record.warnings]);
 }
 
 /**
@@ -132,7 +249,7 @@ export async function applySaveLoadout(ctx: InstallCtx, plan: SaveLoadoutPlan, o
 export async function buildLoadout(ctx: InstallCtx, name: string, loadout: Loadout, opts: CallOpts = {}): Promise<Result<BuildReport>> {
   const { host } = ctx;
   const folder = loadoutDir(host.paths.appData, name);
-  const into: InstallCtx = { ...ctx, root: folder, receipts: createReceiptStore(host, `${folder}/receipts.json`) };
+  const into = loadoutCtx(ctx, name);
   const loaded = await ctx.config.loadConfig();
   if (!loaded.ok) return loaded;
   const registry = await loadRegistry(host, loaded.value.config);

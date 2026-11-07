@@ -177,8 +177,8 @@ export interface Library {
   planPin(req: { name: string; catalog: string }): Promise<Result<IssuedPinPlan>>;
   applyPin(plan: IssuedPinPlan, opts: { switchInstalled: boolean; signal?: AbortSignal }): Promise<Result<PinResult>>;
   unpin(name: string): Promise<Result<{ name: string; was: string; resolvesTo: string | null }>>;
-  /** Saved loadouts by name, each member with the catalog it resolves to (null when no catalog defines it). */
-  loadouts(): Promise<Result<LoadoutRecord[]>>;
+  /** Saved loadouts by name, each member with the catalog it resolves to and its state; `checkRemote` asks each remote source whether it moved. */
+  loadouts(opts?: { checkRemote?: boolean }): Promise<Result<LoadoutRecord[]>>;
   /** Creates a loadout, or replaces one with `replace`; DUPLICATE for a new name that exists, REFUSED for a name that isn't a slug. */
   planSaveLoadout(req: SaveLoadoutRequest): Promise<Result<IssuedSaveLoadoutPlan>>;
   /** Saves, then builds the loadout's folder; members that didn't land are in `build.failed`, and the loadout stays saved. */
@@ -583,8 +583,8 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
       return unpin(ctx, name);
     },
 
-    async loadouts() {
-      return listLoadouts(ctx);
+    async loadouts(o = {}) {
+      return listLoadouts(ctx, o);
     },
 
     async planSaveLoadout(req) {

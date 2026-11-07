@@ -2,11 +2,13 @@ import { access, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/p
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { checked } from "../../test/checkedLibrary.ts";
+import { createGitHarness } from "../../test/git.ts";
 import { createSandbox } from "../../test/sandbox.ts";
 import { createConfigStore, type AppConfigV1 } from "../config/config.ts";
 import { createGitClient } from "../git/git.ts";
 import { applyInstall } from "../install/apply.ts";
 import { planInstall, type InstallCtx } from "../install/plan.ts";
+import { applySync, planSync } from "../install/sync.ts";
 import type { CatalogRef } from "../model/model.ts";
 import { createLibrary } from "../ops/library.ts";
 import { ops } from "../ops/schemas.ts";
@@ -68,9 +70,9 @@ describe("loadouts", () => {
     const record = {
       name: "review",
       members: [
-        { ...skill("x"), resolvesTo: "a" },
-        { ...skill("y", "b"), resolvesTo: "b" },
-        { ...skill("z"), resolvesTo: "b" },
+        { ...skill("x"), resolvesTo: "a", state: "built" },
+        { ...skill("y", "b"), resolvesTo: "b", state: "built" },
+        { ...skill("z"), resolvesTo: "b", state: "built" },
       ],
     };
     expect(saved).toMatchObject({ ok: true, value: record, warnings: [] });
@@ -290,3 +292,81 @@ describe("building a loadout's folder", () => {
     expect(await planInstall(ctx, { names: ["x"] })).toMatchObject({ ok: true, value: { items: [{ status: "failed", reason: expect.stringContaining("the source is the destination") }] } });
   });
 });
+
+describe("keeping loadouts current", () => {
+  const gh = (path: string) => `https://github.com/o/r/blob/main/${path}`;
+
+  /** One catalog of skills sourced from a GitHub repo in the git harness. */
+  async function setupRemote(skills: string[]) {
+    const sb = await createSandbox();
+    const remote = createGitHarness(sb).createRepo("github.com", "o/r");
+    remote.commit(Object.fromEntries(skills.map((n) => [`skills/${n}/SKILL.md`, `${n} 1\n`])));
+    const catalog = join(sb.root, "team.yaml");
+    const block = (n: string) => `    - name: ${n}\n      description: D\n      source: ${gh(`skills/${n}/SKILL.md`)}\n`;
+    await writeFile(catalog, `library:\n  skills:\n${skills.map(block).join("")}  agents: []\n  prompts: []\n`);
+    const config = createConfigStore(sb.host);
+    await config.saveConfig({ version: 1, catalogs: [{ id: "team", kind: "local", path: catalog }], pins: {}, settings: {} });
+    const ctx: InstallCtx = { host: sb.host, git: createGitClient(sb.host), config, receipts: createReceiptStore(sb.host) };
+    const save = async (name: string, members: LoadoutMember[], replace?: boolean) => {
+      const plan = await planSaveLoadout(ctx, { name, members, ...(replace !== undefined && { replace }) });
+      if (!plan.ok) throw new Error(plan.error.message);
+      return applySaveLoadout(ctx, plan.value);
+    };
+    const states = async (checkRemote = false) => {
+      const listed = await listLoadouts(ctx, { checkRemote });
+      if (!listed.ok) throw new Error(listed.error.message);
+      return Object.fromEntries(listed.value.map((l) => [l.name, Object.fromEntries(l.members.map((m) => [m.name, m.state]))]));
+    };
+    const sync = async (req: { catalog?: string } = {}) => {
+      const plan = await planSync(ctx, req);
+      if (!plan.ok) throw new Error(plan.error.message);
+      const report = await applySync(ctx, plan.value);
+      if (!report.ok) throw new Error(report.error.message);
+      return { plan: plan.value, report: report.value };
+    };
+    return { sb, remote, ctx, save, states, sync, folder: (name: string) => loadoutDir(sb.host.paths.appData, name) };
+  }
+
+  it("a catalog change makes a member stale, Sync rebuilds it, and an unchanged member is skipped", async () => {
+    const { sb, remote, save, states, sync, folder } = await setupRemote(["a", "b"]);
+    await save("review", [skill("a"), skill("b")]);
+    expect(await states(true)).toEqual({ review: { a: "built", b: "built" } });
+
+    remote.commit({ "skills/a/SKILL.md": "a 2\n" });
+    expect(await states()).toEqual({ review: { a: "built", b: "built" } });
+    expect(await states(true)).toEqual({ review: { a: "stale", b: "built" } });
+    expect((await sync({ catalog: "elsewhere" })).plan.loadouts).toEqual([]);
+
+    const { plan, report } = await sync();
+    expect(plan.loadouts).toMatchObject([{ name: "review", items: [{ name: "a" }], upToDate: [{ type: "skill", name: "b", catalog: "team", status: "unmoved" }] }]);
+    expect(report.loadouts).toEqual([
+      {
+        name: "review",
+        synced: [{ type: "skill", name: "a", catalog: "team", dest: `${folder("review")}/.claude/skills/a`, preview: expect.objectContaining({ modified: ["SKILL.md"] }) }],
+        upToDate: [{ type: "skill", name: "b", catalog: "team", status: "unmoved" }],
+        failed: [],
+      },
+    ]);
+    expect(report.synced).toEqual([]);
+    expect(await readFile(`${folder("review")}/.claude/skills/a/SKILL.md`, "utf8")).toBe("a 2\n");
+    expect(await exists(join(sb.host.paths.home, ".claude"))).toBe(false);
+    expect(await states(true)).toEqual({ review: { a: "built", b: "built" } });
+  });
+
+  it("says what is missing, failed or edited, and Sync builds the missing member and restores the edited one", async () => {
+    const { remote, save, states, sync, folder } = await setupRemote(["a", "b", "c"]);
+    remote.commit({ "skills/c/SKILL.md": null });
+    await save("review", [skill("a"), skill("c"), skill("nope")]);
+    await writeFile(`${folder("review")}/.claude/skills/a/SKILL.md`, "edited\n");
+    expect(await states()).toEqual({ review: { a: "stale", c: "missing", nope: "failed" } });
+
+    remote.commit({ "skills/c/SKILL.md": "c 2\n" });
+    const { report } = await sync();
+
+    expect(report.loadouts).toMatchObject([{ name: "review", synced: [{ name: "a" }, { name: "c" }], failed: [] }]);
+    expect(await readFile(`${folder("review")}/.claude/skills/a/SKILL.md`, "utf8")).toBe("a 1\n");
+    expect(await readFile(`${folder("review")}/.claude/skills/c/SKILL.md`, "utf8")).toBe("c 2\n");
+    expect(await states(true)).toEqual({ review: { a: "built", c: "built", nope: "failed" } });
+  });
+});
+

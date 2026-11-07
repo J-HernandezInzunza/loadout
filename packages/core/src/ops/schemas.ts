@@ -157,6 +157,14 @@ const SyncReport = z.strictObject({
   dependencies: z.array(Ref.extend({ requiredBy: z.array(z.string()) })),
   unmanaged: z.array(Ref.extend({ dest: z.string(), origin: Origin })),
   missing: z.array(ReceiptV2),
+  loadouts: z.array(
+    z.strictObject({
+      name: z.string(),
+      synced: z.array(Ref.extend({ dest: z.string(), preview: Preview })),
+      upToDate: z.array(Ref.extend({ status: z.enum(["up-to-date", "unmoved"]) })),
+      failed: z.array(Ref.extend({ reason: z.string() })),
+    }),
+  ),
 });
 export type CatalogRow = z.infer<typeof CatalogRow>;
 
@@ -173,8 +181,8 @@ export type PinRecord = z.infer<typeof PinRecord>;
 
 export const LoadoutRecord = z.strictObject({
   name: z.string(),
-  /** resolvesTo: the catalog the member resolves to, null when no catalog defines it */
-  members: z.array(LoadoutMember.extend({ resolvesTo: z.string().nullable() })),
+  /** resolvesTo: the catalog the member resolves to, null when no catalog defines it; state: its copy in the loadout's folder */
+  members: z.array(LoadoutMember.extend({ resolvesTo: z.string().nullable(), state: z.enum(["built", "stale", "missing", "failed"]) })),
 });
 export type LoadoutRecord = z.infer<typeof LoadoutRecord>;
 
@@ -388,7 +396,7 @@ export const ops = {
     input: z.strictObject({ name: z.string() }),
     output: z.strictObject({ name: z.string(), was: z.string(), resolvesTo: z.string().nullable() }),
   },
-  loadouts: { input: z.strictObject({}), output: z.array(LoadoutRecord) },
+  loadouts: { input: z.strictObject({ checkRemote: z.boolean().exactOptional() }), output: z.array(LoadoutRecord) },
   planSaveLoadout: {
     input: z.strictObject({ name: z.string(), members: z.array(LoadoutMember), replace: z.boolean().exactOptional() }),
     output: SaveLoadoutPlan,

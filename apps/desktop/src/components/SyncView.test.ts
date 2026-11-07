@@ -25,7 +25,7 @@ async function mountSync(plans: Plan[], library: Partial<Library> = {}) {
       discardPlan: async () => (calls.push(["discardPlan"]), ok(undefined)),
       applySync: async (plan) => (
         calls.push(["applySync"]),
-        ok({ synced: plan.items.map((i) => ({ ...ref(i.name), dest: i.dest, preview: i.preview })), upToDate: plan.upToDate, failed: [], dependencies: [], unmanaged: plan.unmanaged, missing: [] })
+        ok({ synced: plan.items.map((i) => ({ ...ref(i.name), dest: i.dest, preview: i.preview })), upToDate: plan.upToDate, failed: [], dependencies: [], unmanaged: plan.unmanaged, missing: [], loadouts: [] })
       ),
       ...library,
     },
@@ -87,6 +87,7 @@ describe("UI-38: sync", () => {
           dependencies: [{ ...ref("base"), requiredBy: ["tidy"] }],
           unmanaged: [],
           missing: [gone],
+          loadouts: [],
         }),
     });
     await press(wrapper, "Sync 2");

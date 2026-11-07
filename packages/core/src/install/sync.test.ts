@@ -58,7 +58,7 @@ async function setup(catalogs: Record<string, Item[]>) {
 describe("sync", () => {
   it("SYNC-05: with nothing installed, reports nothing", async () => {
     const { sync } = await setup({ team: [{ type: "prompt", name: "p", source: gh("prompts/p.md") }] });
-    expect((await sync()).report).toEqual({ synced: [], upToDate: [], failed: [], dependencies: [], unmanaged: [], missing: [] });
+    expect((await sync()).report).toEqual({ synced: [], upToDate: [], failed: [], dependencies: [], unmanaged: [], missing: [], loadouts: [] });
   });
 
   it("SYNC-01: refreshes the winning copy of each installed name, and only installed ones", async () => {

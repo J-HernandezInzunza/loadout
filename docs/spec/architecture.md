@@ -176,7 +176,7 @@ export interface Library {
   unpin(name: string): Promise<Result<UnpinResult>>;
 
   // loadouts (§4.6)
-  loadouts(): Promise<Result<LoadoutRecord[]>>;
+  loadouts(opts?: { checkRemote?: boolean }): Promise<Result<LoadoutRecord[]>>;
   planSaveLoadout(req: { name: string; members: LoadoutMember[]; replace?: boolean }): Promise<Result<SaveLoadoutPlan>>;
   applySaveLoadout(plan: SaveLoadoutPlan, opts?: { signal?: AbortSignal }): Promise<Result<LoadoutRecord & { build: BuildReport }>>;
   planDeleteLoadout(name: string): Promise<Result<DeleteLoadoutPlan>>;
@@ -553,6 +553,14 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
   removed, so a member that no longer resolves keeps its copy and a catalog that can't be read never
   empties a loadout. A local source is checked against the loadout's destination (FETCH-08), so a
   global install can be a member's source.
+- **State** per member, in `loadouts()`: `failed` (no catalog defines it), `missing` (nothing it built
+  is in the folder), `stale` (the copy isn't what its entry would build now: the source was repointed,
+  the copy edited, or a local source changed; a moved remote source only with `checkRemote`, as
+  `list()`), else `built`.
+- **Sync** includes loadouts: `SyncPlan.loadouts` and `SyncReport.loadouts`, per loadout. Each
+  resolved member's closure is checked against the loadout's receipts with `checkUpdate`, so what is
+  provably unchanged is skipped (UPD-04/05); unlike installs, what is missing or unreceipted is built.
+  Every check, the loadouts' included, runs before the first write.
 - **Deleting** removes the folder, then the config entry: a failed config write leaves a saved
   loadout with nothing built, never a launchable folder no loadout lists. Only Loadout writes the
   folder, so it is removed whole.
