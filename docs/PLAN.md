@@ -1237,7 +1237,7 @@ developers launch tools with preset flags):
   - Depends: M9.01, M9.03
   - Done when: quoting (space, single quote), both forms and the clash list are tested.
 
-- [ ] **M9.06 The `loadout` command.** A POSIX `sh` script in the desktop app, bundled to
+- [x] **M9.06 The `loadout` command.** A POSIX `sh` script in the desktop app, bundled to
   `Contents/Resources/bin/loadout` through `bundle.resources`, with the contract decided above. The
   folder is `$HOME/Library/Application Support/<the app's identifier>/loadouts/<name>`; unbuilt means
   it holds no `.claude`. No arguments or `--help` prints usage; `claude` missing from PATH exits
