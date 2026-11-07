@@ -404,5 +404,22 @@ export const ops = {
   applySaveLoadout: { input: z.strictObject({ plan: SaveLoadoutPlan }), output: LoadoutRecord.extend({ build: BuildReport }) },
   planDeleteLoadout: { input: z.strictObject({ name: z.string() }), output: DeleteLoadoutPlan },
   applyDeleteLoadout: { input: z.strictObject({ plan: DeleteLoadoutPlan }), output: z.strictObject({ name: z.string(), removedFolder: z.boolean() }) },
+  launchCommand: {
+    input: z.strictObject({ name: z.string() }),
+    output: z.strictObject({
+      name: z.string(),
+      run: z.string(),
+      command: z.string(),
+      clashes: z.array(
+        z.strictObject({
+          type: EntryType,
+          name: z.string(),
+          with: EntryType,
+          outcome: z.enum(["prefixed", "shadows", "hidden", "unknown"]),
+          sessionName: z.string().nullable(),
+        }),
+      ),
+    }),
+  },
   suggestSource: { input: z.strictObject({ path: z.string() }), output: z.strictObject({ url: z.string().nullable(), why: z.string() }) },
 };

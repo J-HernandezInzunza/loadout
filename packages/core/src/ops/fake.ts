@@ -118,6 +118,7 @@ export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Part
     applySaveLoadout: refused,
     planDeleteLoadout: refused,
     applyDeleteLoadout: refused,
+    launchCommand: refused,
     suggestSource: refused,
   };
   return { ...library, ...overrides, state };

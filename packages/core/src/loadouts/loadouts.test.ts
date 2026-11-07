@@ -1,9 +1,11 @@
-import { access, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { access, mkdir, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { checked } from "../../test/checkedLibrary.ts";
 import { createGitHarness } from "../../test/git.ts";
 import { createSandbox } from "../../test/sandbox.ts";
+import { createClaudeSettings } from "../claudeSettings/settings.ts";
 import { createConfigStore, type AppConfigV1 } from "../config/config.ts";
 import { createGitClient } from "../git/git.ts";
 import { applyInstall } from "../install/apply.ts";
@@ -13,7 +15,16 @@ import type { CatalogRef } from "../model/model.ts";
 import { createLibrary } from "../ops/library.ts";
 import { ops } from "../ops/schemas.ts";
 import { createReceiptStore } from "../receipts/receipts.ts";
-import { applyDeleteLoadout, applySaveLoadout, listLoadouts, loadoutDir, planDeleteLoadout, planSaveLoadout, type LoadoutMember } from "./loadouts.ts";
+import {
+  applyDeleteLoadout,
+  applySaveLoadout,
+  launchCommand,
+  listLoadouts,
+  loadoutDir,
+  planDeleteLoadout,
+  planSaveLoadout,
+  type LoadoutMember,
+} from "./loadouts.ts";
 
 type Skill = string | { name: string; requires?: string[]; source?: string };
 
@@ -191,9 +202,11 @@ describe("loadouts", () => {
     expect(ops.planSaveLoadout.output.safeParse(save).success).toBe(true);
     expect(ops.applySaveLoadout.output.parse(value(await library.applySaveLoadout(save)))).toMatchObject({ name: "review", build: { built: [{ name: "x" }] } });
     expect(ops.loadouts.output.parse(value(await library.loadouts()))).toHaveLength(1);
+    expect(ops.launchCommand.output.parse(value(await library.launchCommand("review")))).toMatchObject({ run: "loadout run review" });
     const remove = value(await library.planDeleteLoadout("review"));
     expect(ops.planDeleteLoadout.output.safeParse(remove).success).toBe(true);
     expect(ops.applyDeleteLoadout.output.parse(value(await library.applyDeleteLoadout(remove)))).toEqual({ name: "review", removedFolder: true });
+    expect(await library.launchCommand("review")).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   });
 });
 
@@ -367,6 +380,89 @@ describe("keeping loadouts current", () => {
     expect(await readFile(`${folder("review")}/.claude/skills/a/SKILL.md`, "utf8")).toBe("a 1\n");
     expect(await readFile(`${folder("review")}/.claude/skills/c/SKILL.md`, "utf8")).toBe("c 2\n");
     expect(await states(true)).toEqual({ review: { a: "built", c: "built", nope: "failed" } });
+  });
+});
+
+describe("launch command", () => {
+  /** A config holding loadouts as given (nothing built), and what ~/.claude holds, under an app data path that needs quoting. */
+  async function setupLaunch(loadouts: Record<string, LoadoutMember[]>, appDataName = "loadout") {
+    const sb = await createSandbox();
+    const appData = join(sb.root, "Application Support", appDataName);
+    await mkdir(appData, { recursive: true });
+    const host = { ...sb.host, paths: { ...sb.host.paths, appData } };
+    const config = createConfigStore(host);
+    const saved = Object.fromEntries(Object.entries(loadouts).map(([name, members]) => [name, { members }]));
+    await config.saveConfig({ version: 1, catalogs: [], pins: {}, settings: {}, loadouts: saved });
+    const ctx = { host, config, receipts: createReceiptStore(host), settings: createClaudeSettings(host) };
+    const claude = join(sb.host.paths.home, ".claude");
+    const put = async (rel: string, text = "x\n") => {
+      await mkdir(dirname(join(claude, rel)), { recursive: true });
+      await writeFile(join(claude, rel), text);
+    };
+    return { sb, ctx, appData, claude, put };
+  }
+
+  it("gives loadout run and the bare command, quoting a folder that holds a space and a single quote", async () => {
+    const { ctx, appData } = await setupLaunch({ review: [] }, "it's here");
+    const folder = `${appData}/loadouts/review`;
+
+    const launch = await launchCommand(ctx, "review");
+
+    expect(launch).toEqual({
+      ok: true,
+      value: { name: "review", run: "loadout run review", command: `claude --add-dir='${folder.replaceAll("'", "'\\''")}'`, clashes: [] },
+      warnings: [],
+    });
+    if (!launch.ok) return;
+    // The shell hands claude one argument holding the whole path.
+    const argv = execFileSync("sh", ["-c", launch.value.command.replace(/^claude /, "printf '%s\\n' ")], { encoding: "utf8" });
+    expect(argv).toBe(`--add-dir=${folder}\n`);
+  });
+
+  it("lists each member that shares a name with something Claude Code loads globally, and what the session makes of it", async () => {
+    const members: LoadoutMember[] = [
+      { type: "skill", name: "grilling" },
+      { type: "skill", name: "review" },
+      { type: "skill", name: "fleet" },
+      { type: "prompt", name: "deploy" },
+      { type: "prompt", name: "lint" },
+      { type: "agent", name: "helper" },
+      { type: "skill", name: "gone" },
+      { type: "prompt", name: "team" },
+      { type: "skill", name: "fresh" },
+    ];
+    const { ctx, claude, put } = await setupLaunch({ kit: members });
+    await put("skills/grilling/SKILL.md");
+    await put("skills/review/SKILL.md");
+    await put("skills/lint/SKILL.md");
+    await put("commands/fleet.md");
+    await put("commands/deploy.md");
+    await put("commands/team/standup.md");
+    await put("agents/helper.md");
+    await put("settings.json", JSON.stringify({ skillOverrides: { review: "off" } }));
+    await mkdir(join(claude, "skills"), { recursive: true });
+    await symlink(join(claude, "nowhere"), join(claude, "skills", "gone"));
+
+    const launch = await launchCommand(ctx, "kit");
+
+    expect(launch).toMatchObject({
+      ok: true,
+      value: {
+        clashes: [
+          { type: "skill", name: "grilling", with: "skill", outcome: "prefixed", sessionName: "kit:grilling" },
+          { type: "skill", name: "review", with: "skill", outcome: "hidden", sessionName: null },
+          { type: "skill", name: "fleet", with: "prompt", outcome: "shadows", sessionName: "fleet" },
+          { type: "prompt", name: "deploy", with: "prompt", outcome: "hidden", sessionName: null },
+          { type: "prompt", name: "lint", with: "skill", outcome: "hidden", sessionName: null },
+          { type: "agent", name: "helper", with: "agent", outcome: "unknown", sessionName: null },
+        ],
+      },
+    });
+  });
+
+  it("refuses a loadout that doesn't exist", async () => {
+    const { ctx } = await setupLaunch({ review: [] });
+    expect(await launchCommand(ctx, "docs")).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   });
 });
 

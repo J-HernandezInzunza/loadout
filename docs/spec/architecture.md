@@ -181,6 +181,7 @@ export interface Library {
   applySaveLoadout(plan: SaveLoadoutPlan, opts?: { signal?: AbortSignal }): Promise<Result<LoadoutRecord & { build: BuildReport }>>;
   planDeleteLoadout(name: string): Promise<Result<DeleteLoadoutPlan>>;
   applyDeleteLoadout(plan: DeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
+  launchCommand(name: string): Promise<Result<LaunchCommand>>;   // run, command, clashes
 
   // one-time import
   planImport(toolDir?: string): Promise<Result<ImportPlan>>;
@@ -561,6 +562,13 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
   resolved member's closure is checked against the loadout's receipts with `checkUpdate`, so what is
   provably unchanged is skipped (UPD-04/05); unlike installs, what is missing or unreceipted is built.
   Every check, the loadouts' included, runs before the first write.
+- **Launching** (`launchCommand(name)`): `loadout run <name>`, and the bare command
+  `claude --add-dir='<folder>'` with each `'` in the folder written `'\''`. Its clashes are the
+  members named like a loadable item in `~/.claude` (from the scan; a prompt namespace folder can't
+  clash), each with an outcome from spikes.md S13: a skill clashing with a skill is `prefixed`
+  (`<loadout>:<name>`), or `hidden` when that skill is turned off; a skill clashing with a prompt
+  `shadows` it; a prompt clashing with either is `hidden`; an agent is `unknown`. Project, bundled
+  and plugin items depend on where and how the session starts, so they aren't claimed.
 - **Deleting** removes the folder, then the config entry: a failed config write leaves a saved
   loadout with nothing built, never a launchable folder no loadout lists. Only Loadout writes the
   folder, so it is removed whole.

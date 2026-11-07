@@ -37,10 +37,12 @@ import { applyInstall, type ApplyOpts, type ApplyReport } from "../install/apply
 import {
   applyDeleteLoadout,
   applySaveLoadout,
+  launchCommand,
   listLoadouts,
   planDeleteLoadout,
   planSaveLoadout,
   type DeleteLoadoutPlan,
+  type LaunchCommand,
   type LoadoutRecord,
   type SaveLoadoutPlan,
   type SaveLoadoutRequest,
@@ -186,6 +188,8 @@ export interface Library {
   /** The config entry and the loadout's folder. */
   planDeleteLoadout(name: string): Promise<Result<IssuedDeleteLoadoutPlan>>;
   applyDeleteLoadout(plan: IssuedDeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
+  /** `loadout run <name>`, the bare command with the folder quoted, and the members named like something Claude Code loads globally. */
+  launchCommand(name: string): Promise<Result<LaunchCommand>>;
   /** WRITE-05's hint: the browser URL of a local file in a GitHub or Bitbucket repo. */
   suggestSource(path: string): Promise<Result<SourceSuggestion>>;
 }
@@ -601,6 +605,10 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
 
     async applyDeleteLoadout(plan) {
       return applyDeleteLoadout(ctx, plan);
+    },
+
+    async launchCommand(name) {
+      return launchCommand(ctx, name);
     },
 
     async suggestSource(path) {

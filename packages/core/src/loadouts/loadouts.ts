@@ -1,5 +1,6 @@
 // Loadouts: named sets of catalog entries a user brings into one Claude Code session. Each is saved in
 // config.json and built into its own folder under app data, which only Loadout writes.
+import type { ClaudeSettings } from "../claudeSettings/settings.ts";
 import { LoadoutName, type AppConfigV1, type Loadout, type LoadoutMember } from "../config/config.ts";
 import { resolveDeps } from "../deps/deps.ts";
 import type { CallOpts } from "../git/git.ts";
@@ -9,7 +10,7 @@ import { buildItem, catalogKeys, discardPlan, planEntries, type InstallCtx, type
 import { err, ok, type Entry, type EntryType, type Result, type Warning } from "../model/model.ts";
 import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type Registry } from "../registry/registry.ts";
-import { destFor, destState } from "../scan/scan.ts";
+import { destFor, destState, scanInstallDirs } from "../scan/scan.ts";
 import { checkUpdate, isStale, localSourceMoved } from "../update/update.ts";
 
 export type { LoadoutMember };
@@ -64,6 +65,32 @@ export interface BuildReport {
 
 export type SaveLoadoutResult = LoadoutRecord & { build: BuildReport };
 
+/** A member that shares its name with something Claude Code loads from ~/.claude, and what a session makes of it. */
+export interface Clash {
+  type: EntryType;
+  name: string;
+  /** the type of the global item that decides the outcome */
+  with: EntryType;
+  /**
+   * prefixed: the member loads as `<loadout>:<name>`, the global skill keeps the name.
+   * shadows: the member takes the name, and the global prompt is hidden in that session.
+   * hidden: the member doesn't load (a global prompt or skill wins, or the global skill is turned off).
+   * unknown: an agent of that name is installed; which one Claude Code uses hasn't been checked.
+   */
+  outcome: "prefixed" | "shadows" | "hidden" | "unknown";
+  /** the member's name in the session; null when it doesn't load or isn't known */
+  sessionName: string | null;
+}
+
+export interface LaunchCommand {
+  name: string;
+  /** through the `loadout` command shipped in the app */
+  run: string;
+  /** the same launch without it, for a .dmg install */
+  command: string;
+  clashes: Clash[];
+}
+
 export interface DeleteLoadoutPlan {
   name: string;
   /** the loadout as saved when planned; apply refuses if it changed since */
@@ -86,6 +113,58 @@ async function savedLoadouts(ctx: LoadoutCtx): Promise<Result<Record<string, Loa
   const loaded = await ctx.config.loadConfig();
   if (!loaded.ok) return loaded;
   return ok(loaded.value.config.loadouts ?? {});
+}
+
+/** Single quotes, each one inside written '\'' so the shell gives the path back as one argument. */
+const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+
+/** What a session makes of each member named like a global item that loads; bundled and plugin items aren't on disk, so aren't known. */
+export function clashesOf(loadout: string, members: LoadoutMember[], global: { type: EntryType; name: string; off: boolean }[]): Clash[] {
+  const clashes: Clash[] = [];
+  for (const m of members) {
+    const skill = global.find((g) => g.type === "skill" && g.name === m.name);
+    const prompt = global.find((g) => g.type === "prompt" && g.name === m.name);
+    const agent = global.find((g) => g.type === "agent" && g.name === m.name);
+    const clash = { type: m.type, name: m.name };
+    if (m.type === "skill") {
+      // An override is by name, so turning the global skill off hides the prefixed copy too.
+      if (skill?.off) clashes.push({ ...clash, with: "skill", outcome: "hidden", sessionName: null });
+      else if (skill) clashes.push({ ...clash, with: "skill", outcome: "prefixed", sessionName: `${loadout}:${m.name}` });
+      else if (prompt) clashes.push({ ...clash, with: "prompt", outcome: "shadows", sessionName: m.name });
+    } else if (m.type === "prompt") {
+      const winner = prompt ?? skill;
+      if (winner) clashes.push({ ...clash, with: winner.type, outcome: "hidden", sessionName: null });
+    } else if (agent) {
+      clashes.push({ ...clash, with: "agent", outcome: "unknown", sessionName: null });
+    }
+  }
+  return clashes;
+}
+
+export async function launchCommand(ctx: LoadoutCtx & Pick<InstallCtx, "receipts"> & { settings: ClaudeSettings }, name: string): Promise<Result<LaunchCommand>> {
+  const { host } = ctx;
+  const loaded = await ctx.config.loadConfig();
+  if (!loaded.ok) return loaded;
+  const config = loaded.value.config;
+  const loadout = config.loadouts?.[name];
+  if (loadout === undefined) {
+    const names = Object.keys(config.loadouts ?? {}).sort().join(", ") || "none";
+    return err({ code: "NOT_FOUND", message: `no loadout named '${name}' (loadouts: ${names})` });
+  }
+
+  const legacy = config.imported?.installs;
+  const scanned = await scanInstallDirs(host, ctx.receipts, legacy === undefined ? {} : { legacyInstalls: legacy });
+  if (!scanned.ok) return scanned;
+  const overrides = await ctx.settings.readSkillOverrides();
+  const warnings: Warning[] = [...scanned.warnings];
+  if (!overrides.ok) warnings.push({ message: `which skills are off is unknown, so a clash with one may be wrong: ${overrides.error.message}` });
+  const off = overrides.ok ? overrides.value : new Map<string, string>();
+  // A prompt namespace folder adds `/<ns>:<cmd>`, which no member's name can take.
+  const loadable = scanned.value.items.filter((i) => i.loadable && (i.type !== "prompt" || i.path.endsWith(".md")));
+  const global = loadable.map((i) => ({ type: i.type, name: i.name, off: i.type === "skill" && off.get(i.name) === "off" }));
+
+  const folder = loadoutDir(host.paths.appData, name);
+  return ok({ name, run: `loadout run ${name}`, command: `claude --add-dir=${shellQuote(folder)}`, clashes: clashesOf(name, loadout.members, global) }, warnings);
 }
 
 /** The install context for a loadout's folder: its root and its own receipts. */

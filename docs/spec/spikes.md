@@ -367,6 +367,23 @@ argument parser behaves, not something its docs promise.
 **Changed 2026-11-06 (owner):** no shell function. A loadout launches with `loadout run <name>`, a
 script inside the app that execs the command above (PLAN.md M9, decided 2026-11-06).
 
+**Clashes by type (M9.05).** Run on 2026-11-06 against Claude Code 2.1.319 the same way, against
+this machine's `~/.claude` (no settings file changed: the off case used `--settings`), with a
+loadout folder per case and, to see which copy ran, `-p "/<name>"` with a fixture whose body names
+itself:
+
+| Loadout member | Global item of the same name | In the session |
+|---|---|---|
+| skill | skill | `<loadout>:<name>` for the member; the global one keeps the name (as above) |
+| skill | skill turned off (`skillOverrides: off`) | neither loads: the override is by name and hides the prefixed copy too |
+| skill | prompt | the member takes the name; the global prompt is hidden in that session |
+| prompt | prompt | the global one runs; the member can't be reached (no prefix) |
+| prompt | skill | the global skill runs; the member can't be reached |
+
+Agents weren't checked: this machine has no global agents, and the spike doesn't write into
+`~/.claude`. So a member that can't be reached, or that hides a global prompt, is as worth showing
+as a prefixed one.
+
 **A script inside the app runs while quarantined.** A shell script at
 `Fake.app/Contents/Resources/loadout`, executable and given a `com.apple.quarantine` attribute, ran
 from a shell directly, through a symlink in another folder, and from a fresh `zsh -c`: the shell
