@@ -1207,7 +1207,7 @@ developers launch tools with preset flags):
   - Done when: create, replace, delete, a duplicate, a bad name and an unknown member are tested, and
     a config without `loadouts` reads and saves unchanged.
 
-- [ ] **M9.03 Building a loadout's folder.** The install context gains a destination root (the home
+- [x] **M9.03 Building a loadout's folder.** The install context gains a destination root (the home
   for global installs, the loadout's folder otherwise) and the receipt store a file
   (`<appData>/loadouts/<name>/receipts.json` for a loadout). Building a loadout plans an install of
   its members and their requires into its folder and removes what it holds that left the loadout
