@@ -178,6 +178,12 @@ export const LoadoutRecord = z.strictObject({
 });
 export type LoadoutRecord = z.infer<typeof LoadoutRecord>;
 
+const BuildReport = z.strictObject({
+  built: z.array(z.strictObject({ type: EntryType, name: z.string(), dest: z.string(), requiredBy: z.array(z.string()) })),
+  failed: z.array(z.strictObject({ type: EntryType, name: z.string(), requiredBy: z.array(z.string()), reason: z.string() })),
+  removed: z.array(z.strictObject({ type: EntryType, name: z.string(), dest: z.string() })),
+});
+
 const Finding = z.strictObject({
   check: z.string(),
   severity: z.enum(["error", "warning"]),
@@ -387,7 +393,7 @@ export const ops = {
     input: z.strictObject({ name: z.string(), members: z.array(LoadoutMember), replace: z.boolean().exactOptional() }),
     output: SaveLoadoutPlan,
   },
-  applySaveLoadout: { input: z.strictObject({ plan: SaveLoadoutPlan }), output: LoadoutRecord },
+  applySaveLoadout: { input: z.strictObject({ plan: SaveLoadoutPlan }), output: LoadoutRecord.extend({ build: BuildReport }) },
   planDeleteLoadout: { input: z.strictObject({ name: z.string() }), output: DeleteLoadoutPlan },
   applyDeleteLoadout: { input: z.strictObject({ plan: DeleteLoadoutPlan }), output: z.strictObject({ name: z.string(), removedFolder: z.boolean() }) },
   suggestSource: { input: z.strictObject({ path: z.string() }), output: z.strictObject({ url: z.string().nullable(), why: z.string() }) },

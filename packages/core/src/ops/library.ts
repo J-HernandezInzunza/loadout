@@ -44,6 +44,7 @@ import {
   type LoadoutRecord,
   type SaveLoadoutPlan,
   type SaveLoadoutRequest,
+  type SaveLoadoutResult,
 } from "../loadouts/loadouts.ts";
 import { discardPlan, planInstall, type InstallPlan } from "../install/plan.ts";
 import { applySync, planSync, type SyncPlan, type SyncReport } from "../install/sync.ts";
@@ -180,7 +181,8 @@ export interface Library {
   loadouts(): Promise<Result<LoadoutRecord[]>>;
   /** Creates a loadout, or replaces one with `replace`; DUPLICATE for a new name that exists, REFUSED for a name that isn't a slug. */
   planSaveLoadout(req: SaveLoadoutRequest): Promise<Result<IssuedSaveLoadoutPlan>>;
-  applySaveLoadout(plan: IssuedSaveLoadoutPlan): Promise<Result<LoadoutRecord>>;
+  /** Saves, then builds the loadout's folder; members that didn't land are in `build.failed`, and the loadout stays saved. */
+  applySaveLoadout(plan: IssuedSaveLoadoutPlan, opts?: { signal?: AbortSignal }): Promise<Result<SaveLoadoutResult>>;
   /** The config entry and the loadout's folder. */
   planDeleteLoadout(name: string): Promise<Result<IssuedDeleteLoadoutPlan>>;
   applyDeleteLoadout(plan: IssuedDeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
@@ -589,8 +591,8 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
       return (await planSaveLoadout(ctx, req)) as Result<IssuedSaveLoadoutPlan>;
     },
 
-    async applySaveLoadout(plan) {
-      return applySaveLoadout(ctx, plan);
+    async applySaveLoadout(plan, o = {}) {
+      return applySaveLoadout(ctx, plan, o);
     },
 
     async planDeleteLoadout(name) {

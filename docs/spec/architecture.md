@@ -178,7 +178,7 @@ export interface Library {
   // loadouts (§4.6)
   loadouts(): Promise<Result<LoadoutRecord[]>>;
   planSaveLoadout(req: { name: string; members: LoadoutMember[]; replace?: boolean }): Promise<Result<SaveLoadoutPlan>>;
-  applySaveLoadout(plan: SaveLoadoutPlan): Promise<Result<LoadoutRecord>>;
+  applySaveLoadout(plan: SaveLoadoutPlan, opts?: { signal?: AbortSignal }): Promise<Result<LoadoutRecord & { build: BuildReport }>>;
   planDeleteLoadout(name: string): Promise<Result<DeleteLoadoutPlan>>;
   applyDeleteLoadout(plan: DeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
 
@@ -330,7 +330,7 @@ config.json          registry, pins, settings (schema below)
 receipts.json        install receipts, version 2
 clones/<catalog id>/ persistent clones of remote catalogs (RCAT-01 without the 'shared' special case)
 tmp/<op id>/         per-operation temp clones and staging; swept at launch (fixes FETCH-09's leak)
-loadouts/<name>/     one loadout's folder, launched with --add-dir (§4.6)
+loadouts/<name>/     one loadout's folder, launched with --add-dir, and its receipts.json (§4.6)
 ```
 
 `config.json`:
@@ -542,6 +542,17 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
   (a new name that exists is `DUPLICATE`; replacing one that doesn't is `NOT_FOUND`). The plan
   carries the loadout as it was (`previous`) as its fingerprint, and apply returns `STALE_PLAN` if it
   changed.
+- **Building** runs when a loadout is saved: the install pipeline with another root and receipt file
+  (`InstallCtx.root`, `createReceiptStore(host, file)`), so members and their requires land in
+  `loadouts/<name>/.claude/{skills,commands,agents}` with receipts in `loadouts/<name>/receipts.json`,
+  fetched and verified as installs are. The global installs, their receipts, sync, the scan and
+  `list()` keep the home root. Where a build differs from an install: an item that fails doesn't stop
+  the rest (`build.failed` says why, and a member built before keeps that copy); content in the folder
+  without a receipt, or edited since it was built, is replaced without asking, since only Loadout
+  writes there; and paths with the loadout's receipt that are neither planned nor a member's are
+  removed, so a member that no longer resolves keeps its copy and a catalog that can't be read never
+  empties a loadout. A local source is checked against the loadout's destination (FETCH-08), so a
+  global install can be a member's source.
 - **Deleting** removes the folder, then the config entry: a failed config write leaves a saved
   loadout with nothing built, never a launchable folder no loadout lists. Only Loadout writes the
   folder, so it is removed whole.

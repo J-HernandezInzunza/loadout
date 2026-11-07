@@ -1,16 +1,17 @@
 // Loadouts: named sets of catalog entries a user brings into one Claude Code session. Each is saved in
 // config.json and built into its own folder under app data, which only Loadout writes.
-import { LoadoutName, type AppConfigV1, type ConfigStore, type Loadout, type LoadoutMember } from "../config/config.ts";
-import type { Host } from "../host.ts";
-import { err, ok, type Result } from "../model/model.ts";
+import { LoadoutName, type AppConfigV1, type Loadout, type LoadoutMember } from "../config/config.ts";
+import type { CallOpts } from "../git/git.ts";
+import { checkItems, installItem } from "../install/apply.ts";
+import { discardPlan, planEntries, type InstallCtx } from "../install/plan.ts";
+import { err, ok, type Entry, type EntryType, type Result } from "../model/model.ts";
+import { createReceiptStore } from "../receipts/receipts.ts";
 import { loadRegistry, type Registry } from "../registry/registry.ts";
+import { destFor } from "../scan/scan.ts";
 
 export type { LoadoutMember };
 
-interface LoadoutCtx {
-  host: Host;
-  config: ConfigStore;
-}
+type LoadoutCtx = Pick<InstallCtx, "host" | "config">;
 
 export interface LoadoutRecord {
   name: string;
@@ -34,6 +35,17 @@ export interface SaveLoadoutPlan {
   unknown: LoadoutMember[];
 }
 
+export interface BuildReport {
+  /** what is now in the folder: the members, and the entries they require */
+  built: { type: EntryType; name: string; dest: string; requiredBy: string[] }[];
+  /** what didn't land, and why; a member built before keeps that copy */
+  failed: { type: EntryType; name: string; requiredBy: string[]; reason: string }[];
+  /** copies of what left the loadout */
+  removed: { type: EntryType; name: string; dest: string }[];
+}
+
+export type SaveLoadoutResult = LoadoutRecord & { build: BuildReport };
+
 export interface DeleteLoadoutPlan {
   name: string;
   /** the loadout as saved when planned; apply refuses if it changed since */
@@ -43,11 +55,11 @@ export interface DeleteLoadoutPlan {
 
 export const loadoutDir = (appData: string, name: string) => `${appData}/loadouts/${name}`;
 
-function resolvesTo(registry: Registry, member: LoadoutMember): string | null {
+/** The entry a member stands for: by type and name through catalog order and pins, or in the catalog it names. */
+function entryOf(registry: Registry, member: LoadoutMember): Entry | null {
   const scope = registry.searchScope(member.catalog);
   if (!scope.ok) return null;
-  const found = scope.value.find((e) => e.type === member.type && e.name === member.name);
-  return found?.catalog ?? null;
+  return scope.value.find((e) => e.type === member.type && e.name === member.name) ?? null;
 }
 
 const sameLoadout = (a: Loadout | null | undefined, b: Loadout | null) => JSON.stringify(a ?? null) === JSON.stringify(b);
@@ -59,7 +71,7 @@ async function savedLoadouts(ctx: LoadoutCtx): Promise<Result<Record<string, Loa
 }
 
 function recordOf(registry: Registry, name: string, loadout: Loadout): LoadoutRecord {
-  return { name, members: loadout.members.map((m) => ({ ...m, resolvesTo: resolvesTo(registry, m) })) };
+  return { name, members: loadout.members.map((m) => ({ ...m, resolvesTo: entryOf(registry, m)?.catalog ?? null })) };
 }
 
 export async function listLoadouts(ctx: LoadoutCtx): Promise<Result<LoadoutRecord[]>> {
@@ -91,11 +103,12 @@ export async function planSaveLoadout(ctx: LoadoutCtx, req: SaveLoadoutRequest):
   if (previous === null && req.replace) return err({ code: "NOT_FOUND", message: `no loadout named '${name}' to replace` });
 
   const registry = await loadRegistry(ctx.host, loaded.value.config);
-  const unknown = members.filter((m) => resolvesTo(registry, m) === null);
+  const unknown = members.filter((m) => entryOf(registry, m) === null);
   return ok({ name, members, previous, unknown });
 }
 
-export async function applySaveLoadout(ctx: LoadoutCtx, plan: SaveLoadoutPlan): Promise<Result<LoadoutRecord>> {
+/** Saves the loadout, then builds its folder; a build that fails leaves the loadout saved. */
+export async function applySaveLoadout(ctx: InstallCtx, plan: SaveLoadoutPlan, opts: CallOpts = {}): Promise<Result<SaveLoadoutResult>> {
   const saved = await savedLoadouts(ctx);
   if (!saved.ok) return saved;
   if (!sameLoadout(saved.value[plan.name], plan.previous)) {
@@ -105,7 +118,63 @@ export async function applySaveLoadout(ctx: LoadoutCtx, plan: SaveLoadoutPlan): 
   const updated = await ctx.config.updateConfig((c) => ({ ...c, loadouts: { ...c.loadouts, [plan.name]: loadout } }));
   if (!updated.ok) return updated;
   const registry = await loadRegistry(ctx.host, updated.value);
-  return ok(recordOf(registry, plan.name, loadout));
+  const record = recordOf(registry, plan.name, loadout);
+  const build = await buildLoadout(ctx, plan.name, loadout, opts);
+  if (!build.ok) return err({ ...build.error, message: `'${plan.name}' is saved, but its folder couldn't be built: ${build.error.message}` }, build.warnings);
+  return ok({ ...record, build: build.value }, build.warnings);
+}
+
+/**
+ * Installs the members and what they require into the loadout's folder, with the loadout's own
+ * receipts, then removes what left. Unlike a global install, an item that fails doesn't stop the
+ * rest. The folder is Loadout's alone, so what it holds without a receipt, or edited since, is replaced.
+ */
+export async function buildLoadout(ctx: InstallCtx, name: string, loadout: Loadout, opts: CallOpts = {}): Promise<Result<BuildReport>> {
+  const { host } = ctx;
+  const folder = loadoutDir(host.paths.appData, name);
+  const into: InstallCtx = { ...ctx, root: folder, receipts: createReceiptStore(host, `${folder}/receipts.json`) };
+  const loaded = await ctx.config.loadConfig();
+  if (!loaded.ok) return loaded;
+  const registry = await loadRegistry(host, loaded.value.config);
+
+  const report: BuildReport = { built: [], failed: [], removed: [] };
+  const targets: Entry[] = [];
+  for (const member of loadout.members) {
+    const entry = entryOf(registry, member);
+    if (entry === null) report.failed.push({ type: member.type, name: member.name, requiredBy: [], reason: "no catalog defines it" });
+    else targets.push(entry);
+  }
+
+  const plan = await planEntries(into, registry, loaded.value.config, targets, opts);
+  if (!plan.ok) return plan;
+  try {
+    const unreceipted = new Set(plan.value.items.filter((i) => i.needsConsent).map((i) => i.dest));
+    const checked = await checkItems(into, plan.value.items, unreceipted);
+    if (!checked.ok) return checked;
+    for (const item of plan.value.items) {
+      const failure = item.status === "ready" ? await installItem(into, item) : (item.reason ?? item.status);
+      if (failure === null) report.built.push({ type: item.type, name: item.name, dest: item.dest, requiredBy: item.requiredBy });
+      else report.failed.push({ type: item.type, name: item.name, requiredBy: item.requiredBy, reason: failure });
+    }
+  } finally {
+    await discardPlan(host, plan.value);
+  }
+
+  // A member that can't be resolved keeps its copy, so a catalog that can't be read doesn't empty the loadout.
+  const kept = new Set([...plan.value.items.map((i) => i.dest), ...loadout.members.map((m) => destFor(folder, m.type, m.name))]);
+  const receipts = await into.receipts.all();
+  if (!receipts.ok) return receipts;
+  for (const r of receipts.value) {
+    if (kept.has(r.dest)) continue;
+    if (await host.fs.exists(r.dest)) {
+      await host.fs.remove(r.dest, { recursive: true });
+      host.audit({ kind: "fs", op: "delete", path: r.dest });
+    }
+    const dropped = await into.receipts.delete(r.dest);
+    if (!dropped.ok) return dropped;
+    report.removed.push({ type: r.type, name: r.name, dest: r.dest });
+  }
+  return ok(report, [...plan.warnings, ...receipts.warnings]);
 }
 
 export async function planDeleteLoadout(ctx: LoadoutCtx, name: string): Promise<Result<DeleteLoadoutPlan>> {

@@ -1,28 +1,47 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { access, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { checked } from "../../test/checkedLibrary.ts";
 import { createSandbox } from "../../test/sandbox.ts";
 import { createConfigStore, type AppConfigV1 } from "../config/config.ts";
+import { createGitClient } from "../git/git.ts";
+import { applyInstall } from "../install/apply.ts";
+import { planInstall, type InstallCtx } from "../install/plan.ts";
 import type { CatalogRef } from "../model/model.ts";
 import { createLibrary } from "../ops/library.ts";
 import { ops } from "../ops/schemas.ts";
+import { createReceiptStore } from "../receipts/receipts.ts";
 import { applyDeleteLoadout, applySaveLoadout, listLoadouts, loadoutDir, planDeleteLoadout, planSaveLoadout, type LoadoutMember } from "./loadouts.ts";
 
-/** Local catalogs of skills; the registry reads only the catalog files, so sources needn't exist. */
-async function setup(catalogs: Record<string, string[]>, pins: Record<string, string> = {}) {
+type Skill = string | { name: string; requires?: string[]; source?: string };
+
+const exists = (path: string) => access(path).then(() => true, () => false);
+const listing = async (dir: string) => ((await exists(dir)) ? (await readdir(dir, { recursive: true })).sort() : []);
+
+/** Local catalogs of skills; each source is `<root>/src/<catalog>/<name>/SKILL.md` holding "<catalog> <name>", unless given. */
+async function setup(catalogs: Record<string, Skill[]>, pins: Record<string, string> = {}) {
   const sb = await createSandbox();
   const config = createConfigStore(sb.host);
   const refs: CatalogRef[] = [];
   for (const [id, skills] of Object.entries(catalogs)) {
-    const blocks = skills.map((name) => `    - name: ${name}\n      description: D\n      source: ${join(sb.root, "src", name)}\n`);
-    const path = join(sb.root, `${id}.yaml`);
-    await writeFile(path, `library:\n  skills:\n${blocks.join("")}  agents: []\n  prompts: []\n`);
-    refs.push({ id, kind: "local", path });
+    const blocks = [];
+    for (const s of skills) {
+      const { name, requires, source } = typeof s === "string" ? { name: s, requires: undefined, source: undefined } : s;
+      const path = source ?? join(sb.root, "src", id, name, "SKILL.md");
+      if (source === undefined) {
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, `${id} ${name}\n`);
+      }
+      const deps = requires ? `      requires: [${requires.map((r) => `"${r}"`).join(", ")}]\n` : "";
+      blocks.push(`    - name: ${name}\n      description: D\n      source: ${path}\n${deps}`);
+    }
+    const file = join(sb.root, `${id}.yaml`);
+    await writeFile(file, `library:\n  skills:\n${blocks.join("")}  agents: []\n  prompts: []\n`);
+    refs.push({ id, kind: "local", path: file });
   }
   const initial: AppConfigV1 = { version: 1, catalogs: refs, pins, settings: {} };
   await config.saveConfig(initial);
-  const ctx = { host: sb.host, config };
+  const ctx: InstallCtx = { host: sb.host, git: createGitClient(sb.host), config, receipts: createReceiptStore(sb.host) };
   const configFile = join(sb.host.paths.appData, "config.json");
   const onDisk = async () => JSON.parse(await readFile(configFile, "utf8")) as AppConfigV1;
   const save = async (name: string, members: LoadoutMember[], replace?: boolean) => {
@@ -30,7 +49,8 @@ async function setup(catalogs: Record<string, string[]>, pins: Record<string, st
     if (!plan.ok) throw new Error(plan.error.message);
     return applySaveLoadout(ctx, plan.value);
   };
-  return { sb, ctx, initial, onDisk, save };
+  const folder = (name: string) => loadoutDir(sb.host.paths.appData, name);
+  return { sb, ctx, initial, onDisk, save, folder };
 }
 
 const skill = (name: string, catalog?: string): LoadoutMember => ({ type: "skill", name, ...(catalog !== undefined && { catalog }) });
@@ -53,7 +73,7 @@ describe("loadouts", () => {
         { ...skill("z"), resolvesTo: "b" },
       ],
     };
-    expect(saved).toEqual({ ok: true, value: record, warnings: [] });
+    expect(saved).toMatchObject({ ok: true, value: record, warnings: [] });
     expect(await listLoadouts(ctx)).toEqual({ ok: true, value: [record], warnings: [] });
     expect((await onDisk()).loadouts).toEqual({ review: { members } });
   });
@@ -96,7 +116,7 @@ describe("loadouts", () => {
     expect(await onDisk()).toEqual(initial);
   });
 
-  it("keeps and reports members no catalog defines", async () => {
+  it("keeps and reports members no catalog defines, and says they weren't built", async () => {
     const { ctx, onDisk } = await setup({ a: ["x"] });
     const unknown = [skill("nope"), skill("w", "gone"), { type: "prompt", name: "x" } as const];
 
@@ -105,17 +125,21 @@ describe("loadouts", () => {
     if (!plan.ok) return;
     const saved = await applySaveLoadout(ctx, plan.value);
 
-    expect(saved).toMatchObject({ ok: true, value: { members: [{ resolvesTo: "a" }, { resolvesTo: null }, { resolvesTo: null }, { resolvesTo: null }] } });
+    const notDefined = (m: LoadoutMember) => ({ type: m.type, name: m.name, requiredBy: [], reason: "no catalog defines it" });
+    expect(saved).toMatchObject({
+      ok: true,
+      value: {
+        members: [{ resolvesTo: "a" }, { resolvesTo: null }, { resolvesTo: null }, { resolvesTo: null }],
+        build: { built: [{ name: "x" }], failed: unknown.map(notDefined) },
+      },
+    });
     expect((await onDisk()).loadouts?.review?.members).toHaveLength(4);
   });
 
   it("deletes the loadout's config entry and folder, and nothing of another loadout's", async () => {
-    const { sb, ctx, onDisk, save } = await setup({ a: ["x"] });
+    const { ctx, onDisk, save, folder } = await setup({ a: ["x"] });
     await save("review", [skill("x")]);
     await save("docs", [skill("x")]);
-    for (const name of ["review", "docs"]) {
-      await mkdir(join(loadoutDir(sb.host.paths.appData, name), ".claude", "skills", "x"), { recursive: true });
-    }
 
     const plan = await planDeleteLoadout(ctx, "review");
     expect(plan).toMatchObject({ ok: true, value: { name: "review", previous: { members: [skill("x")] } } });
@@ -123,8 +147,8 @@ describe("loadouts", () => {
     expect(await applyDeleteLoadout(ctx, plan.value)).toEqual({ ok: true, value: { name: "review", removedFolder: true }, warnings: [] });
 
     expect((await onDisk()).loadouts).toEqual({ docs: { members: [skill("x")] } });
-    await expect(stat(loadoutDir(sb.host.paths.appData, "review"))).rejects.toThrow();
-    expect((await stat(join(loadoutDir(sb.host.paths.appData, "docs"), ".claude", "skills", "x"))).isDirectory()).toBe(true);
+    expect(await exists(folder("review"))).toBe(false);
+    expect((await stat(join(folder("docs"), ".claude", "skills", "x"))).isDirectory()).toBe(true);
     expect(await planDeleteLoadout(ctx, "review")).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   });
 
@@ -142,12 +166,14 @@ describe("loadouts", () => {
   });
 
   it("reads a config without loadouts as none, and leaves it without them after the last one goes", async () => {
-    const { ctx, initial, onDisk, save } = await setup({ a: ["x"] });
+    const { ctx, initial, onDisk } = await setup({ a: ["x"] });
     expect(await listLoadouts(ctx)).toEqual({ ok: true, value: [], warnings: [] });
-    await save("review", [skill("x")]);
+    const created = await planSaveLoadout(ctx, { name: "review", members: [] });
+    if (!created.ok) throw new Error(created.error.message);
+    await applySaveLoadout(ctx, created.value);
     const plan = await planDeleteLoadout(ctx, "review");
     if (!plan.ok) throw new Error(plan.error.message);
-    expect(await applyDeleteLoadout(ctx, plan.value)).toMatchObject({ ok: true, value: { removedFolder: false } });
+    expect(await applyDeleteLoadout(ctx, plan.value)).toMatchObject({ ok: true });
     expect(await onDisk()).toEqual(initial);
   });
 
@@ -161,10 +187,106 @@ describe("loadouts", () => {
 
     const save = value(await library.planSaveLoadout({ name: "review", members: [skill("x"), skill("nope")] }));
     expect(ops.planSaveLoadout.output.safeParse(save).success).toBe(true);
-    expect(ops.applySaveLoadout.output.parse(value(await library.applySaveLoadout(save)))).toMatchObject({ name: "review" });
+    expect(ops.applySaveLoadout.output.parse(value(await library.applySaveLoadout(save)))).toMatchObject({ name: "review", build: { built: [{ name: "x" }] } });
     expect(ops.loadouts.output.parse(value(await library.loadouts()))).toHaveLength(1);
     const remove = value(await library.planDeleteLoadout("review"));
     expect(ops.planDeleteLoadout.output.safeParse(remove).success).toBe(true);
-    expect(ops.applyDeleteLoadout.output.parse(value(await library.applyDeleteLoadout(remove)))).toEqual({ name: "review", removedFolder: false });
+    expect(ops.applyDeleteLoadout.output.parse(value(await library.applyDeleteLoadout(remove)))).toEqual({ name: "review", removedFolder: true });
+  });
+});
+
+describe("building a loadout's folder", () => {
+  it("installs members and their requires under the loadout's folder only, with its own receipts", async () => {
+    const { sb, save, folder } = await setup({ a: [{ name: "x", requires: ["skill:y"] }, "y", "z"] });
+    const dir = folder("review");
+
+    const saved = await save("review", [skill("x")]);
+
+    expect(saved).toMatchObject({
+      ok: true,
+      value: {
+        build: {
+          built: [
+            { type: "skill", name: "y", dest: `${dir}/.claude/skills/y`, requiredBy: ["x"] },
+            { type: "skill", name: "x", dest: `${dir}/.claude/skills/x`, requiredBy: [] },
+          ],
+          failed: [],
+          removed: [],
+        },
+      },
+    });
+    expect(await readFile(`${dir}/.claude/skills/x/SKILL.md`, "utf8")).toBe("a x\n");
+    expect(await exists(join(sb.host.paths.home, ".claude"))).toBe(false);
+    expect(await exists(join(sb.host.paths.appData, "receipts.json"))).toBe(false);
+    const receipts = JSON.parse(await readFile(`${dir}/receipts.json`, "utf8")) as { installs: { dest: string }[] };
+    expect(receipts.installs.map((r) => r.dest)).toEqual([`${dir}/.claude/skills/x`, `${dir}/.claude/skills/y`]);
+  });
+
+  it("removes what left the loadout, and touches neither another loadout's folder nor the global installs", async () => {
+    const { sb, ctx, save, folder } = await setup({ a: ["x", "z"] });
+    const global = await planInstall(ctx, { names: ["x"] });
+    if (!global.ok) throw new Error(global.error.message);
+    await applyInstall(ctx, global.value);
+    await save("docs", [skill("x")]);
+    await save("review", [skill("x"), skill("z")]);
+    const home = join(sb.host.paths.home, ".claude");
+    const others = async () => [await listing(home), await listing(folder("docs")), await readFile(join(sb.host.paths.appData, "receipts.json"), "utf8")];
+    const before = await others();
+
+    const replaced = await save("review", [skill("z")], true);
+
+    const dir = folder("review");
+    expect(replaced).toMatchObject({
+      ok: true,
+      value: { build: { built: [{ name: "z" }], failed: [], removed: [{ type: "skill", name: "x", dest: `${dir}/.claude/skills/x` }] } },
+    });
+    expect(await listing(`${dir}/.claude/skills`)).toEqual(["z", join("z", "SKILL.md")]);
+    expect(await others()).toEqual(before);
+    expect(before[2]).not.toContain(dir);
+  });
+
+  it("reports a member that can't be fetched, builds the rest, and keeps the member's earlier copy", async () => {
+    const { sb, onDisk, save, folder } = await setup({ a: ["x", "y"] });
+    await save("review", [skill("x"), skill("y")]);
+    await rm(join(sb.root, "src", "a", "x"), { recursive: true });
+    await writeFile(join(sb.root, "src", "a", "y", "SKILL.md"), "a y, changed\n");
+
+    const rebuilt = await save("review", [skill("x"), skill("y")], true);
+
+    const dir = folder("review");
+    expect(rebuilt).toMatchObject({
+      ok: true,
+      value: { build: { built: [{ name: "y" }], failed: [{ type: "skill", name: "x", requiredBy: [], reason: expect.any(String) }], removed: [] } },
+    });
+    expect(await readFile(`${dir}/.claude/skills/x/SKILL.md`, "utf8")).toBe("a x\n");
+    expect(await readFile(`${dir}/.claude/skills/y/SKILL.md`, "utf8")).toBe("a y, changed\n");
+    expect((await onDisk()).loadouts).toEqual({ review: { members: [skill("x"), skill("y")] } });
+  });
+
+  it("replaces what its folder holds without a receipt, since only Loadout writes there", async () => {
+    const { save, folder } = await setup({ a: ["x"] });
+    const stray = `${folder("review")}/.claude/skills/x/stray.md`;
+    await mkdir(dirname(stray), { recursive: true });
+    await writeFile(stray, "stray\n");
+
+    expect(await save("review", [skill("x")])).toMatchObject({ ok: true, value: { build: { built: [{ name: "x" }], failed: [] } } });
+    expect(await exists(stray)).toBe(false);
+  });
+
+  it("FETCH-08: checks a local source against the loadout's destination, so a global install can be a member's source", async () => {
+    const sb = await createSandbox();
+    const source = join(sb.host.paths.home, ".claude", "skills", "x", "SKILL.md");
+    await mkdir(dirname(source), { recursive: true });
+    await writeFile(source, "installed x\n");
+    const catalog = join(sb.root, "a.yaml");
+    await writeFile(catalog, `library:\n  skills:\n    - name: x\n      description: D\n      source: ${source}\n  agents: []\n  prompts: []\n`);
+    const config = createConfigStore(sb.host);
+    await config.saveConfig({ version: 1, catalogs: [{ id: "a", kind: "local", path: catalog }], pins: {}, settings: {} });
+    const ctx: InstallCtx = { host: sb.host, git: createGitClient(sb.host), config, receipts: createReceiptStore(sb.host) };
+
+    const plan = await planSaveLoadout(ctx, { name: "review", members: [skill("x")] });
+    if (!plan.ok) throw new Error(plan.error.message);
+    expect(await applySaveLoadout(ctx, plan.value)).toMatchObject({ ok: true, value: { build: { built: [{ name: "x" }], failed: [] } } });
+    expect(await planInstall(ctx, { names: ["x"] })).toMatchObject({ ok: true, value: { items: [{ status: "failed", reason: expect.stringContaining("the source is the destination") }] } });
   });
 });

@@ -2,7 +2,7 @@
 // the dependency closures (DEP-06), fetch each item into one operation, and preview per destination
 // which files would be added, removed or modified, and which of those the user edited. Nothing in an
 // install dir changes here; apply (M2.14) re-checks the fingerprint and renames the staged copies in.
-import type { ConfigStore } from "../config/config.ts";
+import type { AppConfigV1, ConfigStore } from "../config/config.ts";
 import { mergeOrders, resolveDeps } from "../deps/deps.ts";
 import { fetchEntry, type Fetched } from "../fetch/fetch.ts";
 import type { CallOpts, GitClient } from "../git/git.ts";
@@ -19,6 +19,8 @@ export interface InstallCtx {
   git: GitClient;
   config: ConfigStore;
   receipts: ReceiptStore;
+  /** where installs land; the home unless a loadout's folder is being built */
+  root?: string;
 }
 
 export type Preview =
@@ -98,18 +100,31 @@ export async function planInstall(
   req: { names: string[]; catalog?: string },
   opts: CallOpts = {},
 ): Promise<Result<InstallPlan, ResolveErr>> {
-  const { host } = ctx;
   const loaded = await ctx.config.loadConfig();
   if (!loaded.ok) return loaded;
-  const registry = await loadRegistry(host, loaded.value.config);
+  const registry = await loadRegistry(ctx.host, loaded.value.config);
 
   // RES-05: every name resolves before anything is fetched.
   const targets = registry.resolveAll(req.names, req.catalog);
   if (!targets.ok) return targets;
+  const planned = await planEntries(ctx, registry, loaded.value.config, targets.value, opts);
+  if (!planned.ok) return planned;
+  return ok(planned.value, [...targets.warnings, ...planned.warnings]);
+}
 
-  const warnings: Warning[] = [...targets.warnings];
+/** The targets with their dependencies, each fetched into one operation and previewed against its destination under the context's root. */
+export async function planEntries(
+  ctx: InstallCtx,
+  registry: Registry,
+  config: AppConfigV1,
+  targets: Entry[],
+  opts: CallOpts = {},
+): Promise<Result<InstallPlan>> {
+  const { host } = ctx;
+  const root = ctx.root ?? host.paths.home;
+  const warnings: Warning[] = [];
   const requiredBy = new Map<Entry, Set<string>>();
-  const orders = targets.value.map((target) => {
+  const orders = targets.map((target) => {
     const deps = resolveDeps(registry.entriesOf(target.catalog), target);
     warnings.push(...deps.warnings);
     for (const e of deps.order) if (e !== target) (requiredBy.get(e) ?? requiredBy.set(e, new Set()).get(e)!).add(target.name);
@@ -117,19 +132,19 @@ export async function planInstall(
   });
   // DEP-06: one copy of each (type, name), dependencies first, in request order.
   const items = mergeOrders(orders);
-  const requested = new Set(targets.value);
+  const requested = new Set(targets);
 
   const receipts = await ctx.receipts.all();
   if (!receipts.ok) return receipts;
   warnings.push(...receipts.warnings);
   const byDest = new Map(receipts.value.map((r) => [r.dest, r]));
-  const legacy = await readLegacyInstalls(host, loaded.value.config.imported?.installs);
+  const legacy = await readLegacyInstalls(host, config.imported?.installs);
   const keys = await catalogKeys(host, registry);
 
   const op = await createOperation(host, ctx.git);
   const planned: PlanItem[] = [];
   for (const entry of items) {
-    const dest = destFor(host.paths.home, entry.type, entry.name);
+    const dest = destFor(root, entry.type, entry.name);
     const state = await destState(host, dest, byDest.get(dest) ?? null, legacy);
     planned.push(
       await buildItem(ctx, op, entry, state, {
@@ -157,8 +172,8 @@ export async function buildItem(
   extra: { catalogKey: string; requiredBy: string[]; provenance: Provenance; opts?: CallOpts },
 ): Promise<PlanItem> {
   const { host } = ctx;
-  const dest = destFor(host.paths.home, entry.type, entry.name);
-  const fetched = await fetchEntry(host, ctx.git, op, entry, extra.opts ?? {});
+  const dest = destFor(ctx.root ?? host.paths.home, entry.type, entry.name);
+  const fetched = await fetchEntry(host, ctx.git, op, entry, dest, extra.opts ?? {});
   return {
     type: entry.type,
     name: entry.name,
