@@ -1228,7 +1228,7 @@ developers launch tools with preset flags):
   - Done when: a catalog change makes a member stale, Sync rebuilds it, and an unchanged member is
     skipped, tested against the git harness.
 
-- [ ] **M9.05 Launch command.** `launchCommand(name)`: `loadout run <name>`, the bare command from
+- [x] **M9.05 Launch command.** `launchCommand(name)`: `loadout run <name>`, the bare command from
   M9.01 with the folder quoted, and the clashes: members whose type and name match an item Claude
   Code loads globally (an installed or unmanaged item in `~/.claude`, from the scan), each with the
   name it will have in the session (`<loadout>:<name>`). Bundled and plugin clashes aren't knowable
@@ -1257,7 +1257,8 @@ developers launch tools with preset flags):
   state, with Copy `loadout run <name>`, Copy command (labelled for a `.dmg` install without the
   `loadout` command), Edit and Delete (which asks). The editor: name (slug, checked as typed), members
   picked from the catalog with search and the type filter, each member's requires shown as added for
-  it, and each clash shown with its prefixed name; Save builds and shows the result in the view's
+  it, and each clash shown with what the session makes of it (its prefixed name, the global prompt it
+  hides, that it won't load, or for an agent that it's unchecked); Save builds and shows the result in the view's
   StatusBanner. A stale loadout says so and offers Sync. The Sync view counts and lists loadout
   members too (`SyncPlan.loadouts`, `SyncReport.loadouts`, per loadout), so a run where only loadout
   members changed isn't shown as nothing to do.
