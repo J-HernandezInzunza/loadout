@@ -1,0 +1,63 @@
+#!/bin/sh
+# loadout: start Claude Code with one of Loadout's loadouts added to the session.
+# Shipped inside Loadout.app; Homebrew links it onto PATH. It reads only the folders Loadout builds,
+# so it works whether or not the app is open. The = form keeps the folder to one argument, so
+# whatever follows the name reaches claude as the user typed it.
+
+loadouts="$HOME/Library/Application Support/com.jhernandezinzunza.loadout/loadouts"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  loadout run <name> [claude arguments...]   start Claude Code with that loadout added
+  loadout list                               the loadouts you can run
+  loadout --help
+
+Everything after the name goes to claude unchanged: loadout run review -p "check this PR"
+Loadouts are made and changed in the Loadout app.
+EOF
+}
+
+case "${1-}" in
+  run)
+    name="${2-}"
+    if [ -z "$name" ]; then
+      usage >&2
+      exit 2
+    fi
+    # Names are slugs, so anything else names no loadout, and a path never reaches the folder test.
+    case "$name" in
+      -* | *[!a-z0-9-]*) slug=no ;;
+      *) slug=yes ;;
+    esac
+    if [ "$slug" = no ] || [ ! -d "$loadouts/$name" ]; then
+      echo "loadout: there's no loadout named '$name'. Make it in Loadout; loadout list shows the ones you can run." >&2
+      exit 1
+    fi
+    if [ ! -d "$loadouts/$name/.claude" ]; then
+      echo "loadout: '$name' hasn't been built yet. Open Loadout and save or sync it." >&2
+      exit 1
+    fi
+    if ! command -v claude >/dev/null 2>&1; then
+      echo "loadout: claude isn't on your PATH. Install Claude Code, or open a shell where claude runs." >&2
+      exit 127
+    fi
+    shift 2
+    exec claude --add-dir="$loadouts/$name" "$@"
+    ;;
+  list)
+    for dir in "$loadouts"/*/; do
+      [ -d "$dir.claude" ] || continue
+      dir="${dir%/}"
+      printf '%s\n' "${dir##*/}"
+    done
+    ;;
+  -h | --help)
+    usage
+    ;;
+  *)
+    [ -n "${1-}" ] && echo "loadout: unknown command '$1'" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

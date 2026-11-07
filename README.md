@@ -85,6 +85,22 @@ requests for you. In Loadout, the sidebar's **Accounts** → **Sign in to GitHub
 sign in and grant access in your browser. Tokens are kept in your macOS keychain. Without an account,
 `git` uses the SSH keys or credentials you already have.
 
+## Start a session with a loadout
+
+A loadout is a named set of skills, agents and prompts that Loadout adds to one Claude Code session,
+on top of everything in `~/.claude`. Make one in Loadout (**Manage → Loadouts**), then start Claude
+Code with it from any terminal:
+
+```sh
+loadout run review                      # a session with the review loadout
+loadout run review -p "check this PR"   # anything after the name goes to claude as you typed it
+loadout list                            # the loadouts you can run
+```
+
+Homebrew puts `loadout` on your PATH, and Loadout doesn't need to be open. Installed from a `.dmg`:
+[move to Homebrew](#moving-from-a-dmg-install-to-homebrew) to get it, or copy a loadout's command in
+Loadout instead (`claude --add-dir='…'`).
+
 ## Uninstall
 
 ```sh
