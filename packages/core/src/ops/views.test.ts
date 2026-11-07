@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlanItem } from "../install/plan.ts";
 import { catalogRow, entryRecord, pinRecord } from "./seeds.ts";
-import { addConsequences, discardsEdits, entryEdits, groupByName, requirableRefs } from "./views.ts";
+import { addConsequences, discardsEdits, entryEdits, groupByName, requirableRefs, requiresOf } from "./views.ts";
 
 describe("groupByName", () => {
   it("moves each name's copies up to its first copy, keeping list order otherwise", () => {
@@ -12,6 +12,21 @@ describe("groupByName", () => {
       entryRecord({ name: "tidy", catalog: "B" }),
     ];
     expect(groupByName(records).map((r) => `${r.name}@${r.catalog}`)).toEqual(["x@A", "x@B", "lint@A", "tidy@B"]);
+  });
+});
+
+describe("requiresOf", () => {
+  it("lists what an entry brings in from its own catalog, in install order, without itself", () => {
+    const review = entryRecord({ name: "review", catalog: "A", requires: ["skill:lint", "prompt:style"] });
+    const records = [
+      review,
+      entryRecord({ name: "lint", catalog: "A", requires: ["skill:base"] }),
+      entryRecord({ name: "base", catalog: "A" }),
+      entryRecord({ type: "prompt", name: "style", catalog: "A" }),
+      entryRecord({ name: "lint", catalog: "B" }),
+    ];
+    expect(requiresOf(records, review).map((r) => `${r.type}:${r.name}@${r.catalog}`)).toEqual(["skill:base@A", "skill:lint@A", "prompt:style@A"]);
+    expect(requiresOf(records, records[2]!)).toEqual([]);
   });
 });
 

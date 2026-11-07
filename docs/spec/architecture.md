@@ -181,7 +181,7 @@ export interface Library {
   applySaveLoadout(plan: SaveLoadoutPlan, opts?: { signal?: AbortSignal }): Promise<Result<LoadoutRecord & { build: BuildReport }>>;
   planDeleteLoadout(name: string): Promise<Result<DeleteLoadoutPlan>>;
   applyDeleteLoadout(plan: DeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
-  launchCommand(name: string): Promise<Result<LaunchCommand>>;   // run, command, clashes
+  launchCommand(name: string, opts?: { members?: LoadoutMember[] }): Promise<Result<LaunchCommand>>;   // run, command, clashes; members previews a draft
 
   // one-time import
   planImport(toolDir?: string): Promise<Result<ImportPlan>>;
@@ -562,7 +562,9 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
   resolved member's closure is checked against the loadout's receipts with `checkUpdate`, so what is
   provably unchanged is skipped (UPD-04/05); unlike installs, what is missing or unreceipted is built.
   Every check, the loadouts' included, runs before the first write.
-- **Launching** (`launchCommand(name)`): `loadout run <name>`, and the bare command
+- **Launching** (`launchCommand(name)`, or `launchCommand(name, { members })` to preview a draft in the
+  editor; each `LoadoutRecord` carries the same `run` and `command`, so Copy needs no await before the
+  clipboard write): `loadout run <name>`, and the bare command
   `claude --add-dir='<folder>'` with each `'` in the folder written `'\''`. Its clashes are the
   members named like a loadable item in `~/.claude` (from the scan; a prompt namespace folder can't
   clash), each with an outcome from spikes.md S13: a skill clashing with a skill is `prefixed`

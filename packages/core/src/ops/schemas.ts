@@ -181,6 +181,8 @@ export type PinRecord = z.infer<typeof PinRecord>;
 
 export const LoadoutRecord = z.strictObject({
   name: z.string(),
+  run: z.string(),
+  command: z.string(),
   /** resolvesTo: the catalog the member resolves to, null when no catalog defines it; state: its copy in the loadout's folder */
   members: z.array(LoadoutMember.extend({ resolvesTo: z.string().nullable(), state: z.enum(["built", "stale", "missing", "failed"]) })),
 });
@@ -405,7 +407,7 @@ export const ops = {
   planDeleteLoadout: { input: z.strictObject({ name: z.string() }), output: DeleteLoadoutPlan },
   applyDeleteLoadout: { input: z.strictObject({ plan: DeleteLoadoutPlan }), output: z.strictObject({ name: z.string(), removedFolder: z.boolean() }) },
   launchCommand: {
-    input: z.strictObject({ name: z.string() }),
+    input: z.strictObject({ name: z.string(), members: z.array(LoadoutMember).exactOptional() }),
     output: z.strictObject({
       name: z.string(),
       run: z.string(),

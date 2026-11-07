@@ -103,6 +103,13 @@ onMounted(() => accounts.load());
       >
         <span class="sidebar__text">Catalogs</span>
       </button>
+      <button
+        type="button"
+        class="sidebar__item"
+        @click="views.loadouts = true"
+      >
+        <span class="sidebar__text">Loadouts</span>
+      </button>
     </div>
 
     <div

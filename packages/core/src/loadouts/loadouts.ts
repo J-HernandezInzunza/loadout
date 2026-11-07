@@ -25,6 +25,10 @@ export type MemberState = "built" | "stale" | "missing" | "failed";
 
 export interface LoadoutRecord {
   name: string;
+  /** `loadout run <name>` */
+  run: string;
+  /** the same launch without the `loadout` command: `claude --add-dir='<folder>'`, quoted for a shell */
+  command: string;
   /** each with the catalog it resolves to (null when no catalog defines it) and the state of its copy */
   members: (LoadoutMember & { resolvesTo: string | null; state: MemberState })[];
 }
@@ -91,6 +95,9 @@ export interface LaunchCommand {
   clashes: Clash[];
 }
 
+const nameRefused = (name: string) =>
+  err({ code: "REFUSED" as const, message: `'${name}' can't name a loadout: use lowercase letters and digits, with single hyphens between them` });
+
 export interface DeleteLoadoutPlan {
   name: string;
   /** the loadout as saved when planned; apply refuses if it changed since */
@@ -141,13 +148,23 @@ export function clashesOf(loadout: string, members: LoadoutMember[], global: { t
   return clashes;
 }
 
-export async function launchCommand(ctx: LoadoutCtx & Pick<InstallCtx, "receipts"> & { settings: ClaudeSettings }, name: string): Promise<Result<LaunchCommand>> {
+function commandsFor(appData: string, name: string): Pick<LaunchCommand, "run" | "command"> {
+  return { run: `loadout run ${name}`, command: `claude --add-dir=${shellQuote(loadoutDir(appData, name))}` };
+}
+
+/** With `members`, previews a loadout not saved yet (or as it would be after an edit) under `name`. */
+export async function launchCommand(
+  ctx: LoadoutCtx & Pick<InstallCtx, "receipts"> & { settings: ClaudeSettings },
+  name: string,
+  opts: { members?: LoadoutMember[] } = {},
+): Promise<Result<LaunchCommand>> {
   const { host } = ctx;
+  if (!LoadoutName.safeParse(name).success) return nameRefused(name);
   const loaded = await ctx.config.loadConfig();
   if (!loaded.ok) return loaded;
   const config = loaded.value.config;
-  const loadout = config.loadouts?.[name];
-  if (loadout === undefined) {
+  const members = opts.members ?? config.loadouts?.[name]?.members;
+  if (members === undefined) {
     const names = Object.keys(config.loadouts ?? {}).sort().join(", ") || "none";
     return err({ code: "NOT_FOUND", message: `no loadout named '${name}' (loadouts: ${names})` });
   }
@@ -163,8 +180,7 @@ export async function launchCommand(ctx: LoadoutCtx & Pick<InstallCtx, "receipts
   const loadable = scanned.value.items.filter((i) => i.loadable && (i.type !== "prompt" || i.path.endsWith(".md")));
   const global = loadable.map((i) => ({ type: i.type, name: i.name, off: i.type === "skill" && off.get(i.name) === "off" }));
 
-  const folder = loadoutDir(host.paths.appData, name);
-  return ok({ name, run: `loadout run ${name}`, command: `claude --add-dir=${shellQuote(folder)}`, clashes: clashesOf(name, loadout.members, global) }, warnings);
+  return ok({ name, ...commandsFor(host.paths.appData, name), clashes: clashesOf(name, members, global) }, warnings);
 }
 
 /** The install context for a loadout's folder: its root and its own receipts. */
@@ -200,7 +216,7 @@ async function recordOf(ctx: InstallCtx, registry: Registry, name: string, loado
     const entry = entryOf(registry, m);
     members.push({ ...m, resolvesTo: entry?.catalog ?? null, state: await memberState(into, byDest, m, entry, op) });
   }
-  return ok({ name, members }, receipts.warnings);
+  return ok({ name, ...commandsFor(ctx.host.paths.appData, name), members }, receipts.warnings);
 }
 
 /** With `checkRemote`, each remote source is asked whether it moved, as list() does. */
@@ -281,9 +297,7 @@ export async function planSaveLoadout(ctx: LoadoutCtx, req: SaveLoadoutRequest):
   const { name } = req;
   // Only the saved fields: members handed back from listLoadouts() carry resolvesTo, which the strict config schema refuses.
   const members = req.members.map((m) => ({ type: m.type, name: m.name, ...(m.catalog !== undefined && { catalog: m.catalog }) }));
-  if (!LoadoutName.safeParse(name).success) {
-    return err({ code: "REFUSED", message: `'${name}' can't name a loadout: use lowercase letters and digits, with single hyphens between them` });
-  }
+  if (!LoadoutName.safeParse(name).success) return nameRefused(name);
   const seen = new Set<string>();
   for (const m of members) {
     const key = `${m.type}:${m.name}`;

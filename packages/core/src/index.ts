@@ -21,4 +21,4 @@ export type { CatalogRepo, HostedRepo } from "./git/repos.ts";
 export { parseRepoLink, type RepoLink } from "./source/source.ts";
 export type { AccountInfo } from "./config/config.ts";
 export { ops, type CatalogRow, type EntryDetail, type LoadoutRecord } from "./ops/schemas.ts";
-export { addConsequences, discardsEdits, entryEdits, groupByName, requirableRefs, type AddConsequences, type EntryDraft } from "./ops/views.ts";
+export { addConsequences, discardsEdits, entryEdits, groupByName, requirableRefs, requiresOf, type AddConsequences, type EntryDraft } from "./ops/views.ts";

@@ -80,6 +80,8 @@ describe("loadouts", () => {
 
     const record = {
       name: "review",
+      run: "loadout run review",
+      command: expect.stringMatching(/^claude --add-dir='.*\/loadouts\/review'$/),
       members: [
         { ...skill("x"), resolvesTo: "a", state: "built" },
         { ...skill("y", "b"), resolvesTo: "b", state: "built" },
@@ -460,9 +462,19 @@ describe("launch command", () => {
     });
   });
 
-  it("refuses a loadout that doesn't exist", async () => {
+  it("refuses a loadout that doesn't exist, and a name that isn't a slug", async () => {
     const { ctx } = await setupLaunch({ review: [] });
     expect(await launchCommand(ctx, "docs")).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(await launchCommand(ctx, "My Kit", { members: [] })).toMatchObject({ ok: false, error: { code: "REFUSED" } });
+  });
+
+  it("previews the clashes of members not saved yet, under the name they'd be saved as", async () => {
+    const { ctx, put } = await setupLaunch({});
+    await put("skills/grilling/SKILL.md");
+
+    const preview = await launchCommand(ctx, "draft", { members: [{ type: "skill", name: "grilling" }] });
+
+    expect(preview).toMatchObject({ ok: true, value: { run: "loadout run draft", clashes: [{ name: "grilling", outcome: "prefixed", sessionName: "draft:grilling" }] } });
   });
 });
 

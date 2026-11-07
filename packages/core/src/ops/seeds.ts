@@ -6,7 +6,7 @@ import type { ReceiptV2 } from "../receipts/receipts.ts";
 import type { EntryRecord, InstallState } from "../registry/registry.ts";
 import { destFor, type ScanItem } from "../scan/scan.ts";
 import type { FakeState } from "./fake.ts";
-import type { CatalogRow, PinRecord } from "./schemas.ts";
+import type { CatalogRow, LoadoutRecord, PinRecord } from "./schemas.ts";
 
 export const seedHome = "/Users/dev";
 
@@ -103,6 +103,18 @@ export function scanItem(overrides: Partial<ScanItem> = {}): ScanItem {
 
 export function pinRecord(overrides: Partial<PinRecord> = {}): PinRecord {
   return { name: "a-skill", catalog: "team", holders: ["personal", "team"], dangling: false, resolvesTo: "team", ...overrides };
+}
+
+/** A saved loadout whose members are all built; `name` also sets its two commands. */
+export function loadoutRecord(overrides: Partial<LoadoutRecord> = {}): LoadoutRecord {
+  const name = overrides.name ?? "review";
+  return {
+    name,
+    run: `loadout run ${name}`,
+    command: `claude --add-dir='/Users/dev/Library/Application Support/com.jhernandezinzunza.loadout/loadouts/${name}'`,
+    members: [{ type: "skill", name: "lint", resolvesTo: "team", state: "built" }],
+    ...overrides,
+  };
 }
 
 export function accountInfo(overrides: Partial<AccountInfo> = {}): AccountInfo {
