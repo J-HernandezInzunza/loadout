@@ -1253,7 +1253,7 @@ developers launch tools with preset flags):
     `list`, usage, an unknown name, an unbuilt one and a missing `claude` each behave as above; the
     script passes `sh -n`.
 
-- [ ] **M9.07 Loadouts screen.** Manage → Loadouts. The list: each loadout's name, member count and
+- [x] **M9.07 Loadouts screen.** Manage → Loadouts. The list: each loadout's name, member count and
   state, with Copy `loadout run <name>`, Copy command (labelled for a `.dmg` install without the
   `loadout` command), Edit and Delete (which asks). The editor: name (slug, checked as typed), members
   picked from the catalog with search and the type filter, each member's requires shown as added for
