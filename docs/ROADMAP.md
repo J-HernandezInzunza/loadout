@@ -40,6 +40,15 @@ Planned as M9 in `PLAN.md`, with its decisions.
 - **Team loadouts.** Loadouts in a catalog's `library.yaml`, shared and changed through the same PR
   flow as entries. Needs the local format to settle first.
 - **A loadout per project.** Remember which loadout a repo uses, so its command is one click.
+- **Always on in a repo.** A loadout that loads in one repo with no launch command: built as a
+  plugin in a local marketplace and turned on in that repo's `.claude/settings.local.json`
+  (`enabledPlugins`). Everything in it is then prefixed (`<loadout>:<name>`), and `skillOverrides`
+  doesn't reach plugin skills. Settings can't add an `--add-dir` folder instead:
+  `permissions.additionalDirectories` grants file access only.
+- **Install the `loadout` command from the app,** for a `.dmg` install without Homebrew. A link in
+  `/usr/local/bin` needs an admin prompt on most Macs (root-owned or missing on Apple Silicon);
+  `~/.local/bin` needs none but is on PATH only for users who added it. Never by editing shell
+  startup files.
 - **Instructions in a loadout.** A `CLAUDE.md` in the folder, launched with the variable above.
 - **MCP servers in a loadout.** `--mcp-config` adds servers for the session.
 

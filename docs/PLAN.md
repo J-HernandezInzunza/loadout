@@ -1146,9 +1146,9 @@ Decided 2026-11-02:
 
 ## M9. Loadouts
 
-Exit: every M9 task checked; a user saves named loadouts of catalog entries, copies a loadout's launch
-command, and two Claude Code sessions launched at once each get their own loadout on top of the
-user's global setup; the owner walked it in a Finder-launched build.
+Exit: every M9 task checked; a user saves named loadouts of catalog entries, launches one with
+`loadout run <name>` or its copied command, and two Claude Code sessions launched at once each get
+their own loadout on top of the user's global setup; the owner walked it in a Finder-launched build.
 
 Decided 2026-11-04 (owner; spikes.md S13, ROADMAP.md):
 
@@ -1167,6 +1167,24 @@ Decided 2026-11-04 (owner; spikes.md S13, ROADMAP.md):
   prefix Claude Code gives a member whose name clashes with a global item (`<loadout>:<name>`).
 - Defaults, reversible: Loadouts is a sidebar item under Manage; a loadout's folder is rebuilt when it
   is saved and by Sync; there is no rename (delete and create).
+
+Decided 2026-11-06 (owner, after M9.01 and a look at how desktop apps ship command-line tools and how
+developers launch tools with preset flags):
+
+- A loadout is launched with `loadout run <name> [args…]`, a command-line tool inside the app: a
+  POSIX `sh` script at `Contents/Resources/bin/loadout` (Tauri `bundle.resources`), put on PATH by the
+  Homebrew cask's `binary` stanza. No admin prompt and no edit to shell startup files; `brew
+  uninstall` removes the link. Not a compiled binary (a script carries no signature to check, and a
+  quarantined one still runs from a shell, S13) and not a third-party command runner (one more
+  dependency for every user).
+- Its contract, which scripts and other launchers will call: `run` execs `claude --add-dir='<folder>'`
+  (M9.01's form) with every argument after the name passed through untouched; `list` prints the
+  names; an unknown or unbuilt name exits non-zero and says to open Loadout. It finds the folder from
+  the name alone and reads nothing else: no `config.json`, no staleness (the app shows that).
+- No shell function: a user who wants a shorter name writes an alias. The app's copyable forms are
+  `loadout run <name>` and the bare command (`claude --add-dir='<folder>'`) for a `.dmg` install,
+  which gets `loadout` with `brew install --cask --adopt`. Installing the command from the app and a
+  loadout that is always on in one repo are roadmap items.
 
 - [x] **M9.01 The command's form.** Extend S13: with a path holding a space (the Application Support
   path), launch with `--add-dir '<path>'` followed by a prompt, `--add-dir=<path>`, `--add-dir '<path>'
@@ -1210,32 +1228,50 @@ Decided 2026-11-04 (owner; spikes.md S13, ROADMAP.md):
   - Done when: a catalog change makes a member stale, Sync rebuilds it, and an unchanged member is
     skipped, tested against the git harness.
 
-- [ ] **M9.05 Launch command.** `launchCommand(name)`: the command and shell function from M9.01 with
-  the folder quoted, and the clashes: members whose type and name match an item Claude Code loads
-  globally (an installed or unmanaged item in `~/.claude`, from the scan), each with the name it will
-  have in the session (`<loadout>:<name>`). Bundled and plugin clashes aren't knowable from the disk
-  and are not claimed.
+- [ ] **M9.05 Launch command.** `launchCommand(name)`: `loadout run <name>`, the bare command from
+  M9.01 with the folder quoted, and the clashes: members whose type and name match an item Claude
+  Code loads globally (an installed or unmanaged item in `~/.claude`, from the scan), each with the
+  name it will have in the session (`<loadout>:<name>`). Bundled and plugin clashes aren't knowable
+  from the disk and are not claimed.
   - Rules: none
   - Depends: M9.01, M9.03
-  - Done when: quoting (space, single quote), the function form and the clash list are tested.
+  - Done when: quoting (space, single quote), both forms and the clash list are tested.
 
-- [ ] **M9.06 Loadouts screen.** Manage → Loadouts. The list: each loadout's name, member count and
-  state, with Copy command, Copy shell function, Edit and Delete (which asks). The editor: name (slug,
-  checked as typed), members picked from the catalog with search and the type filter, each member's
-  requires shown as added for it, and each clash shown with its prefixed name; Save builds and shows
-  the result in the view's StatusBanner. A stale loadout says so and offers Sync.
+- [ ] **M9.06 The `loadout` command.** A POSIX `sh` script in the desktop app, bundled to
+  `Contents/Resources/bin/loadout` through `bundle.resources`, with the contract decided above. The
+  folder is `$HOME/Library/Application Support/<the app's identifier>/loadouts/<name>`; unbuilt means
+  it holds no `.claude`. No arguments or `--help` prints usage; `claude` missing from PATH exits
+  non-zero and says so. The README documents it (installed with Homebrew; a `.dmg` install gets it
+  with `--adopt` or uses the copied command). CONTRIBUTING's release runbook gains a one-time step:
+  after the first release that ships the script is published, add
+  `binary "#{appdir}/Loadout.app/Contents/Resources/bin/loadout"` to the tap's cask (the stanza fails
+  on a missing source, and `bump-cask.ts` rewrites only the version and sha256, so it stays).
+  - Rules: none
+  - Depends: M9.01, M9.03
+  - Done when: tests run the script under a temp `HOME` with a stand-in `claude` on PATH that prints
+    its arguments: a prompt, flags, the user's own `--` and a quoted argument pass through unchanged;
+    `list`, usage, an unknown name, an unbuilt one and a missing `claude` each behave as above; the
+    script passes `sh -n`.
+
+- [ ] **M9.07 Loadouts screen.** Manage → Loadouts. The list: each loadout's name, member count and
+  state, with Copy `loadout run <name>`, Copy command (labelled for a `.dmg` install without the
+  `loadout` command), Edit and Delete (which asks). The editor: name (slug, checked as typed), members
+  picked from the catalog with search and the type filter, each member's requires shown as added for
+  it, and each clash shown with its prefixed name; Save builds and shows the result in the view's
+  StatusBanner. A stale loadout says so and offers Sync.
   - Rules: none
   - Depends: M9.04, M9.05
   - Done when: create, edit, delete, both copies, a clash, a stale state and a failed build are tested
     against the fake.
 
-- [ ] **M9.07 Milestone check (manual).** From a Finder-launched build: two loadouts with different
-  members, one with a member named like a global skill; launch both commands in two terminals at once;
-  each session's `/skills` lists its loadout's members and the global set unchanged, the clash under
-  its prefixed name; change a member's catalog, Sync, and a new session gets the change. Record it in
-  PROGRESS.md.
+- [ ] **M9.08 Milestone check (manual).** From a Finder-launched build: two loadouts with different
+  members, one with a member named like a global skill; in two terminals at once, launch one with the
+  built app's `Contents/Resources/bin/loadout run <name>` (the bundle kept the script executable) and
+  the other with its copied command; each session's `/skills` lists its loadout's members and the
+  global set unchanged, the clash under its prefixed name; `loadout list` names both; change a
+  member's catalog, Sync, and a new session gets the change. Record it in PROGRESS.md.
   - Rules: none
-  - Depends: M9.01, M9.02, M9.03, M9.04, M9.05, M9.06
+  - Depends: M9.01, M9.02, M9.03, M9.04, M9.05, M9.06, M9.07
   - Done when: every M9 task is checked and the run is recorded.
 
 ---

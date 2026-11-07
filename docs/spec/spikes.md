@@ -361,5 +361,15 @@ prompt or flags after it. The function is `lo-<name>() { claude --add-dir='<fold
 Names are slugs, so `lo-<name>` is a valid function name in zsh and bash (bash outside POSIX mode),
 and the prefix keeps a loadout named `git` or `ls` from shadowing that command. Not covered: fish
 (its function syntax differs; not installed here, not tested), and interactive launches (`-p` only
-here; M9.07 launches interactive sessions). The `=` form's single value is how Claude Code's
+here; M9.08 launches interactive sessions). The `=` form's single value is how Claude Code's
 argument parser behaves, not something its docs promise.
+
+**Changed 2026-11-06 (owner):** no shell function. A loadout launches with `loadout run <name>`, a
+script inside the app that execs the command above (PLAN.md M9, decided 2026-11-06).
+
+**A script inside the app runs while quarantined.** A shell script at
+`Fake.app/Contents/Resources/loadout`, executable and given a `com.apple.quarantine` attribute, ran
+from a shell directly, through a symlink in another folder, and from a fresh `zsh -c`: the shell
+runs Apple's signed `/bin/sh`, and the script is only its input. A compiled tool without
+notarization would be at risk with the attribute; a script isn't. Run on 2026-11-06 from this
+session's shell, not yet from a downloaded release's bundle.
