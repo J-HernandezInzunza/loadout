@@ -1220,7 +1220,7 @@ developers launch tools with preset flags):
     member is removed; another loadout's and the global install dirs are untouched; a failed fetch
     reports the member; the global receipts never see a loadout's paths.
 
-- [ ] **M9.04 Keeping loadouts current.** `loadouts()` reports each member's state from its loadout's
+- [x] **M9.04 Keeping loadouts current.** `loadouts()` reports each member's state from its loadout's
   receipts (built, stale against its catalog, missing, failed). Sync's plan lists stale loadout
   members per loadout and applies them with the rest (`sourceUnchanged` skips as for installs).
   - Rules: none (UPD-04/05's skip, applied to a loadout)
@@ -1258,11 +1258,13 @@ developers launch tools with preset flags):
   `loadout` command), Edit and Delete (which asks). The editor: name (slug, checked as typed), members
   picked from the catalog with search and the type filter, each member's requires shown as added for
   it, and each clash shown with its prefixed name; Save builds and shows the result in the view's
-  StatusBanner. A stale loadout says so and offers Sync.
+  StatusBanner. A stale loadout says so and offers Sync. The Sync view counts and lists loadout
+  members too (`SyncPlan.loadouts`, `SyncReport.loadouts`, per loadout), so a run where only loadout
+  members changed isn't shown as nothing to do.
   - Rules: none
   - Depends: M9.04, M9.05
-  - Done when: create, edit, delete, both copies, a clash, a stale state and a failed build are tested
-    against the fake.
+  - Done when: create, edit, delete, both copies, a clash, a stale state, a failed build and the Sync
+    view's loadout lines (plan and report) are tested against the fake.
 
 - [ ] **M9.08 Milestone check (manual).** From a Finder-launched build: two loadouts with different
   members, one with a member named like a global skill; in two terminals at once, launch one with the
