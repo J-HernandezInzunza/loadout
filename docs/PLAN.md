@@ -1195,14 +1195,14 @@ developers launch tools with preset flags):
   - Depends: none
   - Done when: S13 records each form's result and the chosen command and function.
 
-- [ ] **M9.02 Loadouts in the config.** `config.json` gains optional `loadouts`: name → `{ members:
+- [x] **M9.02 Loadouts in the config.** `config.json` gains optional `loadouts`: name → `{ members:
   { type, name, catalog? }[] }` (absent means none, so existing configs read unchanged). Ops:
   `loadouts()`; `planSaveLoadout` / `applySaveLoadout` (create or replace one loadout, with a
   fingerprint; a new name that exists is `DUPLICATE`; a name that isn't a slug is refused; members no
   catalog defines are kept and reported, as a dangling pin is); `planDeleteLoadout` /
   `applyDeleteLoadout` (the config entry and the loadout's folder, which only Loadout writes).
-  Document loadouts in arch (new §4.x).
-  - Rules: none (arch §4.x, this task)
+  Document loadouts in arch (new §4.6).
+  - Rules: none (arch §4.6, this task)
   - Depends: none
   - Done when: create, replace, delete, a duplicate, a bad name and an unknown member are tested, and
     a config without `loadouts` reads and saves unchanged.
