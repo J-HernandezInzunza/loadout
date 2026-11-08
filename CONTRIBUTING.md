@@ -94,6 +94,7 @@ git switch -c release/v0.1.0 origin/main
 npm run version:set 0.1.0
 npm run check
 git commit -am "chore(release): 0.1.0"
+git push -u origin release/v0.1.0
 ```
 
 Open the PR to `main` with the `skip-changelog` label, and merge it when CI is green.
@@ -143,15 +144,6 @@ on the last release.
 
 Check Actions → Tap is green, then on a Mac that has Loadout installed,
 `brew update && brew upgrade --cask loadout` reaches the new version.
-
-**Once, for the first release that ships the `loadout` command** (`Contents/Resources/bin/loadout`):
-after Tap is green, add `binary "#{appdir}/Loadout.app/Contents/Resources/bin/loadout"` below
-`app "Loadout.app"` in the tap's `Casks/loadout.rb`, push it, and copy the cask to
-`test/fixtures/loadout.rb`. Not before: Homebrew fails an install whose `binary` source is missing,
-so the line can't point at an older release. `bump-cask.ts` rewrites only the version and sha256, so
-the line stays. The version didn't change, so an upgrade won't link it: `brew reinstall --cask
-loadout`, then `loadout list` runs. Anyone who upgraded before the line landed gets the command with
-the next release (or the same reinstall). Remove this paragraph once done.
 
 ### 5. Announce
 
