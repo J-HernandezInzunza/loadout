@@ -384,6 +384,14 @@ Agents weren't checked: this machine has no global agents, and the spike doesn't
 `~/.claude`. So a member that can't be reached, or that hides a global prompt, is as worth showing
 as a prefixed one.
 
+**A prompt in a subfolder is namespaced (M9.08).** Run on 2026-11-07 the same way, after the owner's
+walk showed a clashing loadout prompt can't be reached. With `commands/kit/grill-me.md` and
+`commands/kit/fresh-cmd.md` in an added folder (`grill-me` is also a global prompt), the session
+listed `grill-me`, `kit:grill-me` and `kit:fresh-cmd`: `/kit:grill-me` ran the loadout's copy, the
+global `/grill-me` stayed, and `/fresh-cmd` without the folder didn't exist. So a loadout prompt
+under `commands/<loadout>/` is always `/<loadout>:<name>`, which gives a clashing prompt the prefix
+Claude Code gives a clashing skill.
+
 **A script inside the app runs while quarantined.** A shell script at
 `Fake.app/Contents/Resources/loadout`, executable and given a `com.apple.quarantine` attribute, ran
 from a shell directly, through a symlink in another folder, and from a fresh `zsh -c`: the shell

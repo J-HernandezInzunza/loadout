@@ -1186,6 +1186,12 @@ developers launch tools with preset flags):
   which gets `loadout` with `brew install --cask --adopt`. Installing the command from the app and a
   loadout that is always on in one repo are roadmap items.
 
+Decided 2026-11-07 (owner, after M9.08 showed a clashing prompt can't be reached and S13 showed a
+subfolder namespaces one): a loadout prompt that clashes with a global prompt or skill when the
+loadout is built goes under `commands/<loadout>/`, so it is `/<loadout>:<name>`, as a clashing skill
+is; the others keep their bare names. Accepted cost: a global prompt installed later hides the
+loadout's bare one until the next Sync or save. Added as M9.09, after the walk.
+
 - [x] **M9.01 The command's form.** Extend S13: with a path holding a space (the Application Support
   path), launch with `--add-dir '<path>'` followed by a prompt, `--add-dir=<path>`, `--add-dir '<path>'
   --` and the flag last, and record which keep the path to one directory and the prompt a prompt.
@@ -1267,7 +1273,7 @@ developers launch tools with preset flags):
   - Done when: create, edit, delete, both copies, a clash, a stale state, a failed build and the Sync
     view's loadout lines (plan and report) are tested against the fake.
 
-- [ ] **M9.08 Milestone check (manual).** From a Finder-launched build: two loadouts with different
+- [x] **M9.08 Milestone check (manual).** From a Finder-launched build: two loadouts with different
   members, one with a member named like a global skill; in two terminals at once, launch one with the
   built app's `Contents/Resources/bin/loadout run <name>` (the bundle kept the script executable) and
   the other with its copied command; each session's `/skills` lists its loadout's members and the
@@ -1276,6 +1282,21 @@ developers launch tools with preset flags):
   - Rules: none
   - Depends: M9.01, M9.02, M9.03, M9.04, M9.05, M9.06, M9.07
   - Done when: every M9 task is checked and the run is recorded.
+
+- [ ] **M9.09 A clashing prompt gets the loadout's namespace.** A loadout's prompt, member or
+  requirement, whose name matches a loadable global prompt or skill in `~/.claude` (from the scan)
+  installs at `commands/<loadout>/<name>.md`, which Claude Code shows as `/<loadout>:<name>` (S13);
+  the others stay at `commands/<name>.md`. Decided at each build and Sync: Sync moves a prompt whose
+  clash came or went (the new place written, the old one removed), and `loadouts()` reports a member
+  whose place no longer matches as stale. `launchCommand`'s clash for such a prompt becomes
+  `prefixed`, with `/<loadout>:<name>`. First check whether a global skill turned off still hides a
+  namespaced prompt, as it hides a prefixed skill, and word that case from what Claude Code does.
+  - Rules: none (S13)
+  - Depends: M9.04, M9.05
+  - Done when: a build places a clashing prompt under the namespace and the others bare; a global
+    prompt installed after the build makes the member stale, and Sync moves it there (and back when
+    the global one goes); the clash reads prefixed; the owner reruns the clash test and the loadout's
+    prompt runs as `/<loadout>:<name>` with the global one unchanged.
 
 ---
 
