@@ -1192,6 +1192,10 @@ loadout is built goes under `commands/<loadout>/`, so it is `/<loadout>:<name>`,
 is; the others keep their bare names. Accepted cost: a global prompt installed later hides the
 loadout's bare one until the next Sync or save. Added as M9.09, after the walk.
 
+Decided 2026-11-07 (owner): a loadout syncs on its own, from its card, in one click: its folder is
+Loadout's, so there is nothing of the user's to review first. The global Sync view still syncs
+everything. Added as M9.10.
+
 - [x] **M9.01 The command's form.** Extend S13: with a path holding a space (the Application Support
   path), launch with `--add-dir '<path>'` followed by a prompt, `--add-dir=<path>`, `--add-dir '<path>'
   --` and the flag last, and record which keep the path to one directory and the prompt a prompt.
@@ -1297,6 +1301,16 @@ loadout's bare one until the next Sync or save. Added as M9.09, after the walk.
     prompt installed after the build makes the member stale, and Sync moves it there (and back when
     the global one goes); the clash reads prefixed; the owner reruns the clash test and the loadout's
     prompt runs as `/<loadout>:<name>` with the global one unchanged.
+
+- [ ] **M9.10 Sync one loadout.** `planSync({ loadout })` plans that loadout alone: no global
+  installs, no other loadout, no missing-receipt report; an unknown name is `NOT_FOUND`. Each loadout
+  card gets Sync, which plans and applies at once and says in the view's banner what it updated,
+  moved and removed, or what didn't update and why.
+  - Rules: none
+  - Depends: M9.04, M9.07
+  - Done when: a loadout syncs without touching the global installs or another loadout (git harness),
+    an unknown name is refused, the card's Sync and its banner wording are tested against the fake,
+    and the owner syncs one loadout from its card.
 
 ---
 
