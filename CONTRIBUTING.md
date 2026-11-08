@@ -94,6 +94,7 @@ git switch -c release/v0.1.0 origin/main
 npm run version:set 0.1.0
 npm run check
 git commit -am "chore(release): 0.1.0"
+git push -u origin release/v0.1.0
 ```
 
 Open the PR to `main` with the `skip-changelog` label, and merge it when CI is green.
