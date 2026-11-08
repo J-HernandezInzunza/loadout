@@ -6,7 +6,7 @@
 import { resolveDeps } from "../deps/deps.ts";
 import type { CallOpts } from "../git/git.ts";
 import { createOperation } from "../git/operation.ts";
-import { loadoutCtx, planLoadoutSync, type LoadoutSyncPlan } from "../loadouts/loadouts.ts";
+import { applyLoadoutSync, loadoutCtx, placementFor, planLoadoutSync, type LoadoutSyncPlan } from "../loadouts/loadouts.ts";
 import { ok, type Entry, type Result, type Warning } from "../model/model.ts";
 import type { ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry } from "../registry/registry.ts";
@@ -42,7 +42,14 @@ export interface SyncReport {
   unmanaged: SyncPlan["unmanaged"];
   /** SYNC-06: receipts whose destination is gone; reported, never reinstalled */
   missing: ReceiptV2[];
-  loadouts: { name: string; synced: (Ref & { dest: string; preview: Preview })[]; upToDate: LoadoutSyncPlan["upToDate"]; failed: (Ref & { reason: string })[] }[];
+  loadouts: {
+    name: string;
+    synced: (Ref & { dest: string; preview: Preview })[];
+    upToDate: LoadoutSyncPlan["upToDate"];
+    failed: (Ref & { reason: string })[];
+    /** copies the loadout no longer places there, such as a moved prompt's old place */
+    removed: LoadoutSyncPlan["leftovers"];
+  }[];
 }
 
 export async function planSync(ctx: InstallCtx, req: { catalog?: string; force?: boolean } = {}, opts: CallOpts = {}): Promise<Result<SyncPlan>> {
@@ -100,11 +107,15 @@ export async function planSync(ctx: InstallCtx, req: { catalog?: string; force?:
   }
 
   const loadouts = Object.entries(loaded.value.config.loadouts ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const namespaced = await placementFor(ctx, loaded.value.config);
+  if (!namespaced.ok) return namespaced;
+  warnings.push(...namespaced.warnings);
   for (const [name, loadout] of loadouts) {
-    const planned = await planLoadoutSync(ctx, op, registry, name, loadout, req, opts);
+    const planned = await planLoadoutSync(ctx, op, registry, name, loadout, req, namespaced.value, opts);
     if (!planned.ok) return planned;
     warnings.push(...planned.warnings);
-    const hasWork = planned.value.items.length + planned.value.upToDate.length > 0;
+    const { items, upToDate, leftovers } = planned.value;
+    const hasWork = items.length + upToDate.length + leftovers.length > 0;
     if (hasWork) plan.loadouts.push(planned.value);
   }
   plan.fingerprint = await planFingerprint(host, [...plan.items, ...plan.loadouts.flatMap((l) => l.items)]);
@@ -138,21 +149,7 @@ export async function applySync(ctx: InstallCtx, plan: SyncPlan, opts: { signal?
       report.synced.push({ ...ref, dest: item.dest, preview: item.preview });
       if (item.requiredBy.length > 0) report.dependencies.push({ ...ref, requiredBy: item.requiredBy });
     }
-    for (const l of plan.loadouts) {
-      const into = loadoutCtx(ctx, l.name);
-      const done: SyncReport["loadouts"][number] = { name: l.name, synced: [], upToDate: l.upToDate, failed: [] };
-      for (const item of l.items) {
-        const ref = { type: item.type, name: item.name, catalog: item.catalog };
-        if (opts.signal?.aborted) {
-          done.failed.push({ ...ref, reason: "cancelled" });
-          continue;
-        }
-        const failed = item.status === "ready" ? await installItem(into, item) : (item.reason ?? item.status);
-        if (failed === null) done.synced.push({ ...ref, dest: item.dest, preview: item.preview });
-        else done.failed.push({ ...ref, reason: failed });
-      }
-      report.loadouts.push(done);
-    }
+    for (const l of plan.loadouts) report.loadouts.push(await applyLoadoutSync(ctx, l, opts));
   } finally {
     await discardPlan(ctx.host, plan);
   }

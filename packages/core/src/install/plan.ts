@@ -19,8 +19,12 @@ export interface InstallCtx {
   git: GitClient;
   config: ConfigStore;
   receipts: ReceiptStore;
-  /** where installs land; the home unless a loadout's folder is being built */
-  root?: string;
+  /** where an item lands; under the home unless a loadout's folder is being built */
+  dest?: (type: Entry["type"], name: string) => string;
+}
+
+export function destOf(ctx: Pick<InstallCtx, "host" | "dest">, type: Entry["type"], name: string): string {
+  return ctx.dest ? ctx.dest(type, name) : destFor(ctx.host.paths.home, type, name);
 }
 
 export type Preview =
@@ -112,7 +116,7 @@ export async function planInstall(
   return ok(planned.value, [...targets.warnings, ...planned.warnings]);
 }
 
-/** The targets with their dependencies, each fetched into one operation and previewed against its destination under the context's root. */
+/** The targets with their dependencies, each fetched into one operation and previewed against where the context places it. */
 export async function planEntries(
   ctx: InstallCtx,
   registry: Registry,
@@ -121,7 +125,6 @@ export async function planEntries(
   opts: CallOpts = {},
 ): Promise<Result<InstallPlan>> {
   const { host } = ctx;
-  const root = ctx.root ?? host.paths.home;
   const warnings: Warning[] = [];
   const requiredBy = new Map<Entry, Set<string>>();
   const orders = targets.map((target) => {
@@ -144,7 +147,7 @@ export async function planEntries(
   const op = await createOperation(host, ctx.git);
   const planned: PlanItem[] = [];
   for (const entry of items) {
-    const dest = destFor(root, entry.type, entry.name);
+    const dest = destOf(ctx, entry.type, entry.name);
     const state = await destState(host, dest, byDest.get(dest) ?? null, legacy);
     planned.push(
       await buildItem(ctx, op, entry, state, {
@@ -172,7 +175,7 @@ export async function buildItem(
   extra: { catalogKey: string; requiredBy: string[]; provenance: Provenance; opts?: CallOpts },
 ): Promise<PlanItem> {
   const { host } = ctx;
-  const dest = destFor(ctx.root ?? host.paths.home, entry.type, entry.name);
+  const dest = destOf(ctx, entry.type, entry.name);
   const fetched = await fetchEntry(host, ctx.git, op, entry, dest, extra.opts ?? {});
   return {
     type: entry.type,

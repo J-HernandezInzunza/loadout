@@ -25,8 +25,9 @@ describe("loadout wording", () => {
     expect(clashText({ ...clash, with: "prompt", outcome: "shadows", sessionName: "grilling" })).toBe(
       "Takes /grilling in a session, so your global prompt of that name won't load there.",
     );
-    expect(clashText({ ...clash, type: "prompt", with: "prompt", outcome: "hidden", sessionName: null })).toBe("Won't load: your global prompt /grilling takes the name.");
-    expect(clashText({ ...clash, type: "prompt", outcome: "hidden", sessionName: null })).toBe("Won't load: your global skill /grilling takes the name.");
+    expect(clashText({ ...clash, type: "prompt", with: "prompt", outcome: "prefixed", sessionName: "kit:grilling" })).toBe(
+      "Your global prompt keeps /grilling; in a session this one is /kit:grilling.",
+    );
     expect(clashText({ ...clash, type: "agent", with: "agent", outcome: "unknown", sessionName: null })).toBe(
       "An agent named grilling is installed globally; which one Claude Code uses hasn't been checked.",
     );

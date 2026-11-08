@@ -6,7 +6,7 @@ import { resolveDeps } from "../deps/deps.ts";
 import type { CallOpts } from "../git/git.ts";
 import { createOperation, type Operation } from "../git/operation.ts";
 import { checkItems, installItem } from "../install/apply.ts";
-import { buildItem, catalogKeys, discardPlan, planEntries, type InstallCtx, type PlanItem } from "../install/plan.ts";
+import { buildItem, catalogKeys, destOf, discardPlan, planEntries, type InstallCtx, type PlanItem } from "../install/plan.ts";
 import { err, ok, type Entry, type EntryType, type Result, type Warning } from "../model/model.ts";
 import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type Registry } from "../registry/registry.ts";
@@ -40,7 +40,14 @@ export interface LoadoutSyncPlan {
   name: string;
   items: PlanItem[];
   upToDate: (Ref & { status: "up-to-date" | "unmoved" })[];
+  /** receipted copies the loadout no longer places there (a moved prompt's old place, a dropped requirement) */
+  leftovers: Placed[];
 }
+
+type Placed = { type: EntryType; name: string; dest: string };
+type GlobalItem = { type: EntryType; name: string; off: boolean };
+
+const keyOf = (item: { type: EntryType; name: string }) => `${item.type}:${item.name}`;
 
 export interface SaveLoadoutRequest {
   name: string;
@@ -139,13 +146,39 @@ export function clashesOf(loadout: string, members: LoadoutMember[], global: { t
       else if (skill) clashes.push({ ...clash, with: "skill", outcome: "prefixed", sessionName: `${loadout}:${m.name}` });
       else if (prompt) clashes.push({ ...clash, with: "prompt", outcome: "shadows", sessionName: m.name });
     } else if (m.type === "prompt") {
+      // Such a prompt is built under the loadout's namespace, which an override never hides.
       const winner = prompt ?? skill;
-      if (winner) clashes.push({ ...clash, with: winner.type, outcome: "hidden", sessionName: null });
+      if (winner) clashes.push({ ...clash, with: winner.type, outcome: "prefixed", sessionName: `${loadout}:${m.name}` });
     } else if (agent) {
       clashes.push({ ...clash, with: "agent", outcome: "unknown", sessionName: null });
     }
   }
   return clashes;
+}
+
+/** What Claude Code loads from ~/.claude, by type and name. A prompt namespace folder adds `/<ns>:<cmd>`, which no member's name can take. */
+async function loadedGlobally(ctx: Pick<InstallCtx, "host" | "receipts">, config: AppConfigV1, overrides: Map<string, string>): Promise<Result<GlobalItem[]>> {
+  const legacy = config.imported?.installs;
+  const scanned = await scanInstallDirs(ctx.host, ctx.receipts, legacy === undefined ? {} : { legacyInstalls: legacy });
+  if (!scanned.ok) return scanned;
+  const loadable = scanned.value.items.filter((i) => i.loadable && (i.type !== "prompt" || i.path.endsWith(".md")));
+  return ok(
+    loadable.map((i) => ({ type: i.type, name: i.name, off: i.type === "skill" && overrides.get(i.name) === "off" })),
+    scanned.warnings,
+  );
+}
+
+/** The prompt names a loadout places under its namespace: a global prompt or skill has the bare name. */
+function namespacedPrompts(global: GlobalItem[]): Set<string> {
+  return new Set(global.filter((g) => g.type !== "agent").map((g) => g.name));
+}
+
+/** The prompts to namespace, from one scan of ~/.claude; none when there are no loadouts to place. */
+export async function placementFor(ctx: Pick<InstallCtx, "host" | "receipts">, config: AppConfigV1): Promise<Result<Set<string>>> {
+  if (Object.keys(config.loadouts ?? {}).length === 0) return ok(new Set());
+  const global = await loadedGlobally(ctx, config, new Map());
+  if (!global.ok) return global;
+  return ok(namespacedPrompts(global.value), global.warnings);
 }
 
 function commandsFor(appData: string, name: string): Pick<LaunchCommand, "run" | "command"> {
@@ -169,34 +202,81 @@ export async function launchCommand(
     return err({ code: "NOT_FOUND", message: `no loadout named '${name}' (loadouts: ${names})` });
   }
 
-  const legacy = config.imported?.installs;
-  const scanned = await scanInstallDirs(host, ctx.receipts, legacy === undefined ? {} : { legacyInstalls: legacy });
-  if (!scanned.ok) return scanned;
   const overrides = await ctx.settings.readSkillOverrides();
-  const warnings: Warning[] = [...scanned.warnings];
+  const global = await loadedGlobally(ctx, config, overrides.ok ? overrides.value : new Map());
+  if (!global.ok) return global;
+  const warnings: Warning[] = [...global.warnings];
   if (!overrides.ok) warnings.push({ message: `which skills are off is unknown, so a clash with one may be wrong: ${overrides.error.message}` });
-  const off = overrides.ok ? overrides.value : new Map<string, string>();
-  // A prompt namespace folder adds `/<ns>:<cmd>`, which no member's name can take.
-  const loadable = scanned.value.items.filter((i) => i.loadable && (i.type !== "prompt" || i.path.endsWith(".md")));
-  const global = loadable.map((i) => ({ type: i.type, name: i.name, off: i.type === "skill" && off.get(i.name) === "off" }));
 
-  return ok({ name, ...commandsFor(host.paths.appData, name), clashes: clashesOf(name, members, global) }, warnings);
+  return ok({ name, ...commandsFor(host.paths.appData, name), clashes: clashesOf(name, members, global.value) }, warnings);
 }
 
-/** The install context for a loadout's folder: its root and its own receipts. */
-export function loadoutCtx(ctx: InstallCtx, name: string): InstallCtx {
+/** The install context for a loadout's folder: what goes where in it (a prompt in `namespaced` under the loadout's own namespace), and its receipts. */
+export function loadoutCtx(ctx: InstallCtx, name: string, namespaced: ReadonlySet<string> = new Set()): InstallCtx {
   const folder = loadoutDir(ctx.host.paths.appData, name);
-  return { ...ctx, root: folder, receipts: createReceiptStore(ctx.host, `${folder}/receipts.json`) };
+  const dest = (type: EntryType, item: string) => (type === "prompt" && namespaced.has(item) ? `${folder}/.claude/commands/${name}/${item}.md` : destFor(folder, type, item));
+  return { ...ctx, dest, receipts: createReceiptStore(ctx.host, `${folder}/receipts.json`) };
+}
+
+/**
+ * Removes receipted copies the loadout no longer places there. One whose item failed this run stays, so
+ * a failed fetch or move never leaves a member with nothing.
+ */
+async function removeLeftovers(into: InstallCtx, leftovers: Placed[], failed: { type: EntryType; name: string }[]): Promise<Result<Placed[]>> {
+  const { host } = into;
+  const spared = new Set(failed.map(keyOf));
+  const removed: Placed[] = [];
+  for (const r of leftovers) {
+    if (spared.has(keyOf(r))) continue;
+    if (await host.fs.exists(r.dest)) {
+      await host.fs.remove(r.dest, { recursive: true });
+      host.audit({ kind: "fs", op: "delete", path: r.dest });
+    }
+    const dropped = await into.receipts.delete(r.dest);
+    if (!dropped.ok) return dropped;
+    removed.push({ type: r.type, name: r.name, dest: r.dest });
+    // The loadout's namespace folder goes with its last prompt, as Claude Code would list it empty.
+    const parent = r.dest.slice(0, r.dest.lastIndexOf("/"));
+    const inNamespace = r.type === "prompt" && !parent.endsWith("/.claude/commands");
+    if (inNamespace && (await host.fs.exists(parent)) && (await host.fs.readDir(parent)).length === 0) {
+      await host.fs.remove(parent, { recursive: true });
+      host.audit({ kind: "fs", op: "delete", path: parent });
+    }
+  }
+  return ok(removed);
+}
+
+/** Applies a loadout's part of a sync plan: its items, then its leftovers. */
+export async function applyLoadoutSync(ctx: InstallCtx, plan: LoadoutSyncPlan, opts: { signal?: AbortSignal } = {}) {
+  const into = loadoutCtx(ctx, plan.name);
+  const synced: (Ref & { dest: string; preview: PlanItem["preview"] })[] = [];
+  const failed: (Ref & { reason: string })[] = [];
+  for (const item of plan.items) {
+    const ref = { type: item.type, name: item.name, catalog: item.catalog };
+    if (opts.signal?.aborted) {
+      failed.push({ ...ref, reason: "cancelled" });
+      continue;
+    }
+    const failure = item.status === "ready" ? await installItem(into, item) : (item.reason ?? item.status);
+    if (failure === null) synced.push({ ...ref, dest: item.dest, preview: item.preview });
+    else failed.push({ ...ref, reason: failure });
+  }
+  const removed = await removeLeftovers(into, plan.leftovers, failed);
+  return { name: plan.name, synced, upToDate: plan.upToDate, failed, removed: removed.ok ? removed.value : [] };
 }
 
 /** Without `op`, a remote source that moved isn't noticed: that takes the network. */
 async function memberState(into: InstallCtx, byDest: Map<string, ReceiptV2>, member: LoadoutMember, entry: Entry | null, op: Operation | null): Promise<MemberState> {
   const { host } = into;
   if (entry === null) return "failed";
-  const dest = destFor(into.root!, member.type, member.name);
+  const dest = destOf(into, member.type, member.name);
   const receipt = byDest.get(dest) ?? null;
   const present = await host.fs.exists(dest);
-  if (receipt === null || !present) return "missing";
+  if (receipt === null || !present) {
+    // Built, but where a clash that came or went no longer puts it: Sync moves it.
+    const elsewhere = [...byDest.values()].some((r) => keyOf(r) === keyOf(member) && r.dest !== dest);
+    return elsewhere ? "stale" : "missing";
+  }
   if (receipt.source !== entry.source) return "stale";
   const copy = await destState(host, dest, receipt);
   if (copy.state !== "installed") return "stale";
@@ -206,8 +286,15 @@ async function memberState(into: InstallCtx, byDest: Map<string, ReceiptV2>, mem
   return "built";
 }
 
-async function recordOf(ctx: InstallCtx, registry: Registry, name: string, loadout: Loadout, op: Operation | null): Promise<Result<LoadoutRecord>> {
-  const into = loadoutCtx(ctx, name);
+async function recordOf(
+  ctx: InstallCtx,
+  registry: Registry,
+  name: string,
+  loadout: Loadout,
+  namespaced: ReadonlySet<string>,
+  op: Operation | null,
+): Promise<Result<LoadoutRecord>> {
+  const into = loadoutCtx(ctx, name, namespaced);
   const receipts = await into.receipts.all();
   if (!receipts.ok) return receipts;
   const byDest = new Map(receipts.value.map((r) => [r.dest, r]));
@@ -225,12 +312,14 @@ export async function listLoadouts(ctx: InstallCtx, opts: { checkRemote?: boolea
   if (!loaded.ok) return loaded;
   const registry = await loadRegistry(ctx.host, loaded.value.config);
   const byName = Object.entries(loaded.value.config.loadouts ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const namespaced = await placementFor(ctx, loaded.value.config);
+  if (!namespaced.ok) return namespaced;
   const op = opts.checkRemote ? await createOperation(ctx.host, ctx.git) : null;
   try {
     const records: LoadoutRecord[] = [];
-    const warnings: Warning[] = [];
+    const warnings: Warning[] = [...namespaced.warnings];
     for (const [name, loadout] of byName) {
-      const record = await recordOf(ctx, registry, name, loadout, op);
+      const record = await recordOf(ctx, registry, name, loadout, namespaced.value, op);
       if (!record.ok) return record;
       records.push(record.value);
       warnings.push(...record.warnings);
@@ -244,7 +333,8 @@ export async function listLoadouts(ctx: InstallCtx, opts: { checkRemote?: boolea
 /**
  * Sync for one loadout: each resolved member's closure, checked against the loadout's receipts as Sync
  * checks installs (UPD-04/05 skips what is provably unchanged). What's missing or unreceipted is built,
- * since only Loadout writes the folder.
+ * since only Loadout writes the folder, and a prompt goes where its clash puts it now. Every member
+ * counts toward what stays, the catalog filter only limits what is fetched.
  */
 export async function planLoadoutSync(
   ctx: InstallCtx,
@@ -253,29 +343,37 @@ export async function planLoadoutSync(
   name: string,
   loadout: Loadout,
   req: { catalog?: string; force?: boolean },
+  namespaced: ReadonlySet<string>,
   opts: CallOpts = {},
 ): Promise<Result<LoadoutSyncPlan>> {
   const { host } = ctx;
-  const into = loadoutCtx(ctx, name);
+  const into = loadoutCtx(ctx, name, namespaced);
   const receipts = await into.receipts.all();
   if (!receipts.ok) return receipts;
   const byDest = new Map(receipts.value.map((r) => [r.dest, r]));
   const keys = await catalogKeys(host, registry);
   const warnings: Warning[] = [...receipts.warnings];
 
-  const plan: LoadoutSyncPlan = { name, items: [], upToDate: [] };
+  const plan: LoadoutSyncPlan = { name, items: [], upToDate: [], leftovers: [] };
+  const placed = new Set<string>();
+  // A member that can't be resolved keeps its copy wherever it is, as a build leaves it.
+  const unresolved = new Set<string>();
   const seen = new Set<string>();
   for (const member of loadout.members) {
     const target = entryOf(registry, member);
-    const isSynced = target !== null && (req.catalog === undefined || target.catalog === req.catalog);
-    if (!isSynced) continue;
+    if (target === null) {
+      unresolved.add(keyOf(member));
+      continue;
+    }
+    const isSynced = req.catalog === undefined || target.catalog === req.catalog;
     const deps = resolveDeps(registry.entriesOf(target.catalog), target);
     warnings.push(...deps.warnings);
     for (const entry of deps.order) {
-      const key = `${entry.type}:${entry.name}`;
-      if (seen.has(key)) continue;
+      const dest = destOf(into, entry.type, entry.name);
+      placed.add(dest);
+      const key = keyOf(entry);
+      if (!isSynced || seen.has(key)) continue;
       seen.add(key);
-      const dest = destFor(into.root!, entry.type, entry.name);
       const receipt = byDest.get(dest) ?? null;
       const state = await destState(host, dest, receipt);
       const hasCopy = state.state === "installed" || state.state === "drifted";
@@ -290,6 +388,9 @@ export async function planLoadoutSync(
       plan.items.push(await buildItem(into, op, entry, state, { catalogKey: keys.get(entry.catalog)!, requiredBy, provenance: registry.overrideSplit(entry), opts }));
     }
   }
+  plan.leftovers = receipts.value
+    .filter((r) => !placed.has(r.dest) && !unresolved.has(keyOf(r)))
+    .map((r) => ({ type: r.type, name: r.name, dest: r.dest }));
   return ok(plan, warnings);
 }
 
@@ -326,12 +427,14 @@ export async function applySaveLoadout(ctx: InstallCtx, plan: SaveLoadoutPlan, o
   const loadout: Loadout = { members: plan.members };
   const updated = await ctx.config.updateConfig((c) => ({ ...c, loadouts: { ...c.loadouts, [plan.name]: loadout } }));
   if (!updated.ok) return updated;
-  const build = await buildLoadout(ctx, plan.name, loadout, opts);
+  const namespaced = await placementFor(ctx, updated.value);
+  if (!namespaced.ok) return err({ ...namespaced.error, message: `'${plan.name}' is saved, but its folder couldn't be built: ${namespaced.error.message}` }, namespaced.warnings);
+  const build = await buildLoadout(ctx, plan.name, loadout, namespaced.value, opts);
   if (!build.ok) return err({ ...build.error, message: `'${plan.name}' is saved, but its folder couldn't be built: ${build.error.message}` }, build.warnings);
   const registry = await loadRegistry(ctx.host, updated.value);
-  const record = await recordOf(ctx, registry, plan.name, loadout, null);
+  const record = await recordOf(ctx, registry, plan.name, loadout, namespaced.value, null);
   if (!record.ok) return record;
-  return ok({ ...record.value, build: build.value }, [...build.warnings, ...record.warnings]);
+  return ok({ ...record.value, build: build.value }, [...namespaced.warnings, ...build.warnings, ...record.warnings]);
 }
 
 /**
@@ -339,10 +442,9 @@ export async function applySaveLoadout(ctx: InstallCtx, plan: SaveLoadoutPlan, o
  * receipts, then removes what left. Unlike a global install, an item that fails doesn't stop the
  * rest. The folder is Loadout's alone, so what it holds without a receipt, or edited since, is replaced.
  */
-export async function buildLoadout(ctx: InstallCtx, name: string, loadout: Loadout, opts: CallOpts = {}): Promise<Result<BuildReport>> {
+export async function buildLoadout(ctx: InstallCtx, name: string, loadout: Loadout, namespaced: ReadonlySet<string>, opts: CallOpts = {}): Promise<Result<BuildReport>> {
   const { host } = ctx;
-  const folder = loadoutDir(host.paths.appData, name);
-  const into = loadoutCtx(ctx, name);
+  const into = loadoutCtx(ctx, name, namespaced);
   const loaded = await ctx.config.loadConfig();
   if (!loaded.ok) return loaded;
   const registry = await loadRegistry(host, loaded.value.config);
@@ -370,20 +472,14 @@ export async function buildLoadout(ctx: InstallCtx, name: string, loadout: Loado
     await discardPlan(host, plan.value);
   }
 
-  // A member that can't be resolved keeps its copy, so a catalog that can't be read doesn't empty the loadout.
-  const kept = new Set([...plan.value.items.map((i) => i.dest), ...loadout.members.map((m) => destFor(folder, m.type, m.name))]);
+  // What failed keeps its copy: a member no catalog defines is in report.failed too, so a catalog that can't be read doesn't empty the loadout.
+  const placed = new Set(plan.value.items.map((i) => i.dest));
   const receipts = await into.receipts.all();
   if (!receipts.ok) return receipts;
-  for (const r of receipts.value) {
-    if (kept.has(r.dest)) continue;
-    if (await host.fs.exists(r.dest)) {
-      await host.fs.remove(r.dest, { recursive: true });
-      host.audit({ kind: "fs", op: "delete", path: r.dest });
-    }
-    const dropped = await into.receipts.delete(r.dest);
-    if (!dropped.ok) return dropped;
-    report.removed.push({ type: r.type, name: r.name, dest: r.dest });
-  }
+  const leftovers = receipts.value.filter((r) => !placed.has(r.dest)).map((r) => ({ type: r.type, name: r.name, dest: r.dest }));
+  const removed = await removeLeftovers(into, leftovers, report.failed);
+  if (!removed.ok) return removed;
+  report.removed = removed.value;
   return ok(report, [...plan.warnings, ...receipts.warnings]);
 }
 

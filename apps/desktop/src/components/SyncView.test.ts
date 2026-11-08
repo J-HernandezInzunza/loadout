@@ -19,7 +19,7 @@ type Plan = {
   items: PlanItem[];
   upToDate: UpToDate;
   unmanaged: (ReturnType<typeof ref> & { dest: string; origin: "foreign" })[];
-  loadouts?: { name: string; items: PlanItem[]; upToDate: UpToDate }[];
+  loadouts?: { name: string; items: PlanItem[]; upToDate: UpToDate; leftovers?: [] }[];
 };
 
 async function mountSync(plans: Plan[], library: Partial<Library> = {}, props: { back?: string } = {}) {
@@ -38,7 +38,13 @@ async function mountSync(plans: Plan[], library: Partial<Library> = {}, props: {
           dependencies: [],
           unmanaged: plan.unmanaged,
           missing: [],
-          loadouts: plan.loadouts.map((l) => ({ name: l.name, synced: l.items.map((i) => ({ ...ref(i.name), dest: i.dest, preview: i.preview })), upToDate: l.upToDate, failed: [] })),
+          loadouts: plan.loadouts.map((l) => ({
+            name: l.name,
+            synced: l.items.map((i) => ({ ...ref(i.name), dest: i.dest, preview: i.preview })),
+            upToDate: l.upToDate,
+            failed: [],
+            removed: [],
+          })),
         })
       ),
       ...library,
@@ -158,7 +164,7 @@ describe("UI-38: sync", () => {
           dependencies: [],
           unmanaged: [],
           missing: [],
-          loadouts: [{ name: "review", synced: [], upToDate: [], failed: [{ ...ref("lint"), reason: "clone failed: Permission denied" }] }],
+          loadouts: [{ name: "review", synced: [], upToDate: [], failed: [{ ...ref("lint"), reason: "clone failed: Permission denied" }], removed: [] }],
         }),
     });
 

@@ -360,6 +360,7 @@ describe("keeping loadouts current", () => {
         synced: [{ type: "skill", name: "a", catalog: "team", dest: `${folder("review")}/.claude/skills/a`, preview: expect.objectContaining({ modified: ["SKILL.md"] }) }],
         upToDate: [{ type: "skill", name: "b", catalog: "team", status: "unmoved" }],
         failed: [],
+        removed: [],
       },
     ]);
     expect(report.synced).toEqual([]);
@@ -454,8 +455,8 @@ describe("launch command", () => {
           { type: "skill", name: "grilling", with: "skill", outcome: "prefixed", sessionName: "kit:grilling" },
           { type: "skill", name: "review", with: "skill", outcome: "hidden", sessionName: null },
           { type: "skill", name: "fleet", with: "prompt", outcome: "shadows", sessionName: "fleet" },
-          { type: "prompt", name: "deploy", with: "prompt", outcome: "hidden", sessionName: null },
-          { type: "prompt", name: "lint", with: "skill", outcome: "hidden", sessionName: null },
+          { type: "prompt", name: "deploy", with: "prompt", outcome: "prefixed", sessionName: "kit:deploy" },
+          { type: "prompt", name: "lint", with: "skill", outcome: "prefixed", sessionName: "kit:lint" },
           { type: "agent", name: "helper", with: "agent", outcome: "unknown", sessionName: null },
         ],
       },
@@ -475,6 +476,94 @@ describe("launch command", () => {
     const preview = await launchCommand(ctx, "draft", { members: [{ type: "skill", name: "grilling" }] });
 
     expect(preview).toMatchObject({ ok: true, value: { run: "loadout run draft", clashes: [{ name: "grilling", outcome: "prefixed", sessionName: "draft:grilling" }] } });
+  });
+});
+
+describe("a prompt that clashes gets the loadout's namespace", () => {
+  /** One local catalog of prompts, each source `<root>/src/<name>.md` holding "<name> 1". */
+  async function setupPrompts(prompts: string[]) {
+    const sb = await createSandbox();
+    const blocks = [];
+    for (const name of prompts) {
+      const source = join(sb.root, "src", `${name}.md`);
+      await mkdir(dirname(source), { recursive: true });
+      await writeFile(source, `${name} 1\n`);
+      blocks.push(`    - name: ${name}\n      description: D\n      source: ${source}\n`);
+    }
+    const catalog = join(sb.root, "team.yaml");
+    await writeFile(catalog, `library:\n  skills: []\n  agents: []\n  prompts:\n${blocks.join("")}`);
+    const config = createConfigStore(sb.host);
+    await config.saveConfig({ version: 1, catalogs: [{ id: "team", kind: "local", path: catalog }], pins: {}, settings: {} });
+    const ctx: InstallCtx = { host: sb.host, git: createGitClient(sb.host), config, receipts: createReceiptStore(sb.host) };
+    const members = prompts.map((name) => ({ type: "prompt" as const, name }));
+    const save = async () => {
+      const plan = await planSaveLoadout(ctx, { name: "kit", members });
+      if (!plan.ok) throw new Error(plan.error.message);
+      return applySaveLoadout(ctx, plan.value);
+    };
+    const states = async () => {
+      const listed = await listLoadouts(ctx);
+      if (!listed.ok) throw new Error(listed.error.message);
+      return Object.fromEntries(listed.value[0]!.members.map((m) => [m.name, m.state]));
+    };
+    const sync = async () => {
+      const plan = await planSync(ctx);
+      if (!plan.ok) throw new Error(plan.error.message);
+      const report = await applySync(ctx, plan.value);
+      if (!report.ok) throw new Error(report.error.message);
+      return report.value;
+    };
+    const global = join(sb.host.paths.home, ".claude", "commands");
+    const kit = join(loadoutDir(sb.host.paths.appData, "kit"), ".claude", "commands");
+    const putGlobal = async (name: string) => {
+      await mkdir(global, { recursive: true });
+      await writeFile(join(global, `${name}.md`), "mine\n");
+    };
+    return { sb, save, states, sync, putGlobal, global, kit };
+  }
+
+  it("places a clashing prompt under the namespace when it builds, and the others bare", async () => {
+    const { save, putGlobal, kit, states } = await setupPrompts(["standup", "grill-me"]);
+    await putGlobal("grill-me");
+
+    const saved = await save();
+
+    expect(saved).toMatchObject({
+      ok: true,
+      value: { build: { built: [{ name: "standup", dest: join(kit, "standup.md") }, { name: "grill-me", dest: join(kit, "kit", "grill-me.md") }], failed: [] } },
+    });
+    expect(await listing(kit)).toEqual(["kit", join("kit", "grill-me.md"), "standup.md"]);
+    expect(await states()).toEqual({ standup: "built", "grill-me": "built" });
+  });
+
+  it("goes stale when a clash comes or goes after the build, and Sync moves the prompt", async () => {
+    const { save, putGlobal, global, kit, states, sync } = await setupPrompts(["standup"]);
+    await save();
+    await putGlobal("standup");
+    expect(await states()).toEqual({ standup: "stale" });
+
+    const moved = await sync();
+
+    expect(moved.loadouts).toMatchObject([{ name: "kit", synced: [{ name: "standup", dest: join(kit, "kit", "standup.md") }], removed: [{ name: "standup", dest: join(kit, "standup.md") }], failed: [] }]);
+    expect(await listing(kit)).toEqual(["kit", join("kit", "standup.md")]);
+    expect(await states()).toEqual({ standup: "built" });
+
+    await rm(join(global, "standup.md"));
+    expect(await states()).toEqual({ standup: "stale" });
+    await sync();
+    expect(await listing(kit)).toEqual(["standup.md"]);
+  });
+
+  it("keeps the prompt where it was when the move can't fetch it", async () => {
+    const { sb, save, putGlobal, kit, sync } = await setupPrompts(["standup"]);
+    await save();
+    await putGlobal("standup");
+    await rm(join(sb.root, "src", "standup.md"));
+
+    const report = await sync();
+
+    expect(report.loadouts).toMatchObject([{ name: "kit", synced: [], removed: [], failed: [{ name: "standup" }] }]);
+    expect(await readFile(join(kit, "standup.md"), "utf8")).toBe("standup 1\n");
   });
 });
 

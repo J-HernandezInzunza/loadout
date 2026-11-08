@@ -390,7 +390,9 @@ walk showed a clashing loadout prompt can't be reached. With `commands/kit/grill
 listed `grill-me`, `kit:grill-me` and `kit:fresh-cmd`: `/kit:grill-me` ran the loadout's copy, the
 global `/grill-me` stayed, and `/fresh-cmd` without the folder didn't exist. So a loadout prompt
 under `commands/<loadout>/` is always `/<loadout>:<name>`, which gives a clashing prompt the prefix
-Claude Code gives a clashing skill.
+Claude Code gives a clashing skill. Unlike a prefixed skill, it isn't hidden when the global skill
+of that name is off: with `--settings '{"skillOverrides":{"grilling":"off"}}'` the global
+`/grilling` went and `/kit:grilling` (from `commands/kit/grilling.md`) still ran.
 
 **A script inside the app runs while quarantined.** A shell script at
 `Fake.app/Contents/Resources/loadout`, executable and given a `com.apple.quarantine` attribute, ran

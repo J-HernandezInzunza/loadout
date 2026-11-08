@@ -25,13 +25,12 @@ export function needsSync(loadout: LoadoutRecord): boolean {
 }
 
 export function clashText(clash: Clash): string {
-  const { type, name, outcome } = clash;
-  if (outcome === "prefixed") return `Your global skill keeps /${name}; in a session this one is /${clash.sessionName}.`;
+  const { name, outcome } = clash;
+  if (outcome === "prefixed") return `Your global ${clash.with} keeps /${name}; in a session this one is /${clash.sessionName}.`;
   if (outcome === "shadows") return `Takes /${name} in a session, so your global prompt of that name won't load there.`;
   if (outcome === "unknown") return `An agent named ${name} is installed globally; which one Claude Code uses hasn't been checked.`;
-  // Hidden: a skill only by a global skill that is off, since an override is by name; a prompt by whatever global item takes the name.
-  if (type === "skill") return `Won't load: your global skill ${name} is turned off, and that hides this one too.`;
-  return `Won't load: your global ${clash.with} /${name} takes the name.`;
+  // Hidden happens to a skill alone: an override is by name, so a global skill turned off hides it too.
+  return `Won't load: your global skill ${name} is turned off, and that hides this one too.`;
 }
 
 /** The view's banner after a save, which builds: what landed, or what didn't and why. */

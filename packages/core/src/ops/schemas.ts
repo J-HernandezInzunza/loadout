@@ -163,6 +163,7 @@ const SyncReport = z.strictObject({
       synced: z.array(Ref.extend({ dest: z.string(), preview: Preview })),
       upToDate: z.array(Ref.extend({ status: z.enum(["up-to-date", "unmoved"]) })),
       failed: z.array(Ref.extend({ reason: z.string() })),
+      removed: z.array(z.strictObject({ type: EntryType, name: z.string(), dest: z.string() })),
     }),
   ),
 });

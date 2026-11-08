@@ -544,7 +544,7 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
   carries the loadout as it was (`previous`) as its fingerprint, and apply returns `STALE_PLAN` if it
   changed.
 - **Building** runs when a loadout is saved: the install pipeline with another root and receipt file
-  (`InstallCtx.root`, `createReceiptStore(host, file)`), so members and their requires land in
+  (`InstallCtx.dest`, `createReceiptStore(host, file)`), so members and their requires land in
   `loadouts/<name>/.claude/{skills,commands,agents}` with receipts in `loadouts/<name>/receipts.json`,
   fetched and verified as installs are. The global installs, their receipts, sync, the scan and
   `list()` keep the home root. Where a build differs from an install: an item that fails doesn't stop
@@ -569,8 +569,17 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
   members named like a loadable item in `~/.claude` (from the scan; a prompt namespace folder can't
   clash), each with an outcome from spikes.md S13: a skill clashing with a skill is `prefixed`
   (`<loadout>:<name>`), or `hidden` when that skill is turned off; a skill clashing with a prompt
-  `shadows` it; a prompt clashing with either is `hidden`; an agent is `unknown`. Project, bundled
+  `shadows` it; a prompt clashing with either is `prefixed`, since it is built under the namespace
+  (below); an agent is `unknown`. Project, bundled
   and plugin items depend on where and how the session starts, so they aren't claimed.
+- **A clashing prompt** (decided 2026-11-07): a prompt, member or requirement, named like a loadable
+  global prompt or skill when the loadout is built or synced goes to `commands/<loadout>/<name>.md`,
+  which Claude Code runs as `/<loadout>:<name>` (S13; a global skill turned off doesn't hide it); the
+  others stay at `commands/<name>.md`. One scan of `~/.claude` per build, `loadouts()` call or Sync
+  decides it. A member built in the other place reads `stale`; Sync writes it where it goes now and
+  removes the old copy (`SyncReport.loadouts[].removed`), and the namespace folder goes with its last
+  prompt. A move or fetch that fails keeps the old copy. Accepted: a global prompt installed after a
+  build hides the loadout's bare one until the next Sync or save.
 - **Deleting** removes the folder, then the config entry: a failed config write leaves a saved
   loadout with nothing built, never a launchable folder no loadout lists. Only Loadout writes the
   folder, so it is removed whole.
