@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { requiresOf, type EntryRecord, type EntryType, type Library, type LoadoutRecord } from "@loadout/core";
 import { storeToRefs } from "pinia";
-import { computed, ref, watch } from "vue";
-import { clashText } from "../loadouts.ts";
+import { computed, ref, useTemplateRef, watch } from "vue";
+import { clashShort, clashText } from "../loadouts.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import StatusBanner from "./StatusBanner.vue";
+import TypeDot from "./TypeDot.vue";
 import UiSelect from "./ui/UiSelect.vue";
 
 type Member = Parameters<Library["planSaveLoadout"]>[0]["members"][number];
@@ -28,6 +29,11 @@ const TYPES: { value: EntryType | "all"; label: string }[] = [
   { value: "agent", label: "Agents" },
   { value: "prompt", label: "Prompts" },
 ];
+const COLUMNS: { type: EntryType; title: string; empty: string }[] = [
+  { type: "skill", title: "Skills", empty: "No skills yet." },
+  { type: "agent", title: "Agents", empty: "No agents yet." },
+  { type: "prompt", title: "Prompts", empty: "No prompts yet." },
+];
 
 const library = useLibrary();
 const activity = useActivityStore();
@@ -42,6 +48,7 @@ const type = ref<EntryType | "all">("all");
 const saving = ref(false);
 const failure = ref<string | null>(null);
 const clashes = ref<Clash[]>([]);
+const search = useTemplateRef<HTMLInputElement>("search");
 
 const key = (m: { type: EntryType; name: string }) => `${m.type}:${m.name}`;
 
@@ -75,6 +82,13 @@ const rows = computed(() =>
     return { member: m, record, requires: record ? requiresOf(entries.value, record) : [], clash: clashes.value.find((c) => key(c) === key(m)) };
   }),
 );
+
+const columns = computed(() => COLUMNS.map((c) => ({ ...c, rows: rows.value.filter((r) => r.member.type === c.type) })));
+
+function addOfType(t: EntryType) {
+  type.value = t;
+  search.value?.focus();
+}
 
 function add(e: EntryRecord) {
   // The copy that wins follows the catalogs' order later, so it names no catalog; any other copy is pinned to its own.
@@ -174,53 +188,87 @@ async function save() {
     <h4 class="loadout-editor__section">
       Members · {{ members.length }}
     </h4>
-    <p
-      v-if="!members.length"
-      class="loadout-editor__help"
-    >
-      None yet: add some from the catalog below.
-    </p>
-    <ul
-      v-else
-      class="loadout-editor__members"
-    >
-      <li
-        v-for="row in rows"
-        :key="key(row.member)"
-        class="loadout-editor__member"
+    <div class="loadout-editor__columns">
+      <section
+        v-for="column in columns"
+        :key="column.type"
+        class="loadout-editor__column"
+        :class="`loadout-editor__column--${column.type}`"
+        :aria-labelledby="`loadout-editor-${column.type}`"
       >
-        <div class="loadout-editor__head">
-          <span class="loadout-editor__name">{{ row.member.name }}</span>
-          <span class="loadout-editor__badge">{{ row.member.type }}</span>
-          <span class="loadout-editor__from">{{ row.record ? `from ${row.record.catalog}` : "no catalog defines it" }}</span>
+        <div class="loadout-editor__column-head">
+          <TypeDot :type="column.type" />
+          <h5
+            :id="`loadout-editor-${column.type}`"
+            class="loadout-editor__column-title"
+          >
+            {{ column.title }}
+          </h5>
+          <span class="loadout-editor__count">{{ column.rows.length }}</span>
           <button
             type="button"
             class="ghost btn-xs"
-            @click="remove(row.member)"
+            :aria-label="`Add ${column.title.toLowerCase()}`"
+            @click="addOfType(column.type)"
           >
-            Remove
+            + Add
           </button>
         </div>
         <p
-          v-if="row.requires.length"
-          class="loadout-editor__adds"
+          v-if="!column.rows.length"
+          class="loadout-editor__empty"
         >
-          Adds {{ row.requires.map((r) => r.name).join(", ") }} for it.
+          {{ column.empty }}
         </p>
-        <p
-          v-if="row.clash"
-          class="loadout-editor__clash"
+        <ul
+          v-else
+          class="loadout-editor__members"
         >
-          {{ clashText(row.clash) }}
-        </p>
-      </li>
-    </ul>
+          <li
+            v-for="row in column.rows"
+            :key="key(row.member)"
+            class="loadout-editor__member"
+          >
+            <div class="loadout-editor__head">
+              <span class="loadout-editor__name">{{ row.member.name }}</span>
+              <button
+                type="button"
+                class="ghost btn-xs loadout-editor__remove"
+                :aria-label="`Remove ${row.member.name}`"
+                @click="remove(row.member)"
+              >
+                ×
+              </button>
+            </div>
+            <span class="loadout-editor__catalog">{{ row.record ? `from ${row.record.catalog}` : "no catalog defines it" }}</span>
+            <p
+              v-if="row.requires.length"
+              class="loadout-editor__adds"
+            >
+              Adds {{ row.requires.map((r) => r.name).join(", ") }} for it.
+            </p>
+            <p
+              v-if="row.clash"
+              class="loadout-editor__clash"
+              :title="clashText(row.clash)"
+            >
+              <span
+                class="loadout-editor__clash-short"
+                aria-hidden="true"
+              >{{ clashShort(row.clash) }}</span>
+              <span class="loadout-editor__sr-only">{{ clashText(row.clash) }}</span>
+            </p>
+          </li>
+        </ul>
+      </section>
+    </div>
 
     <h4 class="loadout-editor__section">
       Add from the catalog
     </h4>
     <div class="loadout-editor__filters">
       <input
+        ref="search"
         v-model="query"
         type="search"
         class="loadout-editor__input"
@@ -249,7 +297,7 @@ async function save() {
         class="loadout-editor__candidate"
       >
         <span class="loadout-editor__name">{{ e.name }}</span>
-        <span class="loadout-editor__badge">{{ e.type }}</span>
+        <span class="loadout-editor__badge"><TypeDot :type="e.type" />{{ e.type }}</span>
         <span class="loadout-editor__from">{{ e.catalog }}{{ e.overriddenBy ? `, overridden by ${e.overriddenBy}` : "" }}</span>
         <span class="loadout-editor__description">{{ e.description }}</span>
         <button
@@ -288,7 +336,9 @@ async function save() {
 </template>
 
 <style scoped>
+/* The container the member columns measure: they stack when the editor, not the window, is narrow. */
 .loadout-editor {
+  container-type: inline-size;
   margin-bottom: 1.25rem;
 }
 .loadout-editor__title {
@@ -326,6 +376,57 @@ async function save() {
   margin: 1rem 0 0.5rem;
   font-size: 0.9rem;
 }
+.loadout-editor__columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.6rem;
+}
+@container (max-width: 560px) {
+  .loadout-editor__columns {
+    grid-template-columns: 1fr;
+  }
+}
+.loadout-editor__column {
+  min-width: 0;
+  padding: 0.45rem 0.65rem 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.loadout-editor__column--skill {
+  background: var(--type-skill-tint);
+  border-color: var(--type-skill-edge);
+}
+.loadout-editor__column--agent {
+  background: var(--type-agent-tint);
+  border-color: var(--type-agent-edge);
+}
+.loadout-editor__column--prompt {
+  background: var(--type-prompt-tint);
+  border-color: var(--type-prompt-edge);
+}
+.loadout-editor__column-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.loadout-editor__column-title {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.loadout-editor__count {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.loadout-editor__column-head button {
+  margin-left: auto;
+}
+.loadout-editor__empty {
+  margin: 0.4rem 0 0.25rem;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
 .loadout-editor__members,
 .loadout-editor__candidates {
   margin: 0;
@@ -341,6 +442,9 @@ async function save() {
   padding: 0.45rem 0;
   border-bottom: 1px solid var(--border-subtle);
 }
+.loadout-editor__member:last-child {
+  border-bottom: none;
+}
 .loadout-editor__head,
 .loadout-editor__candidate {
   display: flex;
@@ -351,8 +455,22 @@ async function save() {
 .loadout-editor__name {
   font-weight: 600;
 }
+.loadout-editor__member .loadout-editor__name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.loadout-editor__remove {
+  border-color: transparent;
+}
+.loadout-editor__badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
 .loadout-editor__badge,
-.loadout-editor__from {
+.loadout-editor__from,
+.loadout-editor__catalog {
   font-size: 0.75rem;
   opacity: 0.7;
 }
@@ -375,6 +493,17 @@ async function save() {
 }
 .loadout-editor__clash {
   color: var(--status-attention-ink);
+  overflow-wrap: anywhere;
+  cursor: help;
+}
+/* The full sentence, for a screen reader: the line shows the short form, and hovering shows the title. */
+.loadout-editor__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 /* Same text size and height for both: the search takes the room, the select keeps what its longest option needs. */
 .loadout-editor__filters {

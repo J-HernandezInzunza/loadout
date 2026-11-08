@@ -10,6 +10,7 @@ import BusyIndicator from "./BusyIndicator.vue";
 import LoadoutEditor from "./LoadoutEditor.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
+import TypeDot from "./TypeDot.vue";
 
 type Saved = Extract<Awaited<ReturnType<Library["applySaveLoadout"]>>, { ok: true }>["value"];
 type Outcome = { kind: "success" | "warning" | "error"; message: string; detail?: string };
@@ -205,7 +206,19 @@ onMounted(() => load());
             <h3 class="loadouts__name">
               {{ l.name }}
             </h3>
-            <span class="loadouts__summary">{{ loadoutSummary(l) }}</span>
+            <span class="loadouts__summary">
+              <span
+                v-for="part in loadoutSummary(l)"
+                :key="part.text"
+                class="loadouts__part"
+              >
+                <TypeDot
+                  v-if="part.type"
+                  :type="part.type"
+                />
+                {{ part.text }}
+              </span>
+            </span>
             <div class="loadouts__manage">
               <button
                 type="button"
@@ -324,9 +337,20 @@ onMounted(() => load());
   margin: 0;
   font-size: 1rem;
 }
+/* Flex rows, so one gap spaces each separator, dot and count the same. */
+.loadouts__summary,
+.loadouts__part {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem;
+}
 .loadouts__summary {
   font-size: 0.8rem;
   opacity: 0.75;
+}
+.loadouts__part + .loadouts__part::before {
+  content: "·";
 }
 .loadouts__stale {
   display: flex;

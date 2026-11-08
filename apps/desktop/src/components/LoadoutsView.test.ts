@@ -58,9 +58,18 @@ const press = async (w: Wrapper, label: string) => {
   await flushPromises();
 };
 const card = (w: Wrapper, name: string) => w.findAll(".loadouts__item").find((i) => i.find(".loadouts__name").text() === name)!;
+const summary = (w: Wrapper, name: string) => card(w, name).findAll(".loadouts__part").map((p) => p.text());
 const banner = (w: Wrapper) => w.find(".status-banner");
 const candidates = (w: Wrapper) => w.findAll(".loadout-editor__candidate").map((c) => c.find(".loadout-editor__name").text());
 const memberRow = (w: Wrapper, name: string) => w.findAll(".loadout-editor__member").find((m) => m.find(".loadout-editor__name").text() === name)!;
+const column = (w: Wrapper, type: string) => w.find(`.loadout-editor__column--${type}`);
+/** Each column's title, count and member names, in order. */
+const columns = (w: Wrapper) =>
+  w.findAll(".loadout-editor__column").map((c) => [
+    c.find(".loadout-editor__column-title").text(),
+    c.find(".loadout-editor__count").text(),
+    c.findAll(".loadout-editor__member .loadout-editor__name").map((n) => n.text()),
+  ]);
 const addCandidate = async (w: Wrapper, name: string, catalog: string) => {
   const row = w.findAll(".loadout-editor__candidate").find((c) => c.find(".loadout-editor__name").text() === name && c.text().includes(catalog))!;
   await row.find("button").trigger("click");
@@ -84,10 +93,11 @@ describe("Loadouts", () => {
       ],
     });
 
-    expect(card(wrapper, "review").find(".loadouts__summary").text()).toBe("2 members · all built");
+    expect(summary(wrapper, "review")).toEqual(["2 skills", "all built"]);
+    expect(card(wrapper, "review").find(".loadouts__summary .type-dot--skill").exists()).toBe(true);
     expect(card(wrapper, "review").find(".loadouts__stale").exists()).toBe(false);
     expect(card(wrapper, "review").findAll("button").map((b) => b.text())).not.toContain("Sync");
-    expect(card(wrapper, "docs").find(".loadouts__summary").text()).toBe("3 members · 1 out of date · 1 not built");
+    expect(summary(wrapper, "docs")).toEqual(["3 skills", "1 out of date", "1 not built"]);
     expect(card(wrapper, "docs").find(".loadouts__stale").text()).toContain("Sync rebuilds them.");
     expect(card(wrapper, "docs").find(".loadouts__stale button").text()).toBe("Sync");
   });
@@ -174,6 +184,41 @@ describe("Loadouts", () => {
 
     expect(saves).toEqual([{ name: "review", members: [{ type: "skill", name: "notes" }], replace: true }]);
     expect(banner(wrapper).text()).toBe("Saved review: 1 entry built.");
+  });
+
+  it("shows a loadout's members in a column per type, and a column's Add narrows the catalog to its type", async () => {
+    const standup = { type: "prompt" as const, name: "standup", resolvesTo: "team", state: "built" as const };
+    const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint"), standup] })] });
+    await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+    await flushPromises();
+    const focus = vi.spyOn(HTMLInputElement.prototype, "focus");
+
+    expect(columns(wrapper)).toEqual([
+      ["Skills", "1", ["lint"]],
+      ["Agents", "0", []],
+      ["Prompts", "1", ["standup"]],
+    ]);
+    expect(column(wrapper, "agent").find(".loadout-editor__empty").text()).toBe("No agents yet.");
+
+    await column(wrapper, "agent").find(".loadout-editor__column-head button").trigger("click");
+    await flushPromises();
+    expect((wrapper.find(".loadout-editor select").element as HTMLSelectElement).value).toBe("agent");
+    expect(focus.mock.contexts).toEqual([wrapper.find(".loadout-editor input[type=search]").element]);
+    expect(candidates(wrapper)).toEqual(["reviewer"]);
+    expect(wrapper.find(".loadout-editor__candidate .type-dot--agent").exists()).toBe(true);
+
+    await addCandidate(wrapper, "reviewer", "team");
+    await wrapper.find('[aria-label="Remove lint"]').trigger("click");
+    await flushPromises();
+
+    expect(columns(wrapper)).toEqual([
+      ["Skills", "0", []],
+      ["Agents", "1", ["reviewer"]],
+      ["Prompts", "1", ["standup"]],
+    ]);
+    expect(column(wrapper, "skill").find(".loadout-editor__empty").text()).toBe("No skills yet.");
+    expect(column(wrapper, "agent").find(".loadout-editor__empty").exists()).toBe(false);
+    focus.mockRestore();
   });
 
   it("deletes one only after asking", async () => {
@@ -264,7 +309,11 @@ describe("Loadouts", () => {
     await search(wrapper, "tid");
     await addCandidate(wrapper, "tidy", "team");
 
-    expect(memberRow(wrapper, "tidy").find(".loadout-editor__clash").text()).toBe("Your global skill keeps /tidy; in a session this one is /kit:tidy.");
+    const clash = memberRow(wrapper, "tidy").find(".loadout-editor__clash");
+    const full = "Your global skill keeps /tidy; in a session this one is /kit:tidy.";
+    expect(clash.find(".loadout-editor__clash-short").text()).toBe("In a session: /kit:tidy");
+    expect(clash.attributes("title")).toBe(full);
+    expect(clash.find(".loadout-editor__sr-only").text()).toBe(full);
     expect(asked.at(-1)).toEqual(["kit", [{ type: "skill", name: "tidy" }]]);
   });
 
