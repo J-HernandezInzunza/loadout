@@ -1314,4 +1314,26 @@ everything. Added as M9.10.
 
 ---
 
+## M10. Fewer Keychain reads
+
+Exit: every M10 task checked; git commands against a signed-in host read the account's token from
+the Keychain at most once every 15 minutes.
+
+Decided 2026-11-07 (owner): 15 minutes, the default of git's own credential cache, rather than the
+whole session.
+
+- [ ] **M10.01 Keep an account's token for 15 minutes.** `createAccounts` keeps each host's token
+  set for 15 minutes after it reads it from `Host.secrets`, for the life of its Library instance, in
+  memory only (never on disk, in logs or in the audit log); after that the next call reads the
+  Keychain again. `connect` and a Bitbucket refresh replace it, `disconnect` drops it, and
+  `checkAccount` reads the Keychain again. Expiry and refresh work as today.
+  - Rules: none (arch §5.5, amended by this task)
+  - Depends: none
+  - Done when: tests with a counting `HostSecrets` and the host's clock show one read across several
+    `tokenFor` calls inside 15 minutes, a fresh read after 15 minutes and after `connect`,
+    `disconnect`, a refresh and `checkAccount`, and the token in no audit event; arch §5.5 says how
+    long the token is held in memory.
+
+---
+
 Roadmap (not planned): `docs/ROADMAP.md`.
