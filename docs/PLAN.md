@@ -1287,7 +1287,7 @@ everything. Added as M9.10.
   - Depends: M9.01, M9.02, M9.03, M9.04, M9.05, M9.06, M9.07
   - Done when: every M9 task is checked and the run is recorded.
 
-- [ ] **M9.09 A clashing prompt gets the loadout's namespace.** A loadout's prompt, member or
+- [x] **M9.09 A clashing prompt gets the loadout's namespace.** A loadout's prompt, member or
   requirement, whose name matches a loadable global prompt or skill in `~/.claude` (from the scan)
   installs at `commands/<loadout>/<name>.md`, which Claude Code shows as `/<loadout>:<name>` (S13);
   the others stay at `commands/<name>.md`. Decided at each build and Sync: Sync moves a prompt whose
@@ -1302,7 +1302,7 @@ everything. Added as M9.10.
     the global one goes); the clash reads prefixed; the owner reruns the clash test and the loadout's
     prompt runs as `/<loadout>:<name>` with the global one unchanged.
 
-- [ ] **M9.10 Sync one loadout.** `planSync({ loadout })` plans that loadout alone: no global
+- [x] **M9.10 Sync one loadout.** `planSync({ loadout })` plans that loadout alone: no global
   installs, no other loadout, no missing-receipt report; an unknown name is `NOT_FOUND`. Each loadout
   card gets Sync, which plans and applies at once and says in the view's banner what it updated,
   moved and removed, or what didn't update and why.
