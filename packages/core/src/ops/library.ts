@@ -127,7 +127,8 @@ export interface Library {
   /** The copies the Python CLI parked in skills-disabled (§4.5 rule 7). */
   planMigrateParked(): Promise<Result<IssuedMigratePlan>>;
   applyMigrateParked(plan: IssuedMigratePlan): Promise<Result<MigrateReport>>;
-  planSync(req?: { catalog?: string; force?: boolean; signal?: AbortSignal }): Promise<Result<IssuedSyncPlan>>;
+  /** `loadout` syncs that loadout alone, with no global installs. */
+  planSync(req?: { catalog?: string; force?: boolean; loadout?: string; signal?: AbortSignal }): Promise<Result<IssuedSyncPlan>>;
   applySync(plan: IssuedSyncPlan, opts?: { signal?: AbortSignal }): Promise<Result<SyncReport>>;
   /** Removes the staged copies of a plan that won't be applied; apply removes them itself. */
   discardPlan(plan: IssuedInstallPlan | IssuedSyncPlan): Promise<Result<void>>;

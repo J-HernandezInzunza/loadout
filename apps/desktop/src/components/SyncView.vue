@@ -14,9 +14,6 @@ import UiCheckbox from "./ui/UiCheckbox.vue";
 type Plan = Parameters<Library["applySync"]>[0];
 type Report = Extract<Awaited<ReturnType<Library["applySync"]>>, { ok: true }>["value"];
 
-/** the title of the view Back returns to: Loadouts when Sync was offered there */
-withDefaults(defineProps<{ back?: string }>(), { back: "Loadout" });
-
 const library = useLibrary();
 const activity = useActivityStore();
 const catalog = useCatalogStore();
@@ -88,7 +85,7 @@ onUnmounted(() => void discard());
   <section class="view">
     <PageHeader
       title="Sync"
-      :back="back"
+      back="Loadout"
       @back="views.sync = false"
     >
       <template #actions>

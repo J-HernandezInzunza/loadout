@@ -323,7 +323,7 @@ export const ops = {
   setSkillState: { input: z.strictObject({ names: z.array(z.string()), state: z.enum(["on", "off"]) }), output: ToggleReport },
   planMigrateParked: { input: z.strictObject({}), output: MigratePlan },
   applyMigrateParked: { input: z.strictObject({ plan: MigratePlan }), output: MigrateReport },
-  planSync: { input: z.strictObject({ ...catalogOption, force: z.boolean().exactOptional() }), output: SyncPlan },
+  planSync: { input: z.strictObject({ ...catalogOption, force: z.boolean().exactOptional(), loadout: z.string().exactOptional() }), output: SyncPlan },
   applySync: { input: z.strictObject({ plan: SyncPlan }), output: SyncReport },
   discardPlan: { input: z.strictObject({ plan: z.union([InstallPlan, SyncPlan]) }), output: z.undefined() },
   pins: { input: z.strictObject({}), output: z.array(PinRecord) },

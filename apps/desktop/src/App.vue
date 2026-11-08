@@ -55,10 +55,7 @@ onMounted(async () => {
       v-else-if="current.kind === 'doctor'"
       :back="views.manage ? 'Catalogs' : 'Loadout'"
     />
-    <SyncView
-      v-else-if="current.kind === 'sync'"
-      :back="views.loadouts ? 'Loadouts' : 'Loadout'"
-    />
+    <SyncView v-else-if="current.kind === 'sync'" />
     <AccountsView v-else-if="current.kind === 'accounts'" />
     <LoadoutsView v-else-if="current.kind === 'loadouts'" />
     <CatalogsView

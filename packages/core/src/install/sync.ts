@@ -7,7 +7,7 @@ import { resolveDeps } from "../deps/deps.ts";
 import type { CallOpts } from "../git/git.ts";
 import { createOperation } from "../git/operation.ts";
 import { applyLoadoutSync, loadoutCtx, placementFor, planLoadoutSync, type LoadoutSyncPlan } from "../loadouts/loadouts.ts";
-import { ok, type Entry, type Result, type Warning } from "../model/model.ts";
+import { err, ok, type Entry, type Result, type Warning } from "../model/model.ts";
 import type { ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry } from "../registry/registry.ts";
 import { destFor, destState, readLegacyInstalls, type Origin } from "../scan/scan.ts";
@@ -26,6 +26,8 @@ export interface SyncPlan {
   unmanaged: (Ref & { dest: string; origin: Origin })[];
   /** the catalog synced, when the request named one; apply reports missing receipts from it only */
   catalog?: string;
+  /** the one loadout synced, when the request named one: no global installs, so no missing receipts either */
+  loadout?: string;
   /** per loadout with anything to check, by name */
   loadouts: LoadoutSyncPlan[];
   opDir: string;
@@ -52,7 +54,7 @@ export interface SyncReport {
   }[];
 }
 
-export async function planSync(ctx: InstallCtx, req: { catalog?: string; force?: boolean } = {}, opts: CallOpts = {}): Promise<Result<SyncPlan>> {
+export async function planSync(ctx: InstallCtx, req: { catalog?: string; force?: boolean; loadout?: string } = {}, opts: CallOpts = {}): Promise<Result<SyncPlan>> {
   const { host } = ctx;
   const home = host.paths.home;
   const loaded = await ctx.config.loadConfig();
@@ -65,15 +67,31 @@ export async function planSync(ctx: InstallCtx, req: { catalog?: string; force?:
   const legacy = await readLegacyInstalls(host, loaded.value.config.imported?.installs);
   const keys = await catalogKeys(host, registry);
 
+  const only = req.loadout;
+  const saved = loaded.value.config.loadouts ?? {};
+  if (only !== undefined && saved[only] === undefined) {
+    return err({ code: "NOT_FOUND", message: `no loadout named '${only}' (loadouts: ${Object.keys(saved).sort().join(", ") || "none"})` });
+  }
+
   // SYNC-01: the winning copy of each name, when Loadout installed it and it is still there (SYNC-06: a gone one isn't reinstalled).
   const targets: Entry[] = [];
-  for (const e of registry.winners().values()) {
+  const winners = only === undefined ? [...registry.winners().values()] : [];
+  for (const e of winners) {
     const dest = destFor(home, e.type, e.name);
     if ((req.catalog === undefined || e.catalog === req.catalog) && byDest.has(dest) && (await host.fs.exists(dest))) targets.push(e);
   }
 
   const op = await createOperation(host, ctx.git);
-  const plan: SyncPlan = { items: [], upToDate: [], unmanaged: [], ...(req.catalog !== undefined && { catalog: req.catalog }), loadouts: [], opDir: op.dir, fingerprint: "" };
+  const plan: SyncPlan = {
+    items: [],
+    upToDate: [],
+    unmanaged: [],
+    ...(req.catalog !== undefined && { catalog: req.catalog }),
+    ...(only !== undefined && { loadout: only }),
+    loadouts: [],
+    opDir: op.dir,
+    fingerprint: "",
+  };
   const seen = new Set<string>();
   for (const target of targets) {
     const deps = resolveDeps(registry.entriesOf(target.catalog), target);
@@ -106,7 +124,9 @@ export async function planSync(ctx: InstallCtx, req: { catalog?: string; force?:
     }
   }
 
-  const loadouts = Object.entries(loaded.value.config.loadouts ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const loadouts = Object.entries(saved)
+    .filter(([name]) => only === undefined || name === only)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const namespaced = await placementFor(ctx, loaded.value.config);
   if (!namespaced.ok) return namespaced;
   warnings.push(...namespaced.warnings);
@@ -156,7 +176,7 @@ export async function applySync(ctx: InstallCtx, plan: SyncPlan, opts: { signal?
 
   // SYNC-04, SYNC-06: computed after the run, filtered to the catalog synced.
   const receipts = await ctx.receipts.all();
-  if (receipts.ok) {
+  if (receipts.ok && plan.loadout === undefined) {
     for (const r of receipts.value) {
       if ((plan.catalog === undefined || r.catalog.id === plan.catalog) && !(await ctx.host.fs.exists(r.dest))) report.missing.push(r);
     }

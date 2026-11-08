@@ -3,6 +3,8 @@ import type { Library, LoadoutRecord } from "@loadout/core";
 
 type Clash = Extract<Awaited<ReturnType<Library["launchCommand"]>>, { ok: true }>["value"]["clashes"][number];
 type Saved = Extract<Awaited<ReturnType<Library["applySaveLoadout"]>>, { ok: true }>["value"];
+type LoadoutSynced = Extract<Awaited<ReturnType<Library["applySync"]>>, { ok: true }>["value"]["loadouts"][number];
+type Outcome = { kind: "success" | "warning"; message: string; detail?: string };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -33,8 +35,30 @@ export function clashText(clash: Clash): string {
   return `Won't load: your global skill ${name} is turned off, and that hides this one too.`;
 }
 
+const keyOf = (item: { type: string; name: string }) => `${item.type}:${item.name}`;
+
+/** The view's banner after syncing one loadout; `done` is absent when nothing needed syncing. A moved prompt was synced into its new place and removed from its old one. */
+export function syncedOutcome(name: string, done: LoadoutSynced | undefined): Outcome {
+  const synced = done?.synced ?? [];
+  const removed = done?.removed ?? [];
+  const failed = done?.failed ?? [];
+  const placedAgain = new Set(synced.map(keyOf));
+  const moved = removed.filter((r) => placedAgain.has(keyOf(r))).length;
+  const parts: string[] = [];
+  if (synced.length - moved) parts.push(`${synced.length - moved} updated`);
+  if (moved) parts.push(`${moved} moved`);
+  if (removed.length - moved) parts.push(`${removed.length - moved} removed`);
+  const did = parts.length ? `Synced ${name}: ${parts.join(", ")}` : `Synced ${name}`;
+  if (failed.length) {
+    const detail = failed.map((f) => `${f.name}: ${f.reason}`).join("\n");
+    return { kind: "warning", message: `${did}, but ${failed.length} didn't update.`, detail };
+  }
+  if (!parts.length) return { kind: "success", message: `${name} is already up to date.` };
+  return { kind: "success", message: `${did}.` };
+}
+
 /** The view's banner after a save, which builds: what landed, or what didn't and why. */
-export function savedOutcome(result: Saved): { kind: "success" | "warning"; message: string; detail?: string } {
+export function savedOutcome(result: Saved): Outcome {
   const { built, failed, removed } = result.build;
   if (failed.length === 0) {
     const parts = [`${built.length} ${plural(built.length, "entry", "entries")} built`];

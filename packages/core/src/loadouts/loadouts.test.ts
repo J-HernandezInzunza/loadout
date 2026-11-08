@@ -332,7 +332,7 @@ describe("keeping loadouts current", () => {
       if (!listed.ok) throw new Error(listed.error.message);
       return Object.fromEntries(listed.value.map((l) => [l.name, Object.fromEntries(l.members.map((m) => [m.name, m.state]))]));
     };
-    const sync = async (req: { catalog?: string } = {}) => {
+    const sync = async (req: { catalog?: string; loadout?: string } = {}) => {
       const plan = await planSync(ctx, req);
       if (!plan.ok) throw new Error(plan.error.message);
       const report = await applySync(ctx, plan.value);
@@ -367,6 +367,24 @@ describe("keeping loadouts current", () => {
     expect(await readFile(`${folder("review")}/.claude/skills/a/SKILL.md`, "utf8")).toBe("a 2\n");
     expect(await exists(join(sb.host.paths.home, ".claude"))).toBe(false);
     expect(await states(true)).toEqual({ review: { a: "built", b: "built" } });
+  });
+
+  it("syncs one loadout alone when asked, leaving the global installs and the other loadouts", async () => {
+    const { ctx, remote, save, states, sync, folder } = await setupRemote(["a", "b"]);
+    const global = await planInstall(ctx, { names: ["b"] });
+    if (!global.ok) throw new Error(global.error.message);
+    await applyInstall(ctx, global.value);
+    await save("review", [skill("a")]);
+    await save("docs", [skill("b")]);
+    remote.commit({ "skills/a/SKILL.md": "a 2\n", "skills/b/SKILL.md": "b 2\n" });
+
+    const { plan, report } = await sync({ loadout: "review" });
+
+    expect([plan.items, plan.upToDate, plan.loadouts.map((l) => l.name)]).toEqual([[], [], ["review"]]);
+    expect(report.loadouts).toMatchObject([{ name: "review", synced: [{ name: "a" }] }]);
+    expect(await readFile(`${folder("review")}/.claude/skills/a/SKILL.md`, "utf8")).toBe("a 2\n");
+    expect(await states(true)).toEqual({ docs: { b: "stale" }, review: { a: "built" } });
+    expect(await planSync(ctx, { loadout: "nope" })).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   });
 
   it("says what is missing, failed or edited, and Sync builds the missing member and restores the edited one", async () => {

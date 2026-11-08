@@ -1,6 +1,6 @@
 import { loadoutRecord } from "@loadout/core/testing";
 import { describe, expect, it } from "vitest";
-import { clashText, loadoutSummary, needsSync, savedOutcome } from "./loadouts.ts";
+import { clashText, loadoutSummary, needsSync, savedOutcome, syncedOutcome } from "./loadouts.ts";
 
 const member = (name: string, state: "built" | "stale" | "missing" | "failed") => ({ type: "skill" as const, name, resolvesTo: "team", state });
 
@@ -59,4 +59,24 @@ describe("loadout wording", () => {
       detail: "x: clone failed\ny (required by a): no catalog defines it",
     });
   });
+
+  it("reports a loadout's sync by what it updated, moved and removed, what failed, or that nothing needed it", () => {
+    const ref = (name: string, type: "skill" | "prompt" = "skill") => ({ type, name, catalog: "team" });
+    const synced = (name: string, type: "skill" | "prompt" = "skill") => ({ ...ref(name, type), dest: `/l/${name}`, preview: { kind: "destination-only" as const } });
+    const gone = (name: string, type: "skill" | "prompt" = "skill") => ({ type, name, dest: `/old/${name}` });
+    const loadout = (part: object) => ({ name: "review", synced: [], upToDate: [], failed: [], removed: [], ...part });
+
+    expect(syncedOutcome("review", loadout({ synced: [synced("a"), synced("p", "prompt")], removed: [gone("p", "prompt"), gone("old")] }))).toEqual({
+      kind: "success",
+      message: "Synced review: 1 updated, 1 moved, 1 removed.",
+    });
+    expect(syncedOutcome("review", loadout({ synced: [synced("a")], failed: [{ ...ref("b"), reason: "clone failed" }] }))).toEqual({
+      kind: "warning",
+      message: "Synced review: 1 updated, but 1 didn't update.",
+      detail: "b: clone failed",
+    });
+    expect(syncedOutcome("review", loadout({ upToDate: [{ ...ref("a"), status: "up-to-date" }] }))).toEqual({ kind: "success", message: "review is already up to date." });
+    expect(syncedOutcome("review", undefined)).toEqual({ kind: "success", message: "review is already up to date." });
+  });
 });
+

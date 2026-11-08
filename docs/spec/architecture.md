@@ -561,7 +561,9 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
 - **Sync** includes loadouts: `SyncPlan.loadouts` and `SyncReport.loadouts`, per loadout. Each
   resolved member's closure is checked against the loadout's receipts with `checkUpdate`, so what is
   provably unchanged is skipped (UPD-04/05); unlike installs, what is missing or unreceipted is built.
-  Every check, the loadouts' included, runs before the first write.
+  Every check, the loadouts' included, runs before the first write. `planSync({ loadout })` plans that
+  loadout alone: no global installs, no other loadout, no missing-receipt report (NOT_FOUND for an
+  unknown name); a loadout's card syncs it that way in one click.
 - **Launching** (`launchCommand(name)`, or `launchCommand(name, { members })` to preview a draft in the
   editor; each `LoadoutRecord` carries the same `run` and `command`, so Copy needs no await before the
   clipboard write): `loadout run <name>`, and the bare command

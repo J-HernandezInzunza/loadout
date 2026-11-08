@@ -76,7 +76,7 @@ const search = async (w: Wrapper, query: string) => {
 };
 
 describe("Loadouts", () => {
-  it("lists each loadout with its member count and state, and offers Sync for one that is behind", async () => {
+  it("lists each loadout with its member count and state, and says when one is behind", async () => {
     const { wrapper } = await mountLoadouts({
       loadouts: [
         loadoutRecord({ name: "docs", members: [member("a", "stale"), member("b", "missing"), member("c")] }),
@@ -87,8 +87,40 @@ describe("Loadouts", () => {
     expect(card(wrapper, "review").find(".loadouts__summary").text()).toBe("2 members · all built");
     expect(card(wrapper, "review").find(".loadouts__stale").exists()).toBe(false);
     expect(card(wrapper, "docs").find(".loadouts__summary").text()).toBe("3 members · 1 out of date · 1 not built");
-    await card(wrapper, "docs").find(".loadouts__stale button").trigger("click");
-    expect(useViewStore().sync).toBe(true);
+    expect(card(wrapper, "docs").find(".loadouts__stale").text()).toContain("Sync");
+  });
+
+  it("syncs one loadout from its card, alone, and says what changed", async () => {
+    const asked: unknown[] = [];
+    const synced = (name: string, type: "skill" | "prompt", dest: string) => ({ type, name, catalog: "team", dest, preview: { kind: "destination-only" as const } });
+    const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint", "stale")] }), loadoutRecord({ name: "docs" })] }, {
+      planSync: async (req) => (asked.push(req), ok({ items: [], upToDate: [], unmanaged: [], loadouts: [], opDir: "/tmp/op", fingerprint: "f" } as never)),
+      applySync: async () =>
+        ok({
+          synced: [],
+          upToDate: [],
+          failed: [],
+          dependencies: [],
+          unmanaged: [],
+          missing: [],
+          loadouts: [
+            {
+              name: "review",
+              synced: [synced("lint", "skill", "/l/review/.claude/skills/lint"), synced("standup", "prompt", "/l/review/.claude/commands/review/standup.md")],
+              upToDate: [],
+              failed: [],
+              removed: [{ type: "prompt", name: "standup", dest: "/l/review/.claude/commands/standup.md" }],
+            },
+          ],
+        }),
+    });
+
+    await card(wrapper, "review").findAll("button").find((b) => b.text() === "Sync")!.trigger("click");
+    await flushPromises();
+
+    expect(asked).toMatchObject([{ loadout: "review" }]);
+    expect(banner(wrapper).text()).toBe("Synced review: 1 updated, 1 moved.");
+    expect(useViewStore().sync).toBe(false);
   });
 
   it("says when there are none yet", async () => {

@@ -22,7 +22,7 @@ type Plan = {
   loadouts?: { name: string; items: PlanItem[]; upToDate: UpToDate; leftovers?: [] }[];
 };
 
-async function mountSync(plans: Plan[], library: Partial<Library> = {}, props: { back?: string } = {}) {
+async function mountSync(plans: Plan[], library: Partial<Library> = {}) {
   const calls: unknown[][] = [];
   let planned = 0;
   const mounted = mountView(SyncView, {
@@ -49,7 +49,6 @@ async function mountSync(plans: Plan[], library: Partial<Library> = {}, props: {
       ),
       ...library,
     },
-    props,
   });
   await flushPromises();
   return { ...mounted, calls };
@@ -139,9 +138,8 @@ describe("UI-38: sync", () => {
 
   it("counts and lists loadout members too, so a run where only they changed has something to sync", async () => {
     const lint = item("lint", { dest: "/l/review/.claude/skills/lint" });
-    const { wrapper, calls } = await mountSync([{ items: [], upToDate: [], unmanaged: [], loadouts: [{ name: "review", items: [lint], upToDate: [{ ...ref("notes"), status: "unmoved" }] }] }], {}, { back: "Loadouts" });
+    const { wrapper, calls } = await mountSync([{ items: [], upToDate: [], unmanaged: [], loadouts: [{ name: "review", items: [lint], upToDate: [{ ...ref("notes"), status: "unmoved" }] }] }]);
 
-    expect(wrapper.find(".page-head button").text()).toBe("← Loadouts");
     expect(summary(wrapper)).toBe("1 to update · 1 already up to date · nothing has been written");
     expect(wrapper.find(".sync__loadout .sync__section").text()).toBe("In loadout review · 1");
     expect(wrapper.findAll(".sync__loadout .sync__name").map((n) => n.text())).toEqual(["lint"]);

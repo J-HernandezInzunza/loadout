@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Library, LoadoutRecord } from "@loadout/core";
 import { computed, onMounted, ref } from "vue";
-import { loadoutSummary, needsSync, savedOutcome } from "../loadouts.ts";
+import { loadoutSummary, needsSync, savedOutcome, syncedOutcome } from "../loadouts.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useToastStore } from "../stores/toasts.ts";
@@ -29,6 +29,8 @@ const outcome = ref<Outcome | null>(null);
 const editing = ref<string | null>(null);
 const confirming = ref<string | null>(null);
 const deleting = ref(false);
+/** the loadout being synced from its card */
+const syncing = ref<string | null>(null);
 
 const edited = computed(() => loadouts.value.find((l) => l.name === editing.value) ?? null);
 
@@ -71,6 +73,23 @@ async function remove(name: string) {
   confirming.value = null;
   if (deleted.ok) outcome.value = { kind: "success", message: `Deleted ${name}.` };
   else outcome.value = { kind: "error", message: `Couldn't delete ${name}.`, detail: deleted.error.message };
+  await load();
+}
+
+async function syncLoadout(name: string, signal: AbortSignal) {
+  const planned = await library.planSync({ loadout: name, signal });
+  if (!planned.ok) return planned;
+  return library.applySync(planned.value, { signal });
+}
+
+/** That loadout alone, at once: its folder is Loadout's, so there are no edits of the user's to review first. */
+async function syncOne(name: string) {
+  outcome.value = null;
+  syncing.value = name;
+  const synced = await activity.withActivity(`syncing ${name}…`, (signal) => syncLoadout(name, signal));
+  syncing.value = null;
+  if (synced.ok) outcome.value = syncedOutcome(name, synced.value.loadouts.find((l) => l.name === name));
+  else outcome.value = { kind: "error", message: `Couldn't sync ${name}.`, detail: synced.error.message };
   await load();
 }
 
@@ -166,17 +185,18 @@ onMounted(() => load());
             v-if="needsSync(l)"
             class="loadouts__stale"
           >
-            Some members aren't up to date with their catalogs, or aren't built yet.
-            <button
-              type="button"
-              class="btn-xs"
-              @click="views.sync = true"
-            >
-              Sync
-            </button>
+            Some members aren't up to date with their catalogs, or aren't built yet: Sync rebuilds them.
           </p>
           <code class="loadouts__run">{{ l.run }}</code>
           <div class="loadouts__actions">
+            <button
+              type="button"
+              class="btn-sm"
+              :disabled="syncing !== null"
+              @click="syncOne(l.name)"
+            >
+              {{ syncing === l.name ? "Syncing…" : "Sync" }}
+            </button>
             <button
               type="button"
               class="ghost btn-sm"
