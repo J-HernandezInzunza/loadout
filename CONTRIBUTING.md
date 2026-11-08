@@ -145,15 +145,6 @@ on the last release.
 Check Actions → Tap is green, then on a Mac that has Loadout installed,
 `brew update && brew upgrade --cask loadout` reaches the new version.
 
-**Once, for the first release that ships the `loadout` command** (`Contents/Resources/bin/loadout`):
-after Tap is green, add `binary "#{appdir}/Loadout.app/Contents/Resources/bin/loadout"` below
-`app "Loadout.app"` in the tap's `Casks/loadout.rb`, push it, and copy the cask to
-`test/fixtures/loadout.rb`. Not before: Homebrew fails an install whose `binary` source is missing,
-so the line can't point at an older release. `bump-cask.ts` rewrites only the version and sha256, so
-the line stays. The version didn't change, so an upgrade won't link it: `brew reinstall --cask
-loadout`, then `loadout list` runs. Anyone who upgraded before the line landed gets the command with
-the next release (or the same reinstall). Remove this paragraph once done.
-
 ### 5. Announce
 
 Tell the people who use Loadout, wherever they'll see it. Say what's new in a line or two per item

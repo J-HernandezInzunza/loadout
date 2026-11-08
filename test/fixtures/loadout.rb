@@ -17,6 +17,7 @@ cask "loadout" do
   depends_on macos: :sonoma
 
   app "Loadout.app"
+  binary "#{appdir}/Loadout.app/Contents/Resources/bin/loadout"
 
   # The app's own data only: the skills it installed into ~/.claude stay where they are.
   zap trash: [
