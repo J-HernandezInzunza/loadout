@@ -29,7 +29,7 @@ async function setup() {
   const h = createGitHarness(sb);
   const git = createGitClient(sb.host);
   const op = await createOperation(sb.host, git);
-  const fetch = (e: Entry) => fetchEntry(sb.host, git, op, e);
+  const fetch = (e: Entry) => fetchEntry(sb.host, git, op, e, destFor(sb.host.paths.home, e.type, e.name));
   /** Every file under `dir`, relative, sorted. */
   const tree = async (dir: string) => ((await readdir(dir, { recursive: true, withFileTypes: true })).filter((d) => d.isFile()).map((d) => join(d.parentPath, d.name).slice(dir.length + 1))).sort();
   return { sb, h, git, op, fetch, tree, home: sb.host.paths.home };

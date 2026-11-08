@@ -1,6 +1,6 @@
 // Decisions the screens need that no single op answers, computed from op results (list, catalogs, pins,
 // show, planInstall) so the UI words them without re-deriving them (behaviors.md §6 W-UI1).
-import { parseRef } from "../deps/deps.ts";
+import { parseRef, resolveDeps } from "../deps/deps.ts";
 import type { PlanItem } from "../install/plan.ts";
 import type { EntryRecord } from "../registry/registry.ts";
 import { splitOverrides } from "../write/add.ts";
@@ -78,6 +78,12 @@ function refKey(ref: string): string {
 }
 
 /** The drift gate: ready items whose apply would replace files the user edited after Loadout installed them. */
+/** What a loadout member brings in: its dependencies in its own catalog, in install order, itself excluded. */
+export function requiresOf(records: EntryRecord[], entry: EntryRecord): EntryRecord[] {
+  const own = records.filter((r) => r.catalog === entry.catalog);
+  return resolveDeps(own, entry).order.filter((e): e is EntryRecord => e !== entry);
+}
+
 export function discardsEdits(plan: { items: PlanItem[] }): PlanItem[] {
   return plan.items.filter((i) => i.status === "ready" && i.state === "drifted");
 }

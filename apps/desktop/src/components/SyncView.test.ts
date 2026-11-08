@@ -14,18 +14,38 @@ function item(name: string, extra: Partial<PlanItem> = {}): PlanItem {
   return { ...ref(name), dest: `/Users/dev/.claude/skills/${name}`, requiredBy: [], state: "installed", needsConsent: false, status: "ready", preview: files({ modified: ["SKILL.md"] }), ...extra } as PlanItem;
 }
 
-type Plan = { items: PlanItem[]; upToDate: (ReturnType<typeof ref> & { status: "up-to-date" | "unmoved" })[]; unmanaged: (ReturnType<typeof ref> & { dest: string; origin: "foreign" })[] };
+type UpToDate = (ReturnType<typeof ref> & { status: "up-to-date" | "unmoved" })[];
+type Plan = {
+  items: PlanItem[];
+  upToDate: UpToDate;
+  unmanaged: (ReturnType<typeof ref> & { dest: string; origin: "foreign" })[];
+  loadouts?: { name: string; items: PlanItem[]; upToDate: UpToDate; leftovers?: [] }[];
+};
 
 async function mountSync(plans: Plan[], library: Partial<Library> = {}) {
   const calls: unknown[][] = [];
   let planned = 0;
   const mounted = mountView(SyncView, {
     library: {
-      planSync: async (req) => (calls.push(["planSync", req?.force ?? false]), ok({ ...plans[Math.min(planned++, plans.length - 1)]!, opDir: "/tmp/op", fingerprint: "f" } as never)),
+      planSync: async (req) => (calls.push(["planSync", req?.force ?? false]), ok({ loadouts: [], ...plans[Math.min(planned++, plans.length - 1)]!, opDir: "/tmp/op", fingerprint: "f" } as never)),
       discardPlan: async () => (calls.push(["discardPlan"]), ok(undefined)),
       applySync: async (plan) => (
         calls.push(["applySync"]),
-        ok({ synced: plan.items.map((i) => ({ ...ref(i.name), dest: i.dest, preview: i.preview })), upToDate: plan.upToDate, failed: [], dependencies: [], unmanaged: plan.unmanaged, missing: [] })
+        ok({
+          synced: plan.items.map((i) => ({ ...ref(i.name), dest: i.dest, preview: i.preview })),
+          upToDate: plan.upToDate,
+          failed: [],
+          dependencies: [],
+          unmanaged: plan.unmanaged,
+          missing: [],
+          loadouts: plan.loadouts.map((l) => ({
+            name: l.name,
+            synced: l.items.map((i) => ({ ...ref(i.name), dest: i.dest, preview: i.preview })),
+            upToDate: l.upToDate,
+            failed: [],
+            removed: [],
+          })),
+        })
       ),
       ...library,
     },
@@ -87,6 +107,7 @@ describe("UI-38: sync", () => {
           dependencies: [{ ...ref("base"), requiredBy: ["tidy"] }],
           unmanaged: [],
           missing: [gone],
+          loadouts: [],
         }),
     });
     await press(wrapper, "Sync 2");
@@ -114,4 +135,42 @@ describe("UI-38: sync", () => {
     await flushPromises();
     expect(calls.at(-1)).toEqual(["discardPlan"]);
   });
+
+  it("counts and lists loadout members too, so a run where only they changed has something to sync", async () => {
+    const lint = item("lint", { dest: "/l/review/.claude/skills/lint" });
+    const { wrapper, calls } = await mountSync([{ items: [], upToDate: [], unmanaged: [], loadouts: [{ name: "review", items: [lint], upToDate: [{ ...ref("notes"), status: "unmoved" }] }] }]);
+
+    expect(summary(wrapper)).toBe("1 to update · 1 already up to date · nothing has been written");
+    expect(wrapper.find(".sync__loadout .sync__section").text()).toBe("In loadout review · 1");
+    expect(wrapper.findAll(".sync__loadout .sync__name").map((n) => n.text())).toEqual(["lint"]);
+
+    await press(wrapper, "Sync 1");
+
+    expect(calls).toEqual([["planSync", false], ["applySync"]]);
+    expect(summary(wrapper)).toBe("1 updated · 1 already up to date");
+    expect(wrapper.find(".sync__loadout .sync__section").text()).toBe("Loadout review · 1 synced");
+  });
+
+  it("reports a loadout member that failed, with why", async () => {
+    const lint = item("lint", { dest: "/l/review/.claude/skills/lint" });
+    const { wrapper } = await mountSync([{ items: [], upToDate: [], unmanaged: [], loadouts: [{ name: "review", items: [lint], upToDate: [] }] }], {
+      applySync: async () =>
+        ok({
+          synced: [],
+          upToDate: [],
+          failed: [],
+          dependencies: [],
+          unmanaged: [],
+          missing: [],
+          loadouts: [{ name: "review", synced: [], upToDate: [], failed: [{ ...ref("lint"), reason: "clone failed: Permission denied" }], removed: [] }],
+        }),
+    });
+
+    await press(wrapper, "Sync 1");
+
+    expect(summary(wrapper)).toBe("Nothing changed · 0 already up to date · 1 failed");
+    const failed = wrapper.find(".sync__loadout .sync__item--error");
+    expect([failed.find(".sync__name").text(), failed.find(".sync__detail").text()]).toEqual(["lint", "clone failed: Permission denied"]);
+  });
 });
+

@@ -38,8 +38,8 @@ export interface ReceiptStore {
   delete(dest: string): Promise<Result<void>>;
 }
 
-export function createReceiptStore(host: Host): ReceiptStore {
-  const file = `${host.paths.appData}/receipts.json`;
+/** The global installs' receipts unless `file` names another store, such as a loadout's. */
+export function createReceiptStore(host: Host, file = `${host.paths.appData}/receipts.json`): ReceiptStore {
   let queue: Promise<unknown> = Promise.resolve();
 
   /** The receipts by dest, or why the file can't be used. */
@@ -69,7 +69,7 @@ export function createReceiptStore(host: Host): ReceiptStore {
       }
       if (!apply(current.receipts)) return ok(undefined);
       const installs = [...current.receipts.values()].sort((a, b) => (a.dest < b.dest ? -1 : a.dest > b.dest ? 1 : 0));
-      await host.fs.mkdirp(host.paths.appData);
+      await host.fs.mkdirp(file.slice(0, file.lastIndexOf("/")));
       await host.fs.writeTextAtomic(file, JSON.stringify({ version: 2, installs }, null, 2) + "\n");
       host.audit({ kind: "fs", op: "write", path: file });
       return ok(undefined);

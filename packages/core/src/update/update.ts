@@ -81,6 +81,13 @@ export async function checkUpdate(ctx: UpdateCtx, entry: Entry, receipt: Receipt
   return { status: "unmoved", tip };
 }
 
+/** A local source no longer holds what the receipt recorded; false for any other source. Reads files, never the network. */
+export async function localSourceMoved(host: Host, entry: Entry, receipt: ReceiptV2): Promise<boolean> {
+  const src = parsed(host, entry);
+  if (src === null || src.kind !== "local") return false;
+  return !(await localUnchanged(host, entry, src.path, receipt));
+}
+
 /**
  * UPD-06: `installed` but behind its source, for list. Only a known head that differs from the
  * receipt's commit, without unmoved content, is stale; an unknown head stays installed, a local source

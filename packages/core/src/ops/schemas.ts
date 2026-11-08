@@ -2,7 +2,7 @@
 // generated rather than hand-written. Outputs are the `value` of the op's Result.
 import { z } from "zod";
 import { TokenSet } from "../accounts/accounts.ts";
-import { AccountInfo } from "../config/config.ts";
+import { AccountInfo, LoadoutMember } from "../config/config.ts";
 import { CatalogRef, Entry, EntryType, Source } from "../model/model.ts";
 import { ReceiptV2 } from "../receipts/receipts.ts";
 
@@ -116,6 +116,8 @@ const ImportPlan = plan<"ImportPlan">("config");
 const CatalogEditPlan = plan<"CatalogEditPlan">("op");
 const PushPlan = plan<"PushPlan">("files");
 const PinPlan = plan<"PinPlan">("switch");
+const SaveLoadoutPlan = plan<"SaveLoadoutPlan">("unknown");
+const DeleteLoadoutPlan = plan<"DeleteLoadoutPlan">("folder");
 
 const Ref = z.strictObject({ type: EntryType, name: z.string(), catalog: z.string() });
 const files = z.array(z.string());
@@ -155,6 +157,15 @@ const SyncReport = z.strictObject({
   dependencies: z.array(Ref.extend({ requiredBy: z.array(z.string()) })),
   unmanaged: z.array(Ref.extend({ dest: z.string(), origin: Origin })),
   missing: z.array(ReceiptV2),
+  loadouts: z.array(
+    z.strictObject({
+      name: z.string(),
+      synced: z.array(Ref.extend({ dest: z.string(), preview: Preview })),
+      upToDate: z.array(Ref.extend({ status: z.enum(["up-to-date", "unmoved"]) })),
+      failed: z.array(Ref.extend({ reason: z.string() })),
+      removed: z.array(z.strictObject({ type: EntryType, name: z.string(), dest: z.string() })),
+    }),
+  ),
 });
 export type CatalogRow = z.infer<typeof CatalogRow>;
 
@@ -168,6 +179,21 @@ export const PinRecord = z.strictObject({
   resolvesTo: z.string().nullable(),
 });
 export type PinRecord = z.infer<typeof PinRecord>;
+
+export const LoadoutRecord = z.strictObject({
+  name: z.string(),
+  run: z.string(),
+  command: z.string(),
+  /** resolvesTo: the catalog the member resolves to, null when no catalog defines it; state: its copy in the loadout's folder */
+  members: z.array(LoadoutMember.extend({ resolvesTo: z.string().nullable(), state: z.enum(["built", "stale", "missing", "failed"]) })),
+});
+export type LoadoutRecord = z.infer<typeof LoadoutRecord>;
+
+const BuildReport = z.strictObject({
+  built: z.array(z.strictObject({ type: EntryType, name: z.string(), dest: z.string(), requiredBy: z.array(z.string()) })),
+  failed: z.array(z.strictObject({ type: EntryType, name: z.string(), requiredBy: z.array(z.string()), reason: z.string() })),
+  removed: z.array(z.strictObject({ type: EntryType, name: z.string(), dest: z.string() })),
+});
 
 const Finding = z.strictObject({
   check: z.string(),
@@ -297,7 +323,7 @@ export const ops = {
   setSkillState: { input: z.strictObject({ names: z.array(z.string()), state: z.enum(["on", "off"]) }), output: ToggleReport },
   planMigrateParked: { input: z.strictObject({}), output: MigratePlan },
   applyMigrateParked: { input: z.strictObject({ plan: MigratePlan }), output: MigrateReport },
-  planSync: { input: z.strictObject({ ...catalogOption, force: z.boolean().exactOptional() }), output: SyncPlan },
+  planSync: { input: z.strictObject({ ...catalogOption, force: z.boolean().exactOptional(), loadout: z.string().exactOptional() }), output: SyncPlan },
   applySync: { input: z.strictObject({ plan: SyncPlan }), output: SyncReport },
   discardPlan: { input: z.strictObject({ plan: z.union([InstallPlan, SyncPlan]) }), output: z.undefined() },
   pins: { input: z.strictObject({}), output: z.array(PinRecord) },
@@ -372,6 +398,31 @@ export const ops = {
   unpin: {
     input: z.strictObject({ name: z.string() }),
     output: z.strictObject({ name: z.string(), was: z.string(), resolvesTo: z.string().nullable() }),
+  },
+  loadouts: { input: z.strictObject({ checkRemote: z.boolean().exactOptional() }), output: z.array(LoadoutRecord) },
+  planSaveLoadout: {
+    input: z.strictObject({ name: z.string(), members: z.array(LoadoutMember), replace: z.boolean().exactOptional() }),
+    output: SaveLoadoutPlan,
+  },
+  applySaveLoadout: { input: z.strictObject({ plan: SaveLoadoutPlan }), output: LoadoutRecord.extend({ build: BuildReport }) },
+  planDeleteLoadout: { input: z.strictObject({ name: z.string() }), output: DeleteLoadoutPlan },
+  applyDeleteLoadout: { input: z.strictObject({ plan: DeleteLoadoutPlan }), output: z.strictObject({ name: z.string(), removedFolder: z.boolean() }) },
+  launchCommand: {
+    input: z.strictObject({ name: z.string(), members: z.array(LoadoutMember).exactOptional() }),
+    output: z.strictObject({
+      name: z.string(),
+      run: z.string(),
+      command: z.string(),
+      clashes: z.array(
+        z.strictObject({
+          type: EntryType,
+          name: z.string(),
+          with: EntryType,
+          outcome: z.enum(["prefixed", "shadows", "hidden", "unknown"]),
+          sessionName: z.string().nullable(),
+        }),
+      ),
+    }),
   },
   suggestSource: { input: z.strictObject({ path: z.string() }), output: z.strictObject({ url: z.string().nullable(), why: z.string() }) },
 };

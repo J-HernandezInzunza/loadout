@@ -26,10 +26,21 @@ const failure = ref<string | null>(null);
 const acknowledged = ref(false);
 
 const toUpdate = computed(() => plan.value?.items ?? []);
+/** each loadout with members to rebuild; its edited copies need no acknowledgement, since only Loadout writes there */
+const loadoutPlans = computed(() => plan.value?.loadouts.filter((l) => l.items.length) ?? []);
+const loadoutItems = computed(() => loadoutPlans.value.flatMap((l) => l.items));
+const total = computed(() => toUpdate.value.length + loadoutItems.value.length);
+const upToDate = computed(() => (plan.value?.upToDate.length ?? 0) + (plan.value?.loadouts.reduce((n, l) => n + l.upToDate.length, 0) ?? 0));
 const drifted = computed(() => (plan.value ? discardsEdits(plan.value) : []));
-const canApply = computed(() => toUpdate.value.some((i) => i.status === "ready") && (!drifted.value.length || acknowledged.value));
+const canApply = computed(() => [...toUpdate.value, ...loadoutItems.value].some((i) => i.status === "ready") && (!drifted.value.length || acknowledged.value));
+const loadoutOutcomes = computed(() => report.value?.loadouts.filter((l) => l.synced.length || l.failed.length) ?? []);
 /** "updated" means files were touched, not merely that the item ran */
-const updated = computed(() => report.value?.synced.filter((i) => summarizeChanges(i.preview) !== "no changes") ?? []);
+const updated = computed(() => {
+  const synced = [...(report.value?.synced ?? []), ...(report.value?.loadouts.flatMap((l) => l.synced) ?? [])];
+  return synced.filter((i) => summarizeChanges(i.preview) !== "no changes");
+});
+const reportedUpToDate = computed(() => (report.value?.upToDate.length ?? 0) + (report.value?.loadouts.reduce((n, l) => n + l.upToDate.length, 0) ?? 0));
+const reportedFailed = computed(() => (report.value?.failed.length ?? 0) + (report.value?.loadouts.reduce((n, l) => n + l.failed.length, 0) ?? 0));
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 async function discard() {
@@ -109,14 +120,14 @@ onUnmounted(() => void discard());
       <template v-else-if="plan">
         <p class="sync__summary fade-in">
           <strong
-            v-if="toUpdate.length"
+            v-if="total"
             class="sync__count"
-          >{{ toUpdate.length }} to update</strong>
+          >{{ total }} to update</strong>
           <strong
             v-else
             class="sync__count sync__count--quiet"
           >Everything is up to date</strong>
-          <span> · {{ plan.upToDate.length }} already up to date</span>
+          <span> · {{ upToDate }} already up to date</span>
           <span> · nothing has been written</span>
         </p>
         <p
@@ -150,6 +161,31 @@ onUnmounted(() => void discard());
             </div>
           </li>
         </ul>
+        <section
+          v-for="l in loadoutPlans"
+          :key="l.name"
+          class="sync__loadout"
+        >
+          <h3 class="sync__section">
+            In loadout {{ l.name }} · {{ l.items.length }}
+          </h3>
+          <ul class="sync__list fade-in">
+            <li
+              v-for="item in l.items"
+              :key="item.dest"
+              class="sync__item sync__item--changed"
+            >
+              <div class="sync__head">
+                <span class="sync__name">{{ item.name }}</span>
+                <span class="sync__badge">{{ describeDestState(item.state) }}</span>
+                <span
+                  v-if="item.status !== 'ready'"
+                  class="sync__detail"
+                >can't sync: {{ item.reason }}</span>
+              </div>
+            </li>
+          </ul>
+        </section>
         <template v-if="plan.unmanaged.length">
           <h3 class="sync__section">
             Left alone · {{ plan.unmanaged.length }}
@@ -178,12 +214,12 @@ onUnmounted(() => void discard());
           Overwrite {{ drifted.length }} locally edited {{ plural(drifted.length, "copy", "copies") }}, discarding those edits.
         </label>
         <button
-          v-if="toUpdate.length"
+          v-if="total"
           type="button"
           :disabled="!canApply"
           @click="apply()"
         >
-          Sync {{ toUpdate.length }}
+          Sync {{ total }}
         </button>
       </template>
 
@@ -197,11 +233,11 @@ onUnmounted(() => void discard());
             v-else
             class="sync__count sync__count--quiet"
           >Nothing changed</strong>
-          <span> · {{ report.upToDate.length }} already up to date</span>
+          <span> · {{ reportedUpToDate }} already up to date</span>
           <span
-            v-if="report.failed.length"
+            v-if="reportedFailed"
             class="sync__count--failed"
-          > · {{ report.failed.length }} failed</span>
+          > · {{ reportedFailed }} failed</span>
           <span
             v-if="report.missing.length"
             class="sync__count--gone"
@@ -286,6 +322,33 @@ onUnmounted(() => void discard());
             </li>
           </ul>
         </template>
+        <section
+          v-for="l in loadoutOutcomes"
+          :key="l.name"
+          class="sync__loadout"
+        >
+          <h3 class="sync__section">
+            Loadout {{ l.name }} · {{ l.synced.length }} synced
+          </h3>
+          <ul class="sync__list fade-in">
+            <li
+              v-for="item in l.failed"
+              :key="`${item.type}:${item.name}`"
+              class="sync__item sync__item--error"
+            >
+              <span class="sync__name">{{ item.name }}</span>
+              <span class="sync__detail">{{ item.reason }}</span>
+            </li>
+            <li
+              v-for="item in l.synced"
+              :key="item.dest"
+              class="sync__item sync__item--changed"
+            >
+              <span class="sync__name">{{ item.name }}</span>
+              <span class="sync__badge">{{ summarizeChanges(item.preview) }}</span>
+            </li>
+          </ul>
+        </section>
         <template v-if="report.dependencies.length">
           <h3 class="sync__section sync__section--changed">
             Also installed · {{ report.dependencies.length }}

@@ -6,7 +6,6 @@ import { LibraryError, err, ok, type Entry, type Result } from "../model/model.t
 import type { Operation } from "../git/operation.ts";
 import type { CallOpts, GitClient } from "../git/git.ts";
 import { fileManifest } from "../receipts/hash.ts";
-import { destFor } from "../scan/scan.ts";
 import { parseSource } from "../source/source.ts";
 
 export interface Fetched {
@@ -60,7 +59,7 @@ export async function copyTree(host: Host, from: string, to: string, top = true)
   }
 }
 
-export async function fetchEntry(host: Host, git: GitClient, op: Operation, entry: Entry, opts: CallOpts = {}): Promise<Result<Fetched>> {
+export async function fetchEntry(host: Host, git: GitClient, op: Operation, entry: Entry, dest: string, opts: CallOpts = {}): Promise<Result<Fetched>> {
   let src;
   try {
     src = parseSource(entry.source, host.paths.home);
@@ -87,7 +86,7 @@ export async function fetchEntry(host: Host, git: GitClient, op: Operation, entr
   // FETCH-06, FETCH-11: a skill installs the folder holding its source, even when the source is itself a folder.
   const origin = entry.type === "skill" ? dirname(ref) : ref;
   if (src.kind === "local") {
-    const refused = await refuseOverlap(host, origin, destFor(host.paths.home, entry.type, entry.name));
+    const refused = await refuseOverlap(host, origin, dest);
     if (!refused.ok) return refused;
   }
 

@@ -129,6 +129,7 @@ export type AuditEvent =
 | `write` | WRITE-* | `writeTarget(req)`, `applyCatalogEdit(cat, edit, mode)` (local / direct / pr), `openPullRequest` |
 | `authoring` | add/update/remove/push/pin/unpin ops | `plan*` / `apply*` pairs |
 | `doctor` | §2.10 | `doctor({ deep }): DoctorReport` |
+| `loadouts` | §4.6 below | `listLoadouts()`, `planSaveLoadout` / `applySaveLoadout`, `planDeleteLoadout` / `applyDeleteLoadout`, `loadoutDir(appData, name)` |
 | `ops` | §3 of behaviors | `createLibrary(host): Library` facade; every op has `input`/`output` zod schemas |
 
 The facade, with plan/apply pairs for every mutation (W12) and decisions returned as results rather
@@ -173,6 +174,14 @@ export interface Library {
   planPin(req: { name: string; catalog: string }): Promise<Result<PinPlan, NameErr>>;
   applyPin(plan: PinPlan, opts: { switchInstalled: boolean }): Promise<Result<PinResult>>;
   unpin(name: string): Promise<Result<UnpinResult>>;
+
+  // loadouts (§4.6)
+  loadouts(opts?: { checkRemote?: boolean }): Promise<Result<LoadoutRecord[]>>;
+  planSaveLoadout(req: { name: string; members: LoadoutMember[]; replace?: boolean }): Promise<Result<SaveLoadoutPlan>>;
+  applySaveLoadout(plan: SaveLoadoutPlan, opts?: { signal?: AbortSignal }): Promise<Result<LoadoutRecord & { build: BuildReport }>>;
+  planDeleteLoadout(name: string): Promise<Result<DeleteLoadoutPlan>>;
+  applyDeleteLoadout(plan: DeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
+  launchCommand(name: string, opts?: { members?: LoadoutMember[] }): Promise<Result<LaunchCommand>>;   // run, command, clashes; members previews a draft
 
   // one-time import
   planImport(toolDir?: string): Promise<Result<ImportPlan>>;
@@ -322,6 +331,7 @@ config.json          registry, pins, settings (schema below)
 receipts.json        install receipts, version 2
 clones/<catalog id>/ persistent clones of remote catalogs (RCAT-01 without the 'shared' special case)
 tmp/<op id>/         per-operation temp clones and staging; swept at launch (fixes FETCH-09's leak)
+loadouts/<name>/     one loadout's folder, launched with --add-dir, and its receipts.json (§4.6)
 ```
 
 `config.json`:
@@ -335,6 +345,7 @@ interface AppConfigV1 {
         protected: boolean; writable?: boolean }>;
   pins: Record<string, string>;
   settings: Record<string, never>;   // reserved; autopush, default_add_catalog, default_dirs dropped (Q10, Q11)
+  loadouts?: Record<string, { members: Array<{ type: EntryType; name: string; catalog?: string }> }>;  // §4.6
   imported?: { from: string; at: string; configSha256: string };
 }
 ```
@@ -512,6 +523,68 @@ in a new `claudeSettings` module; `SettingsErr` covers an unparseable or unwrita
 
 Tests: golden cases for the JSON edit (formatting preserved byte-for-byte outside the changed key;
 missing file; empty object; invalid JSON refused; symlink preserved; concurrent change detected).
+
+### 4.6 Loadouts (decided 2026-11-04)
+
+A loadout is a named set of catalog entries a user brings into one Claude Code session on top of the
+global setup, by launching `claude --add-dir='<appData>/loadouts/<name>'` (spikes.md S13). It
+switches nothing off and changes nothing in `~/.claude` or Claude Code's settings.
+
+- **Saved** in `config.json` under `loadouts`: name → `{ members }`, each member a `type` and `name`
+  and optionally the `catalog` to take it from. Absent means none, so configs from before loadouts read
+  and save unchanged, and deleting the last loadout drops the key.
+- **Names are slugs** (`^[a-z0-9]+(-[a-z0-9]+)*$`): the name is the folder under `loadouts/` and the
+  prefix Claude Code gives a member that clashes with a global item (`<name>:<member>`). The config
+  schema enforces it too, so a hand-edited name can't point a delete outside `loadouts/`.
+- **Members resolve** by type and name through catalog order and pins, or in the catalog they name.
+  A member no catalog defines is kept and reported (`resolvesTo: null`), as a dangling pin is. A
+  loadout holds one member per type and name, since both copies would land in one folder.
+- **Saving** is `planSaveLoadout` / `applySaveLoadout`: a create, or a replace with `replace: true`
+  (a new name that exists is `DUPLICATE`; replacing one that doesn't is `NOT_FOUND`). The plan
+  carries the loadout as it was (`previous`) as its fingerprint, and apply returns `STALE_PLAN` if it
+  changed.
+- **Building** runs when a loadout is saved: the install pipeline with another root and receipt file
+  (`InstallCtx.dest`, `createReceiptStore(host, file)`), so members and their requires land in
+  `loadouts/<name>/.claude/{skills,commands,agents}` with receipts in `loadouts/<name>/receipts.json`,
+  fetched and verified as installs are. The global installs, their receipts, sync, the scan and
+  `list()` keep the home root. Where a build differs from an install: an item that fails doesn't stop
+  the rest (`build.failed` says why, and a member built before keeps that copy); content in the folder
+  without a receipt, or edited since it was built, is replaced without asking, since only Loadout
+  writes there; and paths with the loadout's receipt that are neither planned nor a member's are
+  removed, so a member that no longer resolves keeps its copy and a catalog that can't be read never
+  empties a loadout. A local source is checked against the loadout's destination (FETCH-08), so a
+  global install can be a member's source.
+- **State** per member, in `loadouts()`: `failed` (no catalog defines it), `missing` (nothing it built
+  is in the folder), `stale` (the copy isn't what its entry would build now: the source was repointed,
+  the copy edited, or a local source changed; a moved remote source only with `checkRemote`, as
+  `list()`), else `built`.
+- **Sync** includes loadouts: `SyncPlan.loadouts` and `SyncReport.loadouts`, per loadout. Each
+  resolved member's closure is checked against the loadout's receipts with `checkUpdate`, so what is
+  provably unchanged is skipped (UPD-04/05); unlike installs, what is missing or unreceipted is built.
+  Every check, the loadouts' included, runs before the first write. `planSync({ loadout })` plans that
+  loadout alone: no global installs, no other loadout, no missing-receipt report (NOT_FOUND for an
+  unknown name); a loadout's card syncs it that way in one click.
+- **Launching** (`launchCommand(name)`, or `launchCommand(name, { members })` to preview a draft in the
+  editor; each `LoadoutRecord` carries the same `run` and `command`, so Copy needs no await before the
+  clipboard write): `loadout run <name>`, and the bare command
+  `claude --add-dir='<folder>'` with each `'` in the folder written `'\''`. Its clashes are the
+  members named like a loadable item in `~/.claude` (from the scan; a prompt namespace folder can't
+  clash), each with an outcome from spikes.md S13: a skill clashing with a skill is `prefixed`
+  (`<loadout>:<name>`), or `hidden` when that skill is turned off; a skill clashing with a prompt
+  `shadows` it; a prompt clashing with either is `prefixed`, since it is built under the namespace
+  (below); an agent is `unknown`. Project, bundled
+  and plugin items depend on where and how the session starts, so they aren't claimed.
+- **A clashing prompt** (decided 2026-11-07): a prompt, member or requirement, named like a loadable
+  global prompt or skill when the loadout is built or synced goes to `commands/<loadout>/<name>.md`,
+  which Claude Code runs as `/<loadout>:<name>` (S13; a global skill turned off doesn't hide it); the
+  others stay at `commands/<name>.md`. One scan of `~/.claude` per build, `loadouts()` call or Sync
+  decides it. A member built in the other place reads `stale`; Sync writes it where it goes now and
+  removes the old copy (`SyncReport.loadouts[].removed`), and the namespace folder goes with its last
+  prompt. A move or fetch that fails keeps the old copy. Accepted: a global prompt installed after a
+  build hides the loadout's bare one until the next Sync or save.
+- **Deleting** removes the folder, then the config entry: a failed config write leaves a saved
+  loadout with nothing built, never a launchable folder no loadout lists. Only Loadout writes the
+  folder, so it is removed whole.
 
 ## 5. Git and network
 

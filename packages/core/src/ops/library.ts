@@ -34,6 +34,21 @@ import { createGitClient, type GitClient } from "../git/git.ts";
 import { createOperation, sweepTemp } from "../git/operation.ts";
 import type { Host } from "../host.ts";
 import { applyInstall, type ApplyOpts, type ApplyReport } from "../install/apply.ts";
+import {
+  applyDeleteLoadout,
+  applySaveLoadout,
+  launchCommand,
+  listLoadouts,
+  planDeleteLoadout,
+  planSaveLoadout,
+  type DeleteLoadoutPlan,
+  type LaunchCommand,
+  type LoadoutMember,
+  type LoadoutRecord,
+  type SaveLoadoutPlan,
+  type SaveLoadoutRequest,
+  type SaveLoadoutResult,
+} from "../loadouts/loadouts.ts";
 import { discardPlan, planInstall, type InstallPlan } from "../install/plan.ts";
 import { applySync, planSync, type SyncPlan, type SyncReport } from "../install/sync.ts";
 import { uninstall, type UninstallItem } from "../install/uninstall.ts";
@@ -63,6 +78,8 @@ export type IssuedAddCatalogPlan = Issued<AddCatalogPlan, "AddCatalogPlan">;
 export type IssuedImportPlan = Issued<ImportPlan, "ImportPlan">;
 export type IssuedPushPlan = Issued<PushPlan, "PushPlan">;
 export type IssuedPinPlan = Issued<PinPlan, "PinPlan">;
+export type IssuedSaveLoadoutPlan = Issued<SaveLoadoutPlan, "SaveLoadoutPlan">;
+export type IssuedDeleteLoadoutPlan = Issued<DeleteLoadoutPlan, "DeleteLoadoutPlan">;
 /** A sign-in in progress: GitHub's code to enter, or Bitbucket's page to open; hand it back to completeSignIn. */
 export type IssuedSignIn = Issued<GitHubSignIn | BitbucketSignIn, "SignIn">;
 
@@ -110,7 +127,8 @@ export interface Library {
   /** The copies the Python CLI parked in skills-disabled (§4.5 rule 7). */
   planMigrateParked(): Promise<Result<IssuedMigratePlan>>;
   applyMigrateParked(plan: IssuedMigratePlan): Promise<Result<MigrateReport>>;
-  planSync(req?: { catalog?: string; force?: boolean; signal?: AbortSignal }): Promise<Result<IssuedSyncPlan>>;
+  /** `loadout` syncs that loadout alone, with no global installs. */
+  planSync(req?: { catalog?: string; force?: boolean; loadout?: string; signal?: AbortSignal }): Promise<Result<IssuedSyncPlan>>;
   applySync(plan: IssuedSyncPlan, opts?: { signal?: AbortSignal }): Promise<Result<SyncReport>>;
   /** Removes the staged copies of a plan that won't be applied; apply removes them itself. */
   discardPlan(plan: IssuedInstallPlan | IssuedSyncPlan): Promise<Result<void>>;
@@ -163,6 +181,17 @@ export interface Library {
   planPin(req: { name: string; catalog: string }): Promise<Result<IssuedPinPlan>>;
   applyPin(plan: IssuedPinPlan, opts: { switchInstalled: boolean; signal?: AbortSignal }): Promise<Result<PinResult>>;
   unpin(name: string): Promise<Result<{ name: string; was: string; resolvesTo: string | null }>>;
+  /** Saved loadouts by name, each member with the catalog it resolves to and its state; `checkRemote` asks each remote source whether it moved. */
+  loadouts(opts?: { checkRemote?: boolean }): Promise<Result<LoadoutRecord[]>>;
+  /** Creates a loadout, or replaces one with `replace`; DUPLICATE for a new name that exists, REFUSED for a name that isn't a slug. */
+  planSaveLoadout(req: SaveLoadoutRequest): Promise<Result<IssuedSaveLoadoutPlan>>;
+  /** Saves, then builds the loadout's folder; members that didn't land are in `build.failed`, and the loadout stays saved. */
+  applySaveLoadout(plan: IssuedSaveLoadoutPlan, opts?: { signal?: AbortSignal }): Promise<Result<SaveLoadoutResult>>;
+  /** The config entry and the loadout's folder. */
+  planDeleteLoadout(name: string): Promise<Result<IssuedDeleteLoadoutPlan>>;
+  applyDeleteLoadout(plan: IssuedDeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
+  /** `loadout run <name>`, the bare command with the folder quoted, and the members named like something Claude Code loads globally; `members` previews a draft. */
+  launchCommand(name: string, opts?: { members?: LoadoutMember[] }): Promise<Result<LaunchCommand>>;
   /** WRITE-05's hint: the browser URL of a local file in a GitHub or Bitbucket repo. */
   suggestSource(path: string): Promise<Result<SourceSuggestion>>;
 }
@@ -558,6 +587,30 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
 
     async unpin(name) {
       return unpin(ctx, name);
+    },
+
+    async loadouts(o = {}) {
+      return listLoadouts(ctx, o);
+    },
+
+    async planSaveLoadout(req) {
+      return (await planSaveLoadout(ctx, req)) as Result<IssuedSaveLoadoutPlan>;
+    },
+
+    async applySaveLoadout(plan, o = {}) {
+      return applySaveLoadout(ctx, plan, o);
+    },
+
+    async planDeleteLoadout(name) {
+      return (await planDeleteLoadout(ctx, name)) as Result<IssuedDeleteLoadoutPlan>;
+    },
+
+    async applyDeleteLoadout(plan) {
+      return applyDeleteLoadout(ctx, plan);
+    },
+
+    async launchCommand(name, o = {}) {
+      return launchCommand(ctx, name, o);
     },
 
     async suggestSource(path) {

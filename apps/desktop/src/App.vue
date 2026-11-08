@@ -12,6 +12,7 @@ import DoctorView from "./components/DoctorView.vue";
 import EntryDetail from "./components/EntryDetail.vue";
 import FirstRun from "./components/FirstRun.vue";
 import InstallView from "./components/InstallView.vue";
+import LoadoutsView from "./components/LoadoutsView.vue";
 import ParkedSkills from "./components/ParkedSkills.vue";
 import SyncView from "./components/SyncView.vue";
 import ToastStack from "./components/ToastStack.vue";
@@ -56,6 +57,7 @@ onMounted(async () => {
     />
     <SyncView v-else-if="current.kind === 'sync'" />
     <AccountsView v-else-if="current.kind === 'accounts'" />
+    <LoadoutsView v-else-if="current.kind === 'loadouts'" />
     <CatalogsView
       v-else-if="current.kind === 'catalogs'"
       :at="current.catalog"

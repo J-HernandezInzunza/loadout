@@ -11,6 +11,7 @@ export type View =
   | { kind: "doctor" }
   | { kind: "sync" }
   | { kind: "accounts" }
+  | { kind: "loadouts" }
   | { kind: "add"; catalog: string }
   | { kind: "catalogs"; catalog: string | null; entry: string | null }
   | { kind: "install"; name: string }
@@ -25,6 +26,7 @@ export const useViewStore = defineStore("views", () => {
   const doctor = ref(false);
   const sync = ref(false);
   const accounts = ref(false);
+  const loadouts = ref(false);
   const addingTo = ref<string | null>(null);
   const manage = ref<{ catalog: string | null; entry: string | null } | null>(null);
   const installFor = ref<string | null>(null);
@@ -35,6 +37,7 @@ export const useViewStore = defineStore("views", () => {
     if (doctor.value) return { kind: "doctor" };
     if (sync.value) return { kind: "sync" };
     if (accounts.value) return { kind: "accounts" };
+    if (loadouts.value) return { kind: "loadouts" };
     if (addingTo.value !== null) return { kind: "add", catalog: addingTo.value };
     if (manage.value) return { kind: "catalogs", ...manage.value };
     if (installFor.value !== null) return { kind: "install", name: installFor.value };
@@ -52,5 +55,5 @@ export const useViewStore = defineStore("views", () => {
     if (installFor.value !== null && !names.has(installFor.value)) installFor.value = null;
   }
 
-  return { doctor, sync, accounts, addingTo, manage, installFor, trail, current, prune };
+  return { doctor, sync, accounts, loadouts, addingTo, manage, installFor, trail, current, prune };
 });

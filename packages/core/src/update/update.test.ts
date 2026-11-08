@@ -29,9 +29,9 @@ async function setup() {
   /** Fetches, copies into place and records a receipt, as apply will. */
   const install = async (e: Entry): Promise<ReceiptV2> => {
     const { op } = await ctx();
-    const fetched = await fetchEntry(sb.host, git, op, e);
-    if (!fetched.ok) throw new Error(fetched.error.message);
     const dest = destFor(sb.host.paths.home, e.type, e.name);
+    const fetched = await fetchEntry(sb.host, git, op, e, dest);
+    if (!fetched.ok) throw new Error(fetched.error.message);
     await mkdir(dirname(dest), { recursive: true });
     await cp(fetched.value.staged, dest, { recursive: true });
     const receipt: ReceiptV2 = {
