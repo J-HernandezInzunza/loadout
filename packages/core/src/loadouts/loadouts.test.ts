@@ -205,6 +205,7 @@ describe("loadouts", () => {
     expect(ops.applySaveLoadout.output.parse(value(await library.applySaveLoadout(save)))).toMatchObject({ name: "review", build: { built: [{ name: "x" }] } });
     expect(ops.loadouts.output.parse(value(await library.loadouts()))).toHaveLength(1);
     expect(ops.launchCommand.output.parse(value(await library.launchCommand("review")))).toMatchObject({ run: "loadout run review" });
+    expect(typeof ops.loadoutOnPath.output.parse(value(await library.loadoutOnPath()))).toBe("boolean");
     const remove = value(await library.planDeleteLoadout("review"));
     expect(ops.planDeleteLoadout.output.safeParse(remove).success).toBe(true);
     expect(ops.applyDeleteLoadout.output.parse(value(await library.applyDeleteLoadout(remove)))).toEqual({ name: "review", removedFolder: true });
@@ -494,6 +495,16 @@ describe("launch command", () => {
     const preview = await launchCommand(ctx, "draft", { members: [{ type: "skill", name: "grilling" }] });
 
     expect(preview).toMatchObject({ ok: true, value: { run: "loadout run draft", clashes: [{ name: "grilling", outcome: "prefixed", sessionName: "draft:grilling" }] } });
+  });
+
+  it("says whether a terminal finds the loadout command on its PATH", async () => {
+    const sb = await createSandbox();
+    const asked: string[] = [];
+    const finding = (path: string | null) => createLibrary({ ...sb.host, proc: { ...sb.host.proc, which: async (program) => (asked.push(program), path) } });
+
+    expect(await finding("/opt/homebrew/bin/loadout").loadoutOnPath()).toEqual({ ok: true, value: true, warnings: [] });
+    expect(await finding(null).loadoutOnPath()).toEqual({ ok: true, value: false, warnings: [] });
+    expect(asked).toEqual(["loadout", "loadout"]);
   });
 });
 

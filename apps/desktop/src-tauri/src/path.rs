@@ -177,6 +177,22 @@ fn widened_path(current: &str, shell: &[String], fallbacks: &[String]) -> String
     dirs.join(":")
 }
 
+/// The first executable file named `program` on the process PATH, which `repair_env` made the login
+/// shell's: the webview asks this to learn whether a terminal would find the `loadout` command.
+#[tauri::command]
+pub fn which(program: String) -> Option<String> {
+    let path = std::env::var_os("PATH")?;
+    find_executable(&program, &path).map(|p| p.display().to_string())
+}
+
+fn find_executable(program: &str, path: &std::ffi::OsStr) -> Option<PathBuf> {
+    use std::os::unix::fs::PermissionsExt;
+    std::env::split_paths(path)
+        .filter(|dir| !dir.as_os_str().is_empty())
+        .map(|dir| dir.join(program))
+        .find(|candidate| candidate.metadata().is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -321,5 +337,23 @@ mod tests {
             assert!(!cached);
             assert_eq!(read_cache(&scratch.cache()), Some(env(&["/bin"], None)));
         }
+    }
+
+    #[test]
+    fn finds_an_executable_file_on_the_path_and_not_a_plain_file_a_folder_or_a_missing_name() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = Scratch::new("which");
+        let bin = scratch.0.join("bin");
+        std::fs::create_dir_all(bin.join("folder")).unwrap();
+        std::fs::write(bin.join("tool"), "#!/bin/sh\n").unwrap();
+        std::fs::set_permissions(bin.join("tool"), std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::write(bin.join("notes"), "x").unwrap();
+        std::fs::set_permissions(bin.join("notes"), std::fs::Permissions::from_mode(0o644)).unwrap();
+        let path = format!("{}::{}", scratch.0.join("missing").display(), bin.display());
+
+        assert_eq!(find_executable("tool", path.as_ref()), Some(bin.join("tool")));
+        assert_eq!(find_executable("notes", path.as_ref()), None);
+        assert_eq!(find_executable("folder", path.as_ref()), None);
+        assert_eq!(find_executable("absent", path.as_ref()), None);
     }
 }

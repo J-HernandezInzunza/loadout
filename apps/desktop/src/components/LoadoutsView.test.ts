@@ -76,7 +76,7 @@ const search = async (w: Wrapper, query: string) => {
 };
 
 describe("Loadouts", () => {
-  it("lists each loadout with its member count and state, and says when one is behind", async () => {
+  it("lists each loadout with its member count and state, and offers Sync only on one that's behind", async () => {
     const { wrapper } = await mountLoadouts({
       loadouts: [
         loadoutRecord({ name: "docs", members: [member("a", "stale"), member("b", "missing"), member("c")] }),
@@ -86,8 +86,10 @@ describe("Loadouts", () => {
 
     expect(card(wrapper, "review").find(".loadouts__summary").text()).toBe("2 members · all built");
     expect(card(wrapper, "review").find(".loadouts__stale").exists()).toBe(false);
+    expect(card(wrapper, "review").findAll("button").map((b) => b.text())).not.toContain("Sync");
     expect(card(wrapper, "docs").find(".loadouts__summary").text()).toBe("3 members · 1 out of date · 1 not built");
-    expect(card(wrapper, "docs").find(".loadouts__stale").text()).toContain("Sync");
+    expect(card(wrapper, "docs").find(".loadouts__stale").text()).toContain("Sync rebuilds them.");
+    expect(card(wrapper, "docs").find(".loadouts__stale button").text()).toBe("Sync");
   });
 
   it("syncs one loadout from its card, alone, and says what changed", async () => {
@@ -194,24 +196,57 @@ describe("Loadouts", () => {
 
   describe("copying", () => {
     const writeText = vi.fn<(text: string) => Promise<void>>();
+    const command = (w: Wrapper) => card(w, "review").find(".loadouts__command code").text();
+    const copyButton = (w: Wrapper) => card(w, "review").find(".loadouts__command button");
     beforeEach(() => {
       writeText.mockReset().mockResolvedValue(undefined);
       Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     });
-    afterEach(() => Reflect.deleteProperty(navigator, "clipboard"));
+    afterEach(() => {
+      vi.useRealTimers();
+      Reflect.deleteProperty(navigator, "clipboard");
+    });
 
-    it("copies loadout run, or the bare command for a .dmg install", async () => {
+    it("shows and copies loadout run when the command is on the PATH, and says Copied in place for a moment", async () => {
+      const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review" })], loadoutOnPath: true });
+      expect(command(wrapper)).toBe("loadout run review");
+      expect(wrapper.find(".loadouts__hint").exists()).toBe(false);
+
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      await copyButton(wrapper).trigger("click");
+      await flushPromises();
+
+      expect(writeText.mock.calls).toEqual([["loadout run review"]]);
+      expect(copyButton(wrapper).text()).toBe("Copied");
+      expect(useToastStore().toasts).toEqual([]);
+      vi.advanceTimersByTime(1500);
+      await flushPromises();
+      expect(copyButton(wrapper).text()).toBe("Copy");
+    });
+
+    it("shows and copies the bare command when loadout isn't on the PATH, and says how to get the short one", async () => {
       const review = loadoutRecord({ name: "review" });
-      const { wrapper } = await mountLoadouts({ loadouts: [review] });
+      const { wrapper } = await mountLoadouts({ loadouts: [review], loadoutOnPath: false });
+      expect(command(wrapper)).toBe(review.command);
+      expect(wrapper.find(".loadouts__hint").text()).toBe(
+        "No loadout command on your PATH, so each card copies the full claude command. Installing Loadout with Homebrew adds the short one.",
+      );
 
-      await press(wrapper, "Copy loadout run");
-      await press(wrapper, "Copy command for a .dmg install");
+      await copyButton(wrapper).trigger("click");
+      await flushPromises();
 
-      expect(writeText.mock.calls).toEqual([[review.run], [review.command]]);
-      expect(useToastStore().toasts.map((t) => [t.kind, t.message, t.detail])).toEqual([
-        ["success", "Copied", review.run],
-        ["success", "Copied", review.command],
-      ]);
+      expect(writeText.mock.calls).toEqual([[review.command]]);
+    });
+
+    it("says so in a toast when the clipboard refuses, and keeps the label", async () => {
+      writeText.mockRejectedValue(new Error("Write permission denied."));
+      const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review" })] });
+
+      await copyButton(wrapper).trigger("click");
+      await flushPromises();
+
+      expect(useToastStore().toasts.map((t) => [t.kind, t.message, t.detail])).toEqual([["error", "Couldn't copy to the clipboard", "Write permission denied."]]);
+      expect(copyButton(wrapper).text()).toBe("Copy");
     });
   });
 

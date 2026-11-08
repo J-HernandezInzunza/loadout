@@ -1,9 +1,9 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuditEvent, Host } from "@loadout/core";
 import { createNodeHost } from "../src/index.ts";
 
@@ -22,6 +22,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -155,6 +156,18 @@ describe("proc", () => {
     const p = host.proc.run("git", SLEEP, { cwd: root, signal: ac.signal });
     ac.abort();
     await expect(p).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("which finds an executable on PATH, and not a plain file or a name that isn't there", async () => {
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    await writeFile(join(bin, "tool"), "#!/bin/sh\n", { mode: 0o755 });
+    await writeFile(join(bin, "notes"), "x", { mode: 0o644 });
+    vi.stubEnv("PATH", `${join(root, "missing")}:${bin}`);
+
+    expect(await host.proc.which("tool")).toBe(join(bin, "tool"));
+    expect(await host.proc.which("notes")).toBeNull();
+    expect(await host.proc.which("absent")).toBeNull();
   });
 });
 

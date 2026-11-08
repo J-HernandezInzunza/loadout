@@ -60,6 +60,7 @@
       ]
     },
     "allow-real-path",
+    "allow-which",
     "allow-secret-get",
     "allow-secret-set",
     "allow-secret-delete"

@@ -38,6 +38,7 @@ import {
   applyDeleteLoadout,
   applySaveLoadout,
   launchCommand,
+  loadoutOnPath,
   listLoadouts,
   planDeleteLoadout,
   planSaveLoadout,
@@ -192,6 +193,8 @@ export interface Library {
   applyDeleteLoadout(plan: IssuedDeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
   /** `loadout run <name>`, the bare command with the folder quoted, and the members named like something Claude Code loads globally; `members` previews a draft. */
   launchCommand(name: string, opts?: { members?: LoadoutMember[] }): Promise<Result<LaunchCommand>>;
+  /** Whether `loadout run` works in a terminal, or a card should offer the bare command. */
+  loadoutOnPath(): Promise<Result<boolean>>;
   /** WRITE-05's hint: the browser URL of a local file in a GitHub or Bitbucket repo. */
   suggestSource(path: string): Promise<Result<SourceSuggestion>>;
 }
@@ -611,6 +614,10 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
 
     async launchCommand(name, o = {}) {
       return launchCommand(ctx, name, o);
+    },
+
+    async loadoutOnPath() {
+      return loadoutOnPath(host);
     },
 
     async suggestSource(path) {

@@ -19,6 +19,7 @@ async function setup(opts: GitClientOptions & { wrap?: (run: HostProc["run"]) =>
   const host: Host = {
     ...sb.host,
     proc: {
+      ...sb.host.proc,
       run(program, args, o) {
         calls.push({ args, opts: o });
         return inner(program, args, o);

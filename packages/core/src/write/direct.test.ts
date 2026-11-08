@@ -87,6 +87,7 @@ describe("direct write mode", () => {
     const { write, upstream } = await setup((host) => ({
       ...host,
       proc: {
+        ...host.proc,
         run: (program, args, o) =>
           args.includes("commit") ? Promise.resolve({ code: 1, stdout: "", stderr: "fatal: unable to auto-detect email address\n", durationMs: 1 }) : host.proc.run(program, args, o),
       },

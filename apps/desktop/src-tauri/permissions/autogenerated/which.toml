@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-which"
+description = "Enables the which command without any pre-configured scope."
+commands.allow = ["which"]
+
+[[permission]]
+identifier = "deny-which"
+description = "Denies the which command without any pre-configured scope."
+commands.deny = ["which"]

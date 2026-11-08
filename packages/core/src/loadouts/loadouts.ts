@@ -5,6 +5,7 @@ import { LoadoutName, type AppConfigV1, type Loadout, type LoadoutMember } from 
 import { resolveDeps } from "../deps/deps.ts";
 import type { CallOpts } from "../git/git.ts";
 import { createOperation, type Operation } from "../git/operation.ts";
+import type { Host } from "../host.ts";
 import { checkItems, installItem } from "../install/apply.ts";
 import { buildItem, catalogKeys, destOf, discardPlan, planEntries, type InstallCtx, type PlanItem } from "../install/plan.ts";
 import { err, ok, type Entry, type EntryType, type Result, type Warning } from "../model/model.ts";
@@ -183,6 +184,12 @@ export async function placementFor(ctx: Pick<InstallCtx, "host" | "receipts">, c
 
 function commandsFor(appData: string, name: string): Pick<LaunchCommand, "run" | "command"> {
   return { run: `loadout run ${name}`, command: `claude --add-dir=${shellQuote(loadoutDir(appData, name))}` };
+}
+
+/** Whether a terminal finds `loadout`, judged from the PATH Loadout runs with: the login shell's, in the app. */
+export async function loadoutOnPath(host: Pick<Host, "proc">): Promise<Result<boolean>> {
+  const found = await host.proc.which("loadout");
+  return ok(found !== null);
 }
 
 /** With `members`, previews a loadout not saved yet (or as it would be after an edit) under `name`. */

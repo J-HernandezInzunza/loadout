@@ -145,6 +145,7 @@ describe("facade: registry, accounts and maintenance", () => {
     const host = {
       ...sb.host,
       proc: {
+        ...sb.host.proc,
         run: ((program, args, o) => {
           if (args.includes("clone")) clones.push(o.env ?? {});
           return sb.host.proc.run(program, args, o);

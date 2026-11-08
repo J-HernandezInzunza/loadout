@@ -1,6 +1,7 @@
 // HostProc over the shell plugin's Command (architecture.md §2.2; S1, S2). Only git is in the shell
-// scope. The child gets its own process group, so a timeout or an abort kills what git spawned too
+// scope; `which` is the app's own command, a lookup on the PATH the Rust side repaired. The child gets its own process group, so a timeout or an abort kills what git spawned too
 // (ssh, remote helpers), as the Node host does. Nothing is ever written to its stdin (S1).
+import { invoke } from "@tauri-apps/api/core";
 import { Command, type Child } from "@tauri-apps/plugin-shell";
 import type { AuditEvent, HostProc, ProcResult } from "@loadout/core";
 
@@ -83,6 +84,10 @@ export function createTauriProc(audit: (event: AuditEvent) => void): HostProc {
           },
         );
       });
+    },
+
+    which(program) {
+      return invoke<string | null>("which", { program });
     },
   };
 }

@@ -424,5 +424,6 @@ export const ops = {
       ),
     }),
   },
+  loadoutOnPath: { input: z.strictObject({}), output: z.boolean() },
   suggestSource: { input: z.strictObject({ path: z.string() }), output: z.strictObject({ url: z.string().nullable(), why: z.string() }) },
 };

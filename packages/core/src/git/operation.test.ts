@@ -14,6 +14,7 @@ async function setup() {
   const host: Host = {
     ...sb.host,
     proc: {
+      ...sb.host.proc,
       run(program, args, o) {
         commands.push(args);
         return sb.host.proc.run(program, args, o);
