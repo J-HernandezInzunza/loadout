@@ -1314,15 +1314,65 @@ everything. Added as M9.10.
 
 ---
 
-## M10. Fewer Keychain reads
+## M10. A clearer Loadouts screen
 
-Exit: every M10 task checked; git commands against a signed-in host read the account's token from
+Exit: every M10 task checked; a loadout's card offers the one command that works on this machine,
+and the editor and the list show a loadout's members by type; the owner checked both in a built app.
+
+Decided 2026-11-07 (owner, after using the Loadouts screen): a card offers one command, picked for the
+machine by whether `loadout` is on the PATH Loadout sees, in a field with its Copy button inside; Sync
+shows only when the loadout needs it. The editor shows members in a tinted column per type, stacked
+into groups when narrow, and the list card counts members by type. The tints are teal, indigo and
+orchid washes; if they fight the status or catalog colours, neutral columns with a type dot are the
+fallback.
+
+- [ ] **M10.01 One command per card.** `HostProc` gains `which(cmd)`: the path of an executable named
+  `cmd` in a directory of the process PATH, or null. The desktop host answers it in Rust, from the
+  PATH `path.rs` repaired from the login shell (the shell scope allows only git and the fs scope stops
+  at `$HOME`); host-node reads `PATH`. A library op reports whether `loadout` is found, and the view
+  reads it with the list, so Copy still writes with no await. Each card shows one command in a field
+  with Copy inside it: `loadout run <name>` when found, else the bare command and a line saying
+  Homebrew gives the short one. A successful copy turns the button into "Copied" for 1.5 s instead of
+  the toast; a failed one still toasts. Sync shows only when `needsSync`, beside the stale line; Edit
+  and Delete move to the card's head; the lead says to paste the command into a terminal in the
+  project's folder.
+  - Rules: none
+  - Depends: M9.07, M9.10
+  - Done when: `which` finds an executable and misses a plain file and an absent name in a temp PATH
+    (host-node); against the fake, a card shows `loadout run` when found and the bare command with
+    its line when not, Copy writes the shown text and flips its label, a rejected write toasts, and
+    Sync is absent on an all-built loadout and present on a stale one; the owner copies from a card
+    in a Finder-launched build and the pasted command starts a session.
+
+- [ ] **M10.02 A loadout's makeup by type.** The editor's members sit in three columns, Skills, Agents
+  and Prompts, each with its count, a tint from new `--type-{skill,agent,prompt}-*` tokens (light and
+  dark, in `tokens.css`), and "No agents yet" (and so on) when empty. A tile shows the name, its
+  catalog, what it adds, and a short clash line from `clashShort()` (beside `clashText()`, one per
+  outcome) with the full sentence as its title and accessible description; × removes it, named
+  "Remove <name>". A column's "+ Add" sets the picker's type and focuses its search; each picker row
+  carries its type's dot. Below about 560px of editor width (a container query) the columns stack into
+  groups. The list card's summary counts by type with the same dots: `8 skills · 3 prompts · 1 out of
+  date`.
+  - Rules: none
+  - Depends: M9.07, M9.09
+  - Done when: against the fake, members land in their type's column with the right counts, an empty
+    column says so, "+ Add" sets the filter and focuses the search, adding and removing update the
+    counts, and each outcome's short line and full title are tested; `loadoutSummary` counts by type
+    and keeps its state parts, and an empty loadout says it has no members; `contrast.test.ts` covers
+    tile text on each tint in both themes and `buttons.test.ts` admits the ×; the owner edits a
+    loadout in the built app, wide and narrow.
+
+---
+
+## M11. Fewer Keychain reads
+
+Exit: every M11 task checked; git commands against a signed-in host read the account's token from
 the Keychain at most once every 15 minutes.
 
 Decided 2026-11-07 (owner): 15 minutes, the default of git's own credential cache, rather than the
 whole session.
 
-- [ ] **M10.01 Keep an account's token for 15 minutes.** `createAccounts` keeps each host's token
+- [ ] **M11.01 Keep an account's token for 15 minutes.** `createAccounts` keeps each host's token
   set for 15 minutes after it reads it from `Host.secrets`, for the life of its Library instance, in
   memory only (never on disk, in logs or in the audit log); after that the next call reads the
   Keychain again. `connect` and a Bitbucket refresh replace it, `disconnect` drops it, and
