@@ -1362,6 +1362,19 @@ fallback.
     tile text on each tint in both themes and `buttons.test.ts` admits the ×; the owner edits a
     loadout in the built app, wide and narrow.
 
+- [ ] **M10.03 Unsaved edits say so.** Nothing in the editor is saved until Save, which builds the
+  folder, so a draft that differs from what the editor opened (a member added or removed; for a new
+  loadout, a name or a member) shows "Unsaved changes" beside Cancel and Save. Cancel on such a draft
+  asks inline, as Delete does: "Discard your changes to <name>?" (or "Discard this new loadout?") with
+  Keep editing and Discard; an unchanged draft closes at once. A member added and removed again leaves
+  the draft unchanged. Leaving the screen another way still drops the draft.
+  - Rules: none
+  - Depends: M10.02
+  - Done when: against the fake, the line appears after an add and after a remove and goes when the
+    draft is back as opened; Cancel on a changed draft asks, Keep editing keeps the draft, and Discard
+    closes the editor without saving; Cancel on an unchanged draft and on an untouched new loadout
+    closes at once.
+
 ---
 
 ## M11. Fewer Keychain reads
