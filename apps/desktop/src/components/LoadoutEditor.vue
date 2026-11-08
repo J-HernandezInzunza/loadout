@@ -302,8 +302,16 @@ async function save() {
   font-weight: 600;
 }
 .loadout-editor__input {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-control);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
 }
 .loadout-editor__help {
   margin: 0.35rem 0 0.75rem;
@@ -368,10 +376,20 @@ async function save() {
 .loadout-editor__clash {
   color: var(--status-attention-ink);
 }
+/* Same text size and height for both: the search takes the room, the select keeps what its longest option needs. */
 .loadout-editor__filters {
   display: flex;
+  align-items: stretch;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+.loadout-editor__filters .loadout-editor__input {
+  flex: 1;
+  width: auto;
+}
+.loadout-editor__filters .ui-select {
+  flex: none;
 }
 .loadout-editor__actions {
   display: flex;
