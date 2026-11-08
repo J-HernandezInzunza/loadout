@@ -399,4 +399,6 @@ of that name is off: with `--settings '{"skillOverrides":{"grilling":"off"}}'` t
 from a shell directly, through a symlink in another folder, and from a fresh `zsh -c`: the shell
 runs Apple's signed `/bin/sh`, and the script is only its input. A compiled tool without
 notarization would be at risk with the attribute; a script isn't. Run on 2026-11-06 from this
-session's shell, not yet from a downloaded release's bundle.
+session's shell; confirmed on 2026-11-07 with the released v0.3.0: after `brew reinstall --cask
+loadout`, `/Applications/Loadout.app/Contents/Resources/bin/loadout` still carried
+`com.apple.quarantine`, and `loadout list` ran through Homebrew's `/opt/homebrew/bin/loadout` link.
