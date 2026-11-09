@@ -1413,6 +1413,18 @@ M10.04.
     label and banner are tested against the fake, and a failed read shows no outcome; the owner
     checks for updates in the built app.
 
+- [ ] **M10.06 A shorter editor.** Editing opened tall: the catalog picker's list showed at once, under
+  a Name field that can't change. The picker is closed by default behind an "Add from the catalog"
+  button; a column's "+ Add" opens it set to that type, with the search focused, and it stays open
+  while members are added, until Close or Escape. A new loadout opens with it open, since adding is
+  what it's for. When editing, the Name field and its help go; the title already names the loadout.
+  - Rules: none
+  - Depends: M10.02, M10.03
+  - Done when: against the fake, editing opens with the picker closed and no Name field; the button
+    and each column's "+ Add" open it (the latter with its type set and the search focused); adding
+    keeps it open; Close and Escape close it; a new loadout opens with it open; the owner edits a
+    loadout in the built app.
+
 ---
 
 ## M11. Fewer Keychain reads
