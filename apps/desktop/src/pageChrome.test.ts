@@ -20,7 +20,7 @@ describe("UI-09, UI-55: page chrome", () => {
     expect(appCss).toMatch(/\.view__body\s*\{[^}]*overflow-y:\s*auto/);
     expect(appCss).toMatch(/\.view__body\s*\{[^}]*overscroll-behavior:\s*contain/);
     expect(appCss).toMatch(/\.view__body\s*\{[^}]*scrollbar-gutter:\s*stable/);
-    expect(appCss).toMatch(/\.column\s*\{[^}]*padding-inline:\s*max\(1\.25rem, calc\(\(100% - 860px\) \/ 2\)\)/);
+    expect(appCss).toMatch(/\.column\s*\{[^}]*padding-inline:\s*max\(1\.25rem, calc\(\(100% - 1040px\) \/ 2\)\)/);
   });
 
   it("frames a view as a head row, one scrolling body and a foot", () => {

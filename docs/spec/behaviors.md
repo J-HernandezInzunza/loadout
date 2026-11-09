@@ -1764,6 +1764,8 @@ Tags: app/mvp/free
   `overscroll-behavior: contain`, `scrollbar-gutter: stable`); content measure `max(1.25rem, (100% −
   860px)/2)` padding; button scale (default/`.btn-sm`/`.btn-xs`/`.ghost`/`.danger`, disabled opacity
   0.45). Source: `App.vue:818-1053`; specs `pageChrome.spec.ts`, `assets/buttons.spec.ts`.
+  (rebuild, 2026-11-09: the measure is 1040px, so content fills the window's 1100px opening width;
+  owner)
 
 ### 4.3 Catalog list view (`App.vue:609-794`, `components/EntryList.vue`, `catalog.ts`)
 
