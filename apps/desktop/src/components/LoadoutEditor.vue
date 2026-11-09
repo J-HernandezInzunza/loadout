@@ -2,11 +2,12 @@
 import { requiresOf, type EntryRecord, type EntryType, type Library, type LoadoutRecord } from "@loadout/core";
 import { storeToRefs } from "pinia";
 import { computed, ref, useTemplateRef, watch } from "vue";
-import { clashShort, clashText } from "../loadouts.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
+import ClashLine from "./ClashLine.vue";
 import StatusBanner from "./StatusBanner.vue";
+import TypeColumn from "./TypeColumn.vue";
 import TypeDot from "./TypeDot.vue";
 import UiSelect from "./ui/UiSelect.vue";
 
@@ -227,22 +228,15 @@ async function save() {
       Members · {{ members.length }}
     </h4>
     <div class="loadout-editor__columns">
-      <section
+      <TypeColumn
         v-for="column in columns"
         :key="column.type"
-        class="loadout-editor__column"
-        :class="`loadout-editor__column--${column.type}`"
-        :aria-labelledby="`loadout-editor-${column.type}`"
+        :type="column.type"
+        :title="column.title"
+        :count="column.rows.length"
+        :empty="column.empty"
       >
-        <div class="loadout-editor__column-head">
-          <TypeDot :type="column.type" />
-          <h5
-            :id="`loadout-editor-${column.type}`"
-            class="loadout-editor__column-title"
-          >
-            {{ column.title }}
-          </h5>
-          <span class="loadout-editor__count">{{ column.rows.length }}</span>
+        <template #action>
           <button
             type="button"
             class="ghost btn-xs"
@@ -251,17 +245,8 @@ async function save() {
           >
             + Add
           </button>
-        </div>
-        <p
-          v-if="!column.rows.length"
-          class="loadout-editor__empty"
-        >
-          {{ column.empty }}
-        </p>
-        <ul
-          v-else
-          class="loadout-editor__members"
-        >
+        </template>
+        <ul class="loadout-editor__members">
           <li
             v-for="row in column.rows"
             :key="key(row.member)"
@@ -285,20 +270,13 @@ async function save() {
             >
               Adds {{ row.requires.map((r) => r.name).join(", ") }} for it.
             </p>
-            <p
+            <ClashLine
               v-if="row.clash"
-              class="loadout-editor__clash"
-              :title="clashText(row.clash)"
-            >
-              <span
-                class="loadout-editor__clash-short"
-                aria-hidden="true"
-              >{{ clashShort(row.clash) }}</span>
-              <span class="loadout-editor__sr-only">{{ clashText(row.clash) }}</span>
-            </p>
+              :clash="row.clash"
+            />
           </li>
         </ul>
-      </section>
+      </TypeColumn>
     </div>
 
     <h4 class="loadout-editor__section">
@@ -415,46 +393,6 @@ async function save() {
     grid-template-columns: 1fr;
   }
 }
-.loadout-editor__column {
-  min-width: 0;
-  padding: 0.45rem 0.65rem 0.3rem;
-  border: 1px solid transparent;
-  border-radius: 8px;
-}
-.loadout-editor__column--skill {
-  background: var(--type-skill-tint);
-  border-color: var(--type-skill-edge);
-}
-.loadout-editor__column--agent {
-  background: var(--type-agent-tint);
-  border-color: var(--type-agent-edge);
-}
-.loadout-editor__column--prompt {
-  background: var(--type-prompt-tint);
-  border-color: var(--type-prompt-edge);
-}
-.loadout-editor__column-head {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-.loadout-editor__column-title {
-  margin: 0;
-  font-size: 0.85rem;
-}
-.loadout-editor__count {
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.7;
-}
-.loadout-editor__column-head button {
-  margin-left: auto;
-}
-.loadout-editor__empty {
-  margin: 0.4rem 0 0.25rem;
-  font-size: 0.78rem;
-  opacity: 0.7;
-}
 .loadout-editor__members,
 .loadout-editor__candidates {
   margin: 0;
@@ -514,25 +452,11 @@ async function save() {
 .loadout-editor__head button {
   margin-left: auto;
 }
-.loadout-editor__adds,
-.loadout-editor__clash {
+.loadout-editor__adds {
   margin: 0.25rem 0 0;
   font-size: 0.8rem;
 }
-.loadout-editor__clash {
-  color: var(--status-attention-ink);
-  overflow-wrap: anywhere;
-  cursor: help;
-}
-/* The full sentence, for a screen reader: the line shows the short form, and hovering shows the title. */
-.loadout-editor__sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
+
 /* Same text size and height for both: the search takes the room, the select keeps what its longest option needs. */
 .loadout-editor__filters {
   display: flex;

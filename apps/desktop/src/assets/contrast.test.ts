@@ -104,11 +104,12 @@ describe.each([
   });
 
   it("keeps a member's text readable on its type's tint, and the type's mark visible against the card", () => {
-    // The editor's columns draw member names and clash lines straight on the tint.
+    // The columns draw member names, clash lines and a member's state straight on the tint.
     for (const type of ["skill", "agent", "prompt"]) {
       const tint = over(color(`--type-${type}-tint`), card);
-      expect(contrast(color("--text-primary")[0], tint), `text on ${type}`).toBeGreaterThanOrEqual(4.5);
-      expect(contrast(color("--status-attention-ink")[0], tint), `clash on ${type}`).toBeGreaterThanOrEqual(4.5);
+      for (const ink of ["--text-primary", "--status-attention-ink", "--status-absent-ink", "--status-danger-ink"]) {
+        expect(contrast(color(ink)[0], tint), `${ink} on ${type}`).toBeGreaterThanOrEqual(4.5);
+      }
       expect(contrast(color(`--type-${type}-mark`)[0], card), `${type} mark`).toBeGreaterThanOrEqual(3);
     }
   });

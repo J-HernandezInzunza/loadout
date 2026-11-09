@@ -62,12 +62,12 @@ const summary = (w: Wrapper, name: string) => card(w, name).findAll(".loadouts__
 const banner = (w: Wrapper) => w.find(".status-banner");
 const candidates = (w: Wrapper) => w.findAll(".loadout-editor__candidate").map((c) => c.find(".loadout-editor__name").text());
 const memberRow = (w: Wrapper, name: string) => w.findAll(".loadout-editor__member").find((m) => m.find(".loadout-editor__name").text() === name)!;
-const column = (w: Wrapper, type: string) => w.find(`.loadout-editor__column--${type}`);
-/** Each column's title, count and member names, in order. */
+const column = (w: Wrapper, type: string) => w.find(`.loadout-editor .type-column--${type}`);
+/** Each editor column's title, count and member names, in order. */
 const columns = (w: Wrapper) =>
-  w.findAll(".loadout-editor__column").map((c) => [
-    c.find(".loadout-editor__column-title").text(),
-    c.find(".loadout-editor__count").text(),
+  w.findAll(".loadout-editor .type-column").map((c) => [
+    c.find(".type-column__title").text(),
+    c.find(".type-column__count").text(),
     c.findAll(".loadout-editor__member .loadout-editor__name").map((n) => n.text()),
   ]);
 const addCandidate = async (w: Wrapper, name: string, catalog: string) => {
@@ -198,9 +198,9 @@ describe("Loadouts", () => {
       ["Agents", "0", []],
       ["Prompts", "1", ["standup"]],
     ]);
-    expect(column(wrapper, "agent").find(".loadout-editor__empty").text()).toBe("No agents yet.");
+    expect(column(wrapper, "agent").find(".type-column__empty").text()).toBe("No agents yet.");
 
-    await column(wrapper, "agent").find(".loadout-editor__column-head button").trigger("click");
+    await column(wrapper, "agent").find(".type-column__head button").trigger("click");
     await flushPromises();
     expect((wrapper.find(".loadout-editor select").element as HTMLSelectElement).value).toBe("agent");
     expect(focus.mock.contexts).toEqual([wrapper.find(".loadout-editor input[type=search]").element]);
@@ -216,8 +216,8 @@ describe("Loadouts", () => {
       ["Agents", "1", ["reviewer"]],
       ["Prompts", "1", ["standup"]],
     ]);
-    expect(column(wrapper, "skill").find(".loadout-editor__empty").text()).toBe("No skills yet.");
-    expect(column(wrapper, "agent").find(".loadout-editor__empty").exists()).toBe(false);
+    expect(column(wrapper, "skill").find(".type-column__empty").text()).toBe("No skills yet.");
+    expect(column(wrapper, "agent").find(".type-column__empty").exists()).toBe(false);
     focus.mockRestore();
   });
 
@@ -328,6 +328,70 @@ describe("Loadouts", () => {
     });
   });
 
+  describe("peeking", () => {
+    const toggle = (w: Wrapper, name: string) => card(w, name).find(".loadouts__peek-toggle");
+    const isOpen = (w: Wrapper, name: string) => card(w, name).find(".loadouts__peek").exists();
+    /** Each column's title, count, and its members as [name, state shown]. */
+    const peek = (w: Wrapper, name: string) =>
+      card(w, name)
+        .findAll(".loadouts__peek .type-column")
+        .map((c) => [
+          c.find(".type-column__title").text(),
+          c.find(".type-column__count").text(),
+          c.findAll(".loadouts__peek-member").map((m) => [m.find(".loadouts__peek-name").text(), m.find(".loadouts__peek-state").exists() ? m.find(".loadouts__peek-state").text() : ""]),
+        ]);
+
+    it("opens a card's members by type from its summary, each with its state when it isn't built", async () => {
+      const standup = { type: "prompt" as const, name: "standup", resolvesTo: "team", state: "built" as const };
+      const { wrapper } = await mountLoadouts({
+        loadouts: [loadoutRecord({ name: "docs", members: [member("a", "stale"), member("b", "missing"), member("c", "failed"), standup] }), loadoutRecord({ name: "review" })],
+      });
+      expect(toggle(wrapper, "docs").attributes("aria-expanded")).toBe("false");
+      expect(isOpen(wrapper, "docs")).toBe(false);
+
+      await toggle(wrapper, "docs").trigger("click");
+      await flushPromises();
+
+      expect(toggle(wrapper, "docs").attributes("aria-expanded")).toBe("true");
+      expect(peek(wrapper, "docs")).toEqual([
+        ["Skills", "3", [["a", "out of date"], ["b", "not built"], ["c", "in no catalog"]]],
+        ["Agents", "0", []],
+        ["Prompts", "1", [["standup", ""]]],
+      ]);
+      expect(card(wrapper, "docs").find(".loadouts__peek .type-column--agent .type-column__empty").text()).toBe("None.");
+      expect(isOpen(wrapper, "review")).toBe(false);
+
+      await toggle(wrapper, "docs").trigger("click");
+      expect(isOpen(wrapper, "docs")).toBe(false);
+    });
+
+    it("adds each member's clash line once launchCommand answers, asking once per open card per load", async () => {
+      const asked: string[] = [];
+      const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint"), member("notes")] })] }, {
+        launchCommand: async (name) => {
+          asked.push(name);
+          const clash = { type: "skill" as const, name: "lint", with: "skill" as const, outcome: "prefixed" as const, sessionName: `${name}:lint` };
+          return ok({ name, run: `loadout run ${name}`, command: "c", clashes: [clash] });
+        },
+      });
+
+      await toggle(wrapper, "review").trigger("click");
+      await flushPromises();
+      const clash = card(wrapper, "review").find(".loadouts__peek .clash-line");
+      expect(clash.find(".clash-line__short").text()).toBe("In a session: /review:lint");
+      expect(clash.attributes("title")).toBe("Your global skill keeps /lint; in a session this one is /review:lint.");
+
+      await toggle(wrapper, "review").trigger("click");
+      await toggle(wrapper, "review").trigger("click");
+      await flushPromises();
+      expect(asked).toEqual(["review"]);
+
+      await press(wrapper, "Check sources");
+      expect(asked).toEqual(["review", "review"]);
+      expect(card(wrapper, "review").find(".loadouts__peek .clash-line").exists()).toBe(true);
+    });
+  });
+
   it("deletes one only after asking", async () => {
     const { wrapper, deletes } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review" }), loadoutRecord({ name: "docs" })] });
     const del = () => card(wrapper, "review").findAll("button").find((b) => b.text() === "Delete")!;
@@ -416,11 +480,11 @@ describe("Loadouts", () => {
     await search(wrapper, "tid");
     await addCandidate(wrapper, "tidy", "team");
 
-    const clash = memberRow(wrapper, "tidy").find(".loadout-editor__clash");
+    const clash = memberRow(wrapper, "tidy").find(".clash-line");
     const full = "Your global skill keeps /tidy; in a session this one is /kit:tidy.";
-    expect(clash.find(".loadout-editor__clash-short").text()).toBe("In a session: /kit:tidy");
+    expect(clash.find(".clash-line__short").text()).toBe("In a session: /kit:tidy");
     expect(clash.attributes("title")).toBe(full);
-    expect(clash.find(".loadout-editor__sr-only").text()).toBe(full);
+    expect(clash.find(".clash-line__full").text()).toBe(full);
     expect(asked.at(-1)).toEqual(["kit", [{ type: "skill", name: "tidy" }]]);
   });
 

@@ -1,23 +1,31 @@
 <script setup lang="ts">
-import type { Library, LoadoutRecord } from "@loadout/core";
+import type { EntryType, Library, LoadoutRecord } from "@loadout/core";
 import { computed, defineAsyncComponent, onMounted, ref, useTemplateRef } from "vue";
-import { loadoutSummary, needsSync, savedOutcome, syncedOutcome } from "../loadouts.ts";
+import { loadoutSummary, needsSync, savedOutcome, stateText, syncedOutcome, type Clash } from "../loadouts.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useToastStore } from "../stores/toasts.ts";
 import { useViewStore } from "../stores/views.ts";
 import BusyIndicator from "./BusyIndicator.vue";
+import ClashLine from "./ClashLine.vue";
 import LoadoutEditor from "./LoadoutEditor.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
+import TypeColumn from "./TypeColumn.vue";
 import TypeDot from "./TypeDot.vue";
 
 const ConfirmDialog = defineAsyncComponent(() => import("./ConfirmDialog.vue"));
 
 type Saved = Extract<Awaited<ReturnType<Library["applySaveLoadout"]>>, { ok: true }>["value"];
 type Outcome = { kind: "success" | "warning" | "error"; message: string; detail?: string };
+type Member = LoadoutRecord["members"][number];
 
 const NEW = "";
+const COLUMNS: { type: EntryType; title: string }[] = [
+  { type: "skill", title: "Skills" },
+  { type: "agent", title: "Agents" },
+  { type: "prompt", title: "Prompts" },
+];
 const COPIED_MS = 1500;
 
 const library = useLibrary();
@@ -40,6 +48,14 @@ const loadoutOnPath = ref(true);
 /** the loadout whose command was just copied, while its button says so */
 const copied = ref<string | null>(null);
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+/** the loadouts whose members are open on their cards */
+const peeking = ref(new Set<string>());
+/** each open loadout's clashes, from launchCommand, which the list doesn't carry */
+const clashes = ref<Record<string, Clash[]>>({});
+/** asked this load, answered or not: a card that closes and opens again doesn't ask twice */
+let asked = new Set<string>();
+/** which load an answer belongs to, so one that arrives after a reload is dropped */
+let generation = 0;
 
 const edited = computed(() => loadouts.value.find((l) => l.name === editing.value) ?? null);
 const editor = useTemplateRef<InstanceType<typeof LoadoutEditor>>("editor");
@@ -65,6 +81,38 @@ async function load(checkRemote = false) {
   }
   failure.value = null;
   loadouts.value = listed.value;
+  // A save or Sync can change what clashes, so the open cards ask again.
+  generation++;
+  asked = new Set();
+  clashes.value = {};
+  const names = new Set(listed.value.map((l) => l.name));
+  peeking.value = new Set([...peeking.value].filter((name) => names.has(name)));
+  for (const name of peeking.value) void askClashes(name);
+}
+
+async function askClashes(name: string) {
+  asked.add(name);
+  const round = generation;
+  const launch = await library.launchCommand(name);
+  const isCurrent = round === generation;
+  if (isCurrent && launch.ok) clashes.value = { ...clashes.value, [name]: launch.value.clashes };
+}
+
+function togglePeek(name: string) {
+  if (peeking.value.has(name)) {
+    peeking.value.delete(name);
+    return;
+  }
+  peeking.value.add(name);
+  if (!asked.has(name)) void askClashes(name);
+}
+
+function peekColumns(loadout: LoadoutRecord) {
+  return COLUMNS.map((c) => ({ ...c, members: loadout.members.filter((m) => m.type === c.type) }));
+}
+
+function clashOf(name: string, member: Member): Clash | undefined {
+  return clashes.value[name]?.find((c) => c.type === member.type && c.name === member.name);
 }
 
 function closeEditor() {
@@ -242,19 +290,31 @@ onMounted(() => load());
             <h3 class="loadouts__name">
               {{ l.name }}
             </h3>
-            <span class="loadouts__summary">
-              <span
-                v-for="part in loadoutSummary(l)"
-                :key="part.text"
-                class="loadouts__part"
-              >
-                <TypeDot
-                  v-if="part.type"
-                  :type="part.type"
-                />
-                {{ part.text }}
+            <button
+              type="button"
+              class="loadouts__peek-toggle"
+              :aria-expanded="peeking.has(l.name)"
+              :aria-controls="`loadouts-peek-${l.name}`"
+              @click="togglePeek(l.name)"
+            >
+              <span class="loadouts__summary">
+                <span
+                  v-for="part in loadoutSummary(l)"
+                  :key="part.text"
+                  class="loadouts__part"
+                >
+                  <TypeDot
+                    v-if="part.type"
+                    :type="part.type"
+                  />
+                  {{ part.text }}
+                </span>
               </span>
-            </span>
+              <span
+                class="loadouts__chevron"
+                aria-hidden="true"
+              >▸</span>
+            </button>
             <div class="loadouts__manage">
               <button
                 type="button"
@@ -272,6 +332,39 @@ onMounted(() => load());
                 Delete
               </button>
             </div>
+          </div>
+          <div
+            v-if="peeking.has(l.name)"
+            :id="`loadouts-peek-${l.name}`"
+            class="loadouts__peek"
+          >
+            <TypeColumn
+              v-for="column in peekColumns(l)"
+              :key="column.type"
+              :type="column.type"
+              :title="column.title"
+              :count="column.members.length"
+              empty="None."
+            >
+              <ul class="loadouts__peek-members">
+                <li
+                  v-for="m in column.members"
+                  :key="m.name"
+                  class="loadouts__peek-member"
+                >
+                  <span class="loadouts__peek-name">{{ m.name }}</span>
+                  <span
+                    v-if="stateText(m.state)"
+                    class="loadouts__peek-state"
+                    :class="`loadouts__peek-state--${m.state}`"
+                  >{{ stateText(m.state) }}</span>
+                  <ClashLine
+                    v-if="clashOf(l.name, m)"
+                    :clash="clashOf(l.name, m)!"
+                  />
+                </li>
+              </ul>
+            </TypeColumn>
           </div>
           <div
             v-if="needsSync(l)"
@@ -350,7 +443,9 @@ onMounted(() => load());
   padding: 0;
   list-style: none;
 }
+/* The container the peek's columns measure: they stack when the card is narrow. */
 .loadouts__item {
+  container-type: inline-size;
   margin-bottom: 1rem;
 }
 .loadouts__hint {
@@ -387,6 +482,72 @@ onMounted(() => load());
 }
 .loadouts__part + .loadouts__part::before {
   content: "·";
+}
+/* The summary line itself is the disclosure: text-sized, with a chevron that turns when it's open. */
+.loadouts__peek-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.1rem 0.35rem;
+  margin: -0.1rem -0.35rem;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+.loadouts__peek-toggle:hover {
+  background: var(--surface-hover);
+}
+.loadouts__chevron {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  transition: transform 0.15s ease;
+}
+.loadouts__peek-toggle[aria-expanded="true"] .loadouts__chevron {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .loadouts__chevron {
+    transition: none;
+  }
+}
+.loadouts__peek {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+@container (max-width: 560px) {
+  .loadouts__peek {
+    grid-template-columns: 1fr;
+  }
+}
+.loadouts__peek-members {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.35rem 0 0.2rem;
+  padding: 0;
+  list-style: none;
+}
+.loadouts__peek-member {
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.loadouts__peek-state {
+  margin-left: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.loadouts__peek-state--stale {
+  color: var(--status-attention-ink);
+}
+.loadouts__peek-state--missing {
+  color: var(--status-absent-ink);
+}
+.loadouts__peek-state--failed {
+  color: var(--status-danger-ink);
 }
 .loadouts__stale {
   display: flex;

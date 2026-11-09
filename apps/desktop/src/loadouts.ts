@@ -1,14 +1,22 @@
 // How the Loadouts screen puts a loadout, a clash and a save into words.
 import type { EntryType, Library, LoadoutRecord } from "@loadout/core";
 
-type Clash = Extract<Awaited<ReturnType<Library["launchCommand"]>>, { ok: true }>["value"]["clashes"][number];
+export type Clash = Extract<Awaited<ReturnType<Library["launchCommand"]>>, { ok: true }>["value"]["clashes"][number];
 type Saved = Extract<Awaited<ReturnType<Library["applySaveLoadout"]>>, { ok: true }>["value"];
 type LoadoutSynced = Extract<Awaited<ReturnType<Library["applySync"]>>, { ok: true }>["value"]["loadouts"][number];
 type Outcome = { kind: "success" | "warning"; message: string; detail?: string };
 /** One piece of a loadout's summary; a count of one type carries the type, for its dot. */
 type SummaryPart = { type: EntryType | null; text: string };
 
+type MemberState = LoadoutRecord["members"][number]["state"];
+
 const TYPES: EntryType[] = ["skill", "agent", "prompt"];
+const STATE_TEXT: Record<MemberState, string | null> = { built: null, stale: "out of date", missing: "not built", failed: "in no catalog" };
+
+/** A member's state in words; null for a built one, which needs none. */
+export function stateText(state: MemberState): string | null {
+  return STATE_TEXT[state];
+}
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -20,11 +28,11 @@ export function loadoutSummary(loadout: LoadoutRecord): SummaryPart[] {
     const n = loadout.members.filter((m) => m.type === type).length;
     if (n) parts.push({ type, text: `${n} ${plural(n, type, `${type}s`)}` });
   }
-  const count = (state: LoadoutRecord["members"][number]["state"]) => loadout.members.filter((m) => m.state === state).length;
   const states: string[] = [];
-  if (count("stale")) states.push(`${count("stale")} out of date`);
-  if (count("missing")) states.push(`${count("missing")} not built`);
-  if (count("failed")) states.push(`${count("failed")} in no catalog`);
+  for (const state of ["stale", "missing", "failed"] as const) {
+    const n = loadout.members.filter((m) => m.state === state).length;
+    if (n) states.push(`${n} ${STATE_TEXT[state]}`);
+  }
   if (states.length === 0) states.push("all built");
   return [...parts, ...states.map((text) => ({ type: null, text }))];
 }
