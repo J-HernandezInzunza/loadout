@@ -221,6 +221,59 @@ describe("Loadouts", () => {
     focus.mockRestore();
   });
 
+  it("says a draft has unsaved changes until it's back as it opened", async () => {
+    const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint"), member("notes")] })] });
+    await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+    await flushPromises();
+    const unsaved = () => wrapper.find(".loadout-editor__unsaved");
+    expect(unsaved().exists()).toBe(false);
+
+    await memberRow(wrapper, "notes").find("button").trigger("click");
+    expect(unsaved().text()).toBe("Unsaved changes");
+    await search(wrapper, "notes");
+    await addCandidate(wrapper, "notes", "personal");
+    expect(unsaved().exists()).toBe(false);
+    await search(wrapper, "standup");
+    await addCandidate(wrapper, "standup", "team");
+    expect(unsaved().text()).toBe("Unsaved changes");
+  });
+
+  it("asks before Cancel throws a changed draft away", async () => {
+    const { wrapper, saves } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint"), member("notes")] })] });
+    await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+    await flushPromises();
+    await memberRow(wrapper, "lint").find("button").trigger("click");
+    const discard = () => wrapper.find(".loadout-editor__discard");
+
+    await press(wrapper, "Cancel");
+    expect(discard().text()).toContain("Discard your changes to review? The saved loadout stays as it was.");
+    await press(wrapper, "Keep editing");
+    expect(discard().exists()).toBe(false);
+    expect(columns(wrapper)[0]).toEqual(["Skills", "1", ["notes"]]);
+
+    await press(wrapper, "Cancel");
+    await press(wrapper, "Discard");
+    expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+    expect(saves).toEqual([]);
+  });
+
+  it("closes at once on Cancel when nothing changed, and asks about a new loadout once it has a name", async () => {
+    const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review" })] });
+    await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+    await flushPromises();
+    await press(wrapper, "Cancel");
+    expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+
+    await press(wrapper, "New loadout");
+    await press(wrapper, "Cancel");
+    expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+
+    await press(wrapper, "New loadout");
+    await typeName(wrapper, "kit");
+    await press(wrapper, "Cancel");
+    expect(wrapper.find(".loadout-editor__discard").text()).toContain("Discard this new loadout? Nothing in it has been saved.");
+  });
+
   it("deletes one only after asking", async () => {
     const { wrapper, deletes } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review" }), loadoutRecord({ name: "docs" })] });
     const del = () => card(wrapper, "review").findAll("button").find((b) => b.text() === "Delete")!;

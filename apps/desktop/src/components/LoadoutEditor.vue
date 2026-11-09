@@ -49,8 +49,21 @@ const saving = ref(false);
 const failure = ref<string | null>(null);
 const clashes = ref<Clash[]>([]);
 const search = useTemplateRef<HTMLInputElement>("search");
+/** Cancel was pressed on a changed draft: it asks before throwing the draft away */
+const discarding = ref(false);
 
 const key = (m: { type: EntryType; name: string }) => `${m.type}:${m.name}`;
+/** Also the catalog it's pinned to: the same name from another catalog is another member. */
+const memberKey = (m: Member) => `${key(m)}@${m.catalog ?? ""}`;
+const opened = new Set(members.value.map(memberKey));
+
+/** Order is ignored: a member removed and added again lands last but is the same draft. */
+const changed = computed(() => {
+  const isNamed = !editing && name.value !== "";
+  const current = members.value.map(memberKey);
+  const sameMembers = current.length === opened.size && current.every((k) => opened.has(k));
+  return isNamed || !sameMembers;
+});
 
 const nameError = computed(() => {
   if (name.value === "") return null;
@@ -98,6 +111,13 @@ function add(e: EntryRecord) {
 
 function remove(m: Member) {
   members.value = members.value.filter((x) => key(x) !== key(m));
+}
+
+const discardQuestion = editing ? `Discard your changes to ${name.value}? The saved loadout stays as it was.` : "Discard this new loadout? Nothing in it has been saved.";
+
+function cancel() {
+  if (changed.value) discarding.value = true;
+  else emit("cancel");
 }
 
 // A later edit can answer before an earlier one, so only the latest request may set the clashes.
@@ -317,10 +337,14 @@ async function save() {
     </ul>
 
     <div class="loadout-editor__actions">
+      <span
+        v-if="changed"
+        class="loadout-editor__unsaved"
+      >Unsaved changes</span>
       <button
         type="button"
         class="ghost"
-        @click="emit('cancel')"
+        @click="cancel()"
       >
         Cancel
       </button>
@@ -331,6 +355,30 @@ async function save() {
       >
         {{ saving ? "Saving…" : "Save" }}
       </button>
+    </div>
+    <div
+      v-if="discarding"
+      class="loadout-editor__discard fade-in"
+    >
+      <p class="loadout-editor__discard-q">
+        {{ discardQuestion }}
+      </p>
+      <div class="loadout-editor__discard-actions">
+        <button
+          type="button"
+          class="ghost btn-sm"
+          @click="discarding = false"
+        >
+          Keep editing
+        </button>
+        <button
+          type="button"
+          class="danger btn-sm"
+          @click="emit('cancel')"
+        >
+          Discard
+        </button>
+      </div>
     </div>
   </section>
 </template>
@@ -523,7 +571,25 @@ async function save() {
 .loadout-editor__actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 1rem;
+}
+.loadout-editor__unsaved {
+  font-size: 0.8rem;
+  color: var(--status-attention-ink);
+}
+.loadout-editor__discard {
+  margin-top: 0.75rem;
+  text-align: right;
+}
+.loadout-editor__discard-q {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+.loadout-editor__discard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 </style>
