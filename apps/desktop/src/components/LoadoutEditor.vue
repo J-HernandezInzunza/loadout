@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { requiresOf, type EntryRecord, type EntryType, type Library, type LoadoutRecord } from "@loadout/core";
 import { storeToRefs } from "pinia";
-import { computed, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
@@ -50,6 +50,8 @@ const saving = ref(false);
 const failure = ref<string | null>(null);
 const clashes = ref<Clash[]>([]);
 const search = useTemplateRef<HTMLInputElement>("search");
+/** the catalog picker is open: from the start for a new loadout, which is there to be filled, else when asked */
+const picking = ref(!editing);
 
 const key = (m: { type: EntryType; name: string }) => `${m.type}:${m.name}`;
 /** Also the catalog it's pinned to: the same name from another catalog is another member. */
@@ -97,8 +99,11 @@ const rows = computed(() =>
 
 const columns = computed(() => COLUMNS.map((c) => ({ ...c, rows: rows.value.filter((r) => r.member.type === c.type) })));
 
-function addOfType(t: EntryType) {
-  type.value = t;
+async function openPicker(t?: EntryType) {
+  if (t) type.value = t;
+  picking.value = true;
+  // The search exists once the picker has rendered.
+  await nextTick();
   search.value?.focus();
 }
 
@@ -194,35 +199,34 @@ async function save() {
       <p>Couldn't save {{ name }}.</p>
     </StatusBanner>
 
-    <label
-      class="loadout-editor__label"
-      for="loadout-name"
-    >Name</label>
-    <input
-      id="loadout-name"
-      v-model.trim="name"
-      class="loadout-editor__input"
-      :disabled="editing"
-      placeholder="review"
-      autocomplete="off"
-      spellcheck="false"
-      aria-describedby="loadout-name-help"
-    >
-    <p
-      id="loadout-name-help"
-      class="loadout-editor__help"
-      :class="{ 'loadout-editor__help--error': nameError }"
-    >
-      <template v-if="nameError">
-        {{ nameError }}
-      </template>
-      <template v-else-if="editing">
-        A loadout keeps its name: to change it, create a new one and delete this one.
-      </template>
-      <template v-else>
-        Lowercase letters, digits and hyphens. It names the loadout's folder, and prefixes a member whose name clashes.
-      </template>
-    </p>
+    <!-- Only a new loadout has a name to choose: a saved one keeps its name, which the title shows. -->
+    <template v-if="!editing">
+      <label
+        class="loadout-editor__label"
+        for="loadout-name"
+      >Name</label>
+      <input
+        id="loadout-name"
+        v-model.trim="name"
+        class="loadout-editor__input"
+        placeholder="review"
+        autocomplete="off"
+        spellcheck="false"
+        aria-describedby="loadout-name-help"
+      >
+      <p
+        id="loadout-name-help"
+        class="loadout-editor__help"
+        :class="{ 'loadout-editor__help--error': nameError }"
+      >
+        <template v-if="nameError">
+          {{ nameError }}
+        </template>
+        <template v-else>
+          Lowercase letters, digits and hyphens. It names the loadout's folder, and prefixes a member whose name clashes.
+        </template>
+      </p>
+    </template>
 
     <h4 class="loadout-editor__section">
       Members · {{ members.length }}
@@ -241,7 +245,7 @@ async function save() {
             type="button"
             class="ghost btn-xs"
             :aria-label="`Add ${column.title.toLowerCase()}`"
-            @click="addOfType(column.type)"
+            @click="openPicker(column.type)"
           >
             + Add
           </button>
@@ -279,58 +283,82 @@ async function save() {
       </TypeColumn>
     </div>
 
-    <h4 class="loadout-editor__section">
-      Add from the catalog
-    </h4>
-    <div class="loadout-editor__filters">
-      <input
-        ref="search"
-        v-model="query"
-        type="search"
-        class="loadout-editor__input"
-        aria-label="Search the catalog"
-        placeholder="Search skills, agents, prompts…"
-        autocomplete="off"
-        spellcheck="false"
-      >
-      <UiSelect
-        v-model="type"
-        aria-label="Type"
-      >
-        <option
-          v-for="t in TYPES"
-          :key="t.value"
-          :value="t.value"
-        >
-          {{ t.label }}
-        </option>
-      </UiSelect>
-    </div>
-    <ul class="loadout-editor__candidates">
-      <li
-        v-for="e in candidates"
-        :key="`${e.type}:${e.name}@${e.catalog}`"
-        class="loadout-editor__candidate"
-      >
-        <span class="loadout-editor__name">{{ e.name }}</span>
-        <span class="loadout-editor__badge"><TypeDot :type="e.type" />{{ e.type }}</span>
-        <span class="loadout-editor__from">{{ e.catalog }}{{ e.overriddenBy ? `, overridden by ${e.overriddenBy}` : "" }}</span>
-        <span class="loadout-editor__description">{{ e.description }}</span>
+    <section
+      v-if="picking"
+      class="loadout-editor__picker"
+      aria-label="Add from the catalog"
+      @keydown.esc="picking = false"
+    >
+      <div class="loadout-editor__picker-head">
+        <h4 class="loadout-editor__section">
+          Add from the catalog
+        </h4>
         <button
           type="button"
           class="ghost btn-xs"
-          @click="add(e)"
+          @click="picking = false"
         >
-          Add
+          Close
         </button>
-      </li>
-      <li
-        v-if="!candidates.length"
-        class="loadout-editor__help"
-      >
-        Nothing in the catalog matches.
-      </li>
-    </ul>
+      </div>
+      <div class="loadout-editor__filters">
+        <input
+          ref="search"
+          v-model="query"
+          type="search"
+          class="loadout-editor__input"
+          aria-label="Search the catalog"
+          placeholder="Search skills, agents, prompts…"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <UiSelect
+          v-model="type"
+          aria-label="Type"
+        >
+          <option
+            v-for="t in TYPES"
+            :key="t.value"
+            :value="t.value"
+          >
+            {{ t.label }}
+          </option>
+        </UiSelect>
+      </div>
+      <ul class="loadout-editor__candidates">
+        <li
+          v-for="e in candidates"
+          :key="`${e.type}:${e.name}@${e.catalog}`"
+          class="loadout-editor__candidate"
+        >
+          <span class="loadout-editor__name">{{ e.name }}</span>
+          <span class="loadout-editor__badge"><TypeDot :type="e.type" />{{ e.type }}</span>
+          <span class="loadout-editor__from">{{ e.catalog }}{{ e.overriddenBy ? `, overridden by ${e.overriddenBy}` : "" }}</span>
+          <span class="loadout-editor__description">{{ e.description }}</span>
+          <button
+            type="button"
+            class="ghost btn-xs"
+            @click="add(e)"
+          >
+            Add
+          </button>
+        </li>
+        <li
+          v-if="!candidates.length"
+          class="loadout-editor__help"
+        >
+          Nothing in the catalog matches.
+        </li>
+      </ul>
+    </section>
+    <button
+      v-else
+      type="button"
+      class="ghost btn-sm loadout-editor__open-picker"
+      @click="openPicker()"
+    >
+      Add from the catalog
+    </button>
   </section>
 </template>
 
@@ -375,6 +403,15 @@ async function save() {
 .loadout-editor__help--error {
   color: var(--status-danger-ink);
   opacity: 1;
+}
+.loadout-editor__picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.loadout-editor__open-picker {
+  margin-top: 0.75rem;
 }
 .loadout-editor__section {
   margin: 1rem 0 0.5rem;

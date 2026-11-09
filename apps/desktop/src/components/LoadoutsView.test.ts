@@ -202,7 +202,8 @@ describe("Loadouts", () => {
     await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
     await flushPromises();
 
-    expect(wrapper.find("#loadout-name").attributes("disabled")).toBeDefined();
+    expect(wrapper.find(".loadout-editor__title").text()).toBe("Edit review");
+    expect(wrapper.find("#loadout-name").exists()).toBe(false);
     await memberRow(wrapper, "lint").find("button").trigger("click");
     await press(wrapper, "Save");
 
@@ -254,6 +255,7 @@ describe("Loadouts", () => {
 
     await memberRow(wrapper, "notes").find("button").trigger("click");
     expect(unsaved().text()).toBe("Unsaved changes");
+    await press(wrapper, "Add from the catalog");
     await search(wrapper, "notes");
     await addCandidate(wrapper, "notes", "personal");
     expect(unsaved().exists()).toBe(false);
@@ -413,6 +415,37 @@ describe("Loadouts", () => {
       await press(wrapper, "Check for updates");
       expect(asked).toEqual(["review", "review"]);
       expect(card(wrapper, "review").find(".loadouts__peek .clash-line").exists()).toBe(true);
+    });
+  });
+
+  describe("the catalog picker", () => {
+    const picker = (w: Wrapper) => w.find(".loadout-editor input[type=search]");
+
+    it("starts closed when editing, opens from its button, stays open while adding, and closes with Close or Escape", async () => {
+      const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint")] })] });
+      await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+      await flushPromises();
+      expect(picker(wrapper).exists()).toBe(false);
+
+      await press(wrapper, "Add from the catalog");
+      expect(picker(wrapper).exists()).toBe(true);
+      await search(wrapper, "tid");
+      await addCandidate(wrapper, "tidy", "team");
+      expect(picker(wrapper).exists()).toBe(true);
+      await press(wrapper, "Close");
+      expect(picker(wrapper).exists()).toBe(false);
+
+      await press(wrapper, "Add from the catalog");
+      await wrapper.find(".loadout-editor__picker").trigger("keydown", { key: "Escape" });
+      expect(picker(wrapper).exists()).toBe(false);
+      expect(columns(wrapper)[0]).toEqual(["Skills", "2", ["lint", "tidy"]]);
+    });
+
+    it("starts open for a new loadout", async () => {
+      const { wrapper } = await mountLoadouts({ loadouts: [] });
+      await press(wrapper, "New loadout");
+      expect(picker(wrapper).exists()).toBe(true);
+      expect(wrapper.find("#loadout-name").exists()).toBe(true);
     });
   });
 
