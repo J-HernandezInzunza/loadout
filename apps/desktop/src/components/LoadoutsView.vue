@@ -59,8 +59,8 @@ let generation = 0;
 
 const edited = computed(() => loadouts.value.find((l) => l.name === editing.value) ?? null);
 const editor = useTemplateRef<InstanceType<typeof LoadoutEditor>>("editor");
-/** asked before a changed draft goes: what Discard does then, close the editor or leave the screen */
-const discarding = ref<"close" | "leave" | null>(null);
+/** Cancel or the editor's Back was pressed on a changed draft: it asks before throwing the draft away */
+const discarding = ref(false);
 const discardQuestion = computed(() => {
   const isNew = editing.value === NEW;
   if (isNew) return "Discard this new loadout? Nothing in it has been saved.";
@@ -123,20 +123,13 @@ async function checkForUpdates() {
 }
 
 function closeEditor() {
-  if (editor.value?.changed) discarding.value = "close";
+  if (editor.value?.changed) discarding.value = true;
   else editing.value = null;
 }
 
-function back() {
-  if (editor.value?.changed) discarding.value = "leave";
-  else views.loadouts = false;
-}
-
 function discard() {
-  const isLeaving = discarding.value === "leave";
-  discarding.value = null;
+  discarding.value = false;
   editing.value = null;
-  if (isLeaving) views.loadouts = false;
 }
 
 function open(name: string) {
@@ -206,11 +199,24 @@ onMounted(() => load());
 </script>
 
 <template>
-  <section class="view">
+  <!-- The list or the editor, each a page of its own: never both, so the loadout being edited isn't on screen twice. -->
+  <LoadoutEditor
+    v-if="editing !== null"
+    ref="editor"
+    :key="editing"
+    :loadout="edited"
+    :taken="loadouts.map((l) => l.name)"
+    @saved="saved"
+    @cancel="closeEditor()"
+  />
+  <section
+    v-else
+    class="view"
+  >
     <PageHeader
       title="Loadouts"
       back="Loadout"
-      @back="back()"
+      @back="views.loadouts = false"
     >
       <template #actions>
         <button
@@ -223,7 +229,6 @@ onMounted(() => load());
         </button>
         <button
           type="button"
-          :disabled="editing !== null"
           @click="open(NEW)"
         >
           New loadout
@@ -258,30 +263,13 @@ onMounted(() => load());
         Couldn't read your loadouts.
       </StatusBanner>
 
-      <LoadoutEditor
-        v-if="editing !== null"
-        ref="editor"
-        :key="editing"
-        :loadout="edited"
-        :taken="loadouts.map((l) => l.name)"
-        @saved="saved"
-        @cancel="closeEditor()"
-      />
-      <ConfirmDialog
-        v-if="discarding"
-        :question="discardQuestion"
-        keep="Keep editing"
-        confirm="Discard"
-        @keep="discarding = null"
-        @confirm="discard()"
-      />
 
       <BusyIndicator
         v-if="loading && !loadouts.length"
         label="Reading loadouts…"
       />
       <p
-        v-else-if="!loadouts.length && editing === null"
+        v-else-if="!loadouts.length"
         class="loadouts__empty"
       >
         No loadouts yet. Make one with New loadout, then start a session with its command.
@@ -326,7 +314,6 @@ onMounted(() => load());
               <button
                 type="button"
                 class="ghost btn-sm"
-                :disabled="editing !== null"
                 @click="open(l.name)"
               >
                 Edit
@@ -433,6 +420,14 @@ onMounted(() => load());
       </ul>
     </PageHeader>
   </section>
+  <ConfirmDialog
+    v-if="discarding"
+    :question="discardQuestion"
+    keep="Keep editing"
+    confirm="Discard"
+    @keep="discarding = false"
+    @confirm="discard()"
+  />
 </template>
 
 <style scoped>

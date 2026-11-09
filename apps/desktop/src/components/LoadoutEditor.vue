@@ -6,6 +6,7 @@ import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import ClashLine from "./ClashLine.vue";
+import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
 import TypeColumn from "./TypeColumn.vue";
 import TypeDot from "./TypeDot.vue";
@@ -158,225 +159,208 @@ async function save() {
 </script>
 
 <template>
-  <section
-    class="loadout-editor card fade-in"
-    aria-labelledby="loadout-editor-title"
-  >
-    <div class="loadout-editor__top">
-      <h3
-        id="loadout-editor-title"
-        class="loadout-editor__title"
-      >
-        {{ editing ? `Edit ${name}` : "New loadout" }}
-      </h3>
-      <div class="loadout-editor__actions">
-        <span
-          v-if="changed"
-          class="loadout-editor__unsaved"
-        >Unsaved changes</span>
-        <button
-          type="button"
-          class="ghost btn-sm"
-          @click="emit('cancel')"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="btn-sm"
-          :disabled="!canSave"
-          @click="save()"
-        >
-          {{ saving ? "Saving…" : "Save" }}
-        </button>
-      </div>
-    </div>
-    <StatusBanner
-      v-if="failure"
-      kind="error"
-      :detail="failure"
+  <section class="view loadout-editor">
+    <!-- Back closes the editor, as Cancel does: the screen asks first when the draft has changed. -->
+    <PageHeader
+      :title="editing ? `Edit ${name}` : 'New loadout'"
+      back="Loadouts"
+      @back="emit('cancel')"
     >
-      <p>Couldn't save {{ name }}.</p>
-    </StatusBanner>
-
-    <!-- Only a new loadout has a name to choose: a saved one keeps its name, which the title shows. -->
-    <template v-if="!editing">
-      <label
-        class="loadout-editor__label"
-        for="loadout-name"
-      >Name</label>
-      <input
-        id="loadout-name"
-        v-model.trim="name"
-        class="loadout-editor__input"
-        placeholder="review"
-        autocomplete="off"
-        spellcheck="false"
-        aria-describedby="loadout-name-help"
-      >
-      <p
-        id="loadout-name-help"
-        class="loadout-editor__help"
-        :class="{ 'loadout-editor__help--error': nameError }"
-      >
-        <template v-if="nameError">
-          {{ nameError }}
-        </template>
-        <template v-else>
-          Lowercase letters, digits and hyphens. It names the loadout's folder, and prefixes a member whose name clashes.
-        </template>
-      </p>
-    </template>
-
-    <h4 class="loadout-editor__section">
-      Members · {{ members.length }}
-    </h4>
-    <div class="loadout-editor__columns">
-      <TypeColumn
-        v-for="column in columns"
-        :key="column.type"
-        :type="column.type"
-        :title="column.title"
-        :count="column.rows.length"
-        :empty="column.empty"
-      >
-        <template #action>
+      <template #actions>
+        <div class="loadout-editor__actions">
+          <span
+            v-if="changed"
+            class="loadout-editor__unsaved"
+          >Unsaved changes</span>
           <button
             type="button"
-            class="ghost btn-xs"
-            :aria-label="`Add ${column.title.toLowerCase()}`"
-            @click="openPicker(column.type)"
+            class="ghost"
+            @click="emit('cancel')"
           >
-            + Add
+            Cancel
           </button>
-        </template>
-        <ul class="loadout-editor__members">
-          <li
-            v-for="row in column.rows"
-            :key="key(row.member)"
-            class="loadout-editor__member"
+          <button
+            type="button"
+            :disabled="!canSave"
+            @click="save()"
           >
-            <div class="loadout-editor__head">
-              <span class="loadout-editor__name">{{ row.member.name }}</span>
-              <button
-                type="button"
-                class="ghost btn-xs loadout-editor__remove"
-                :aria-label="`Remove ${row.member.name}`"
-                @click="remove(row.member)"
-              >
-                ×
-              </button>
-            </div>
-            <span class="loadout-editor__catalog">{{ row.record ? `from ${row.record.catalog}` : "no catalog defines it" }}</span>
-            <p
-              v-if="row.requires.length"
-              class="loadout-editor__adds"
-            >
-              Adds {{ row.requires.map((r) => r.name).join(", ") }} for it.
-            </p>
-            <ClashLine
-              v-if="row.clash"
-              :clash="row.clash"
-            />
-          </li>
-        </ul>
-      </TypeColumn>
-    </div>
+            {{ saving ? "Saving…" : "Save" }}
+          </button>
+        </div>
+      </template>
+      <StatusBanner
+        v-if="failure"
+        kind="error"
+        :detail="failure"
+      >
+        <p>Couldn't save {{ name }}.</p>
+      </StatusBanner>
 
-    <section
-      v-if="picking"
-      class="loadout-editor__picker"
-      aria-label="Add from the catalog"
-      @keydown.esc="picking = false"
-    >
-      <div class="loadout-editor__picker-head">
-        <h4 class="loadout-editor__section">
-          Add from the catalog
-        </h4>
-        <button
-          type="button"
-          class="ghost btn-xs"
-          @click="picking = false"
-        >
-          Close
-        </button>
-      </div>
-      <div class="loadout-editor__filters">
+      <!-- Only a new loadout has a name to choose: a saved one keeps its name, which the title shows. -->
+      <template v-if="!editing">
+        <label
+          class="loadout-editor__label"
+          for="loadout-name"
+        >Name</label>
         <input
-          ref="search"
-          v-model="query"
-          type="search"
+          id="loadout-name"
+          v-model.trim="name"
           class="loadout-editor__input"
-          aria-label="Search the catalog"
-          placeholder="Search skills, agents, prompts…"
+          placeholder="review"
           autocomplete="off"
           spellcheck="false"
+          aria-describedby="loadout-name-help"
         >
-        <UiSelect
-          v-model="type"
-          aria-label="Type"
+        <p
+          id="loadout-name-help"
+          class="loadout-editor__help"
+          :class="{ 'loadout-editor__help--error': nameError }"
         >
-          <option
-            v-for="t in TYPES"
-            :key="t.value"
-            :value="t.value"
-          >
-            {{ t.label }}
-          </option>
-        </UiSelect>
+          <template v-if="nameError">
+            {{ nameError }}
+          </template>
+          <template v-else>
+            Lowercase letters, digits and hyphens. It names the loadout's folder, and prefixes a member whose name clashes.
+          </template>
+        </p>
+      </template>
+
+      <h4 class="loadout-editor__section">
+        Members · {{ members.length }}
+      </h4>
+      <div class="loadout-editor__columns">
+        <TypeColumn
+          v-for="column in columns"
+          :key="column.type"
+          :type="column.type"
+          :title="column.title"
+          :count="column.rows.length"
+          :empty="column.empty"
+        >
+          <template #action>
+            <button
+              type="button"
+              class="ghost btn-xs"
+              :aria-label="`Add ${column.title.toLowerCase()}`"
+              @click="openPicker(column.type)"
+            >
+              + Add
+            </button>
+          </template>
+          <ul class="loadout-editor__members">
+            <li
+              v-for="row in column.rows"
+              :key="key(row.member)"
+              class="loadout-editor__member"
+            >
+              <div class="loadout-editor__head">
+                <span class="loadout-editor__name">{{ row.member.name }}</span>
+                <button
+                  type="button"
+                  class="ghost btn-xs loadout-editor__remove"
+                  :aria-label="`Remove ${row.member.name}`"
+                  @click="remove(row.member)"
+                >
+                  ×
+                </button>
+              </div>
+              <span class="loadout-editor__catalog">{{ row.record ? `from ${row.record.catalog}` : "no catalog defines it" }}</span>
+              <p
+                v-if="row.requires.length"
+                class="loadout-editor__adds"
+              >
+                Adds {{ row.requires.map((r) => r.name).join(", ") }} for it.
+              </p>
+              <ClashLine
+                v-if="row.clash"
+                :clash="row.clash"
+              />
+            </li>
+          </ul>
+        </TypeColumn>
       </div>
-      <ul class="loadout-editor__candidates">
-        <li
-          v-for="e in candidates"
-          :key="`${e.type}:${e.name}@${e.catalog}`"
-          class="loadout-editor__candidate"
-        >
-          <span class="loadout-editor__name">{{ e.name }}</span>
-          <span class="loadout-editor__badge"><TypeDot :type="e.type" />{{ e.type }}</span>
-          <span class="loadout-editor__from">{{ e.catalog }}{{ e.overriddenBy ? `, overridden by ${e.overriddenBy}` : "" }}</span>
-          <span class="loadout-editor__description">{{ e.description }}</span>
+
+      <section
+        v-if="picking"
+        class="loadout-editor__picker"
+        aria-label="Add from the catalog"
+        @keydown.esc="picking = false"
+      >
+        <div class="loadout-editor__picker-head">
+          <h4 class="loadout-editor__section">
+            Add from the catalog
+          </h4>
           <button
             type="button"
             class="ghost btn-xs"
-            @click="add(e)"
+            @click="picking = false"
           >
-            Add
+            Close
           </button>
-        </li>
-        <li
-          v-if="!candidates.length"
-          class="loadout-editor__help"
-        >
-          Nothing in the catalog matches.
-        </li>
-      </ul>
-    </section>
-    <button
-      v-else
-      type="button"
-      class="ghost btn-sm loadout-editor__open-picker"
-      @click="openPicker()"
-    >
-      Add from the catalog
-    </button>
+        </div>
+        <div class="loadout-editor__filters">
+          <input
+            ref="search"
+            v-model="query"
+            type="search"
+            class="loadout-editor__input"
+            aria-label="Search the catalog"
+            placeholder="Search skills, agents, prompts…"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <UiSelect
+            v-model="type"
+            aria-label="Type"
+          >
+            <option
+              v-for="t in TYPES"
+              :key="t.value"
+              :value="t.value"
+            >
+              {{ t.label }}
+            </option>
+          </UiSelect>
+        </div>
+        <ul class="loadout-editor__candidates">
+          <li
+            v-for="e in candidates"
+            :key="`${e.type}:${e.name}@${e.catalog}`"
+            class="loadout-editor__candidate"
+          >
+            <span class="loadout-editor__name">{{ e.name }}</span>
+            <span class="loadout-editor__badge"><TypeDot :type="e.type" />{{ e.type }}</span>
+            <span class="loadout-editor__from">{{ e.catalog }}{{ e.overriddenBy ? `, overridden by ${e.overriddenBy}` : "" }}</span>
+            <span class="loadout-editor__description">{{ e.description }}</span>
+            <button
+              type="button"
+              class="ghost btn-xs"
+              @click="add(e)"
+            >
+              Add
+            </button>
+          </li>
+          <li
+            v-if="!candidates.length"
+            class="loadout-editor__help"
+          >
+            Nothing in the catalog matches.
+          </li>
+        </ul>
+      </section>
+      <button
+        v-else
+        type="button"
+        class="ghost btn-sm loadout-editor__open-picker"
+        @click="openPicker()"
+      >
+        Add from the catalog
+      </button>
+    </PageHeader>
   </section>
 </template>
 
 <style scoped>
-.loadout-editor {
-  margin-bottom: 1.25rem;
-}
-.loadout-editor__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
-  margin-bottom: 0.75rem;
-}
-.loadout-editor__title {
-  margin: 0;
-  font-size: 1rem;
-}
 .loadout-editor__label {
   display: block;
   margin-bottom: 0.3rem;
@@ -506,7 +490,6 @@ async function save() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-left: auto;
 }
 .loadout-editor__unsaved {
   font-size: 0.8rem;

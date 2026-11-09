@@ -202,7 +202,7 @@ describe("Loadouts", () => {
     await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
     await flushPromises();
 
-    expect(wrapper.find(".loadout-editor__title").text()).toBe("Edit review");
+    expect(wrapper.find(".loadout-editor .page-title__heading").text()).toBe("Edit review");
     expect(wrapper.find("#loadout-name").exists()).toBe(false);
     await memberRow(wrapper, "lint").find("button").trigger("click");
     await press(wrapper, "Save");
@@ -315,16 +315,17 @@ describe("Loadouts", () => {
       expect(saves).toEqual([]);
     });
 
-    it("asks before Back leaves the screen, and Discard leaves it", async () => {
+    it("asks before the editor's Back throws it away, and Discard returns to the list", async () => {
       const { wrapper, saves } = await editedReview();
 
-      await press(wrapper, "← Loadout");
+      await press(wrapper, "← Loadouts");
       await settle();
       expect(dialog(wrapper).text()).toContain("Discard your changes to review?");
-      expect(useViewStore().loadouts).toBe(true);
       await press(wrapper, "Discard");
 
-      expect(useViewStore().loadouts).toBe(false);
+      expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+      expect(wrapper.find(".loadouts__list").exists()).toBe(true);
+      expect(useViewStore().loadouts).toBe(true);
       expect(saves).toEqual([]);
     });
 
@@ -348,8 +349,10 @@ describe("Loadouts", () => {
 
       useViewStore().loadouts = true;
       await typeName(wrapper, "");
-      await press(wrapper, "← Loadout");
+      await press(wrapper, "← Loadouts");
       expect(dialog(wrapper).exists()).toBe(false);
+      expect(wrapper.find(".loadouts__list").exists()).toBe(true);
+      await press(wrapper, "← Loadout");
       expect(useViewStore().loadouts).toBe(false);
     });
   });
@@ -416,6 +419,27 @@ describe("Loadouts", () => {
       expect(asked).toEqual(["review", "review"]);
       expect(card(wrapper, "review").find(".loadouts__peek .clash-line").exists()).toBe(true);
     });
+  });
+
+  it("shows the editor as a page of its own, in place of the list, and returns to the list after Save", async () => {
+    const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint"), member("notes")] })] });
+    await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find(".loadouts__list").exists()).toBe(false);
+    expect(wrapper.find(".loadout-editor .page-title__heading").text()).toBe("Edit review");
+    expect(wrapper.find(".loadout-editor .page-head").text()).toBe("← Loadouts");
+
+    await memberRow(wrapper, "notes").find("button").trigger("click");
+    await press(wrapper, "Save");
+
+    expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+    expect(wrapper.find(".page-title__heading").text()).toBe("Loadouts");
+    expect(banner(wrapper).text()).toBe("Saved review: 1 entry built.");
+
+    await press(wrapper, "New loadout");
+    expect(wrapper.find(".loadouts__list").exists()).toBe(false);
+    expect(wrapper.find(".loadout-editor .page-title__heading").text()).toBe("New loadout");
   });
 
   describe("the catalog picker", () => {
