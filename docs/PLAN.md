@@ -1326,7 +1326,7 @@ into groups when narrow, and the list card counts members by type. The tints are
 orchid washes; if they fight the status or catalog colours, neutral columns with a type dot are the
 fallback.
 
-- [ ] **M10.01 One command per card.** `HostProc` gains `which(cmd)`: the path of an executable named
+- [x] **M10.01 One command per card.** `HostProc` gains `which(cmd)`: the path of an executable named
   `cmd` in a directory of the process PATH, or null. The desktop host answers it in Rust, from the
   PATH `path.rs` repaired from the login shell (the shell scope allows only git and the fs scope stops
   at `$HOME`); host-node reads `PATH`. A library op reports whether `loadout` is found, and the view
@@ -1344,7 +1344,7 @@ fallback.
     Sync is absent on an all-built loadout and present on a stale one; the owner copies from a card
     in a Finder-launched build and the pasted command starts a session.
 
-- [ ] **M10.02 A loadout's makeup by type.** The editor's members sit in three columns, Skills, Agents
+- [x] **M10.02 A loadout's makeup by type.** The editor's members sit in three columns, Skills, Agents
   and Prompts, each with its count, a tint from new `--type-{skill,agent,prompt}-*` tokens (light and
   dark, in `tokens.css`), and "No agents yet" (and so on) when empty. A tile shows the name, its
   catalog, what it adds, and a short clash line from `clashShort()` (beside `clashText()`, one per
@@ -1362,7 +1362,7 @@ fallback.
     tile text on each tint in both themes and `buttons.test.ts` admits the ×; the owner edits a
     loadout in the built app, wide and narrow.
 
-- [ ] **M10.03 Unsaved edits say so.** Nothing in the editor is saved until Save, which builds the
+- [x] **M10.03 Unsaved edits say so.** Nothing in the editor is saved until Save, which builds the
   folder. Save and Cancel sit at the top right of the editor, beside its title, and while the draft
   differs from what the editor opened (a member added or removed; for a new loadout, a name or a
   member) "Unsaved changes" shows beside them. Cancel, or Back on the Loadouts screen, with such a
