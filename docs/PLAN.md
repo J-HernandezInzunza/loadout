@@ -1355,8 +1355,9 @@ M10.04.
   outcome) with the full sentence as its title and accessible description; × removes it, named
   "Remove <name>". A column's "+ Add" sets the picker's type and focuses its search; each picker row
   carries its type's dot. Below about 560px of editor width (a container query) the columns stack into
-  groups. The list card's summary counts by type with the same dots: `8 skills · 3 prompts · 1 out of
-  date`.
+  groups (removed in M10.04: the window's 860px minimum keeps the editor near 780px, so it never
+  applied). The list card's summary counts by type with the same dots: `8 skills · 3 prompts · 1 out
+  of date`.
   - Rules: none
   - Depends: M9.07, M9.09
   - Done when: against the fake, members land in their type's column with the right counts, an empty
