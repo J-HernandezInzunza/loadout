@@ -48,6 +48,18 @@ Planned as M9 in `PLAN.md`, with its decisions.
   and scripts that say `loadout run <old>` stop working, so the rename says both before it runs. A
   plan/apply pair like save and delete; the editor's Name field (hidden when editing since M10.06)
   comes back, editable.
+- **A `loadout` skill for agents.** An opt-in skill, offered at first run and on the Loadouts
+  screen (as Orca offers its orchestration skill), that teaches an agent the `loadout` command, so
+  "run the frontend loadout in a new session" works from inside one. It ships in the app bundle beside
+  the script, so skill and CLI come from the same release, and installs through Loadout's own pipeline
+  from a built-in read-only catalog (a receipt, the on/off switch, stale after an app update). Two uses:
+  headless, `loadout run <name> -p "…"`, which returns to the calling agent (it can't stop to ask for
+  permissions, so explicit `--allowedTools` is an open question); and interactive, a new pane or window
+  started in the project's folder: herdr when `HERDR_ENV=1`, tmux with `$TMUX`, Terminal.app through
+  AppleScript, otherwise the command for the user to paste. `loadout list` grows past names (owner,
+  2026-11-09): each loadout's members by type, with their state, so the agent can pick one. A test
+  fails when a subcommand isn't in the skill. Spike first: a headless run returning cleanly, and each
+  launch starting in the right folder.
 - **Always on in a repo.** A loadout that loads in one repo with no launch command: built as a
   plugin in a local marketplace and turned on in that repo's `.claude/settings.local.json`
   (`enabledPlugins`). Everything in it is then prefixed (`<loadout>:<name>`), and `skillOverrides`
