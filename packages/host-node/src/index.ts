@@ -2,8 +2,9 @@
 // test host, and the future agent host.
 import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import type { Stats } from "node:fs";
+import { constants, type Stats } from "node:fs";
 import {
+  access,
   chmod,
   copyFile,
   lstat,
@@ -18,7 +19,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, delimiter, dirname, join } from "node:path";
 import type { AuditEvent, FileKind, Host, ProcResult } from "@loadout/core";
 
 export interface NodeHostOptions {
@@ -191,8 +192,27 @@ export function createNodeHost(opts: NodeHostOptions): Host {
           });
         });
       },
+
+      async which(program) {
+        const dirs = (process.env.PATH ?? "").split(delimiter).filter((d) => d !== "");
+        for (const dir of dirs) {
+          const path = join(dir, program);
+          if (await isExecutableFile(path)) return path;
+        }
+        return null;
+      },
     },
   };
+}
+
+async function isExecutableFile(path: string): Promise<boolean> {
+  try {
+    await access(path, constants.X_OK);
+    const found = await stat(path);
+    return found.isFile();
+  } catch {
+    return false;
+  }
 }
 
 function abortError(): Error {

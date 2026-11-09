@@ -103,6 +103,17 @@ describe.each([
     }
   });
 
+  it("keeps a member's text readable on its type's tint, and the type's mark visible against the card", () => {
+    // The columns draw member names, clash lines and a member's state straight on the tint.
+    for (const type of ["skill", "agent", "prompt"]) {
+      const tint = over(color(`--type-${type}-tint`), card);
+      for (const ink of ["--text-primary", "--status-attention-ink", "--status-absent-ink", "--status-danger-ink"]) {
+        expect(contrast(color(ink)[0], tint), `${ink} on ${type}`).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(contrast(color(`--type-${type}-mark`)[0], card), `${type} mark`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it("keeps controls and catalog edges visible against the card", () => {
     // 3:1 is the floor for non-text: a switch, a focus ring, a line that carries meaning.
     const on = color("--control-on")[0];

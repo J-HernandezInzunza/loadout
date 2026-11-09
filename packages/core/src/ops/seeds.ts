@@ -174,5 +174,6 @@ export function seededState(): FakeState {
       scanItem({ type: "prompt", name: "team", path: `${seedHome}/.claude/commands/team` }),
     ],
     loadouts: [],
+    loadoutOnPath: true,
   };
 }

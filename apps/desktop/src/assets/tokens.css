@@ -20,6 +20,7 @@
  *   --text-*      ink with no status meaning
  *   --border-*    a line, by how much it should assert itself
  *   --status-*    the app's own vocabulary: what the CLI reports about an entry
+ *   --type-*      what kind of entry a loadout member is: identity, not a report
  *   --control-*   chrome the user operates, deliberately outside the status vocabulary
  *   --shadow-*    depth
  *   --accent-*    the app's own voice: progress, primary actions, selection
@@ -101,6 +102,21 @@
   --status-danger-edge: rgba(220, 38, 38, 0.4);
   --status-danger-ink: #991b1b;
 
+  /* ---- Member type ---------------------------------------------------------------
+     Teal, indigo and orchid: off the status hues, so a column of skills never reads as "installed"
+     or "needs attention", and drawn as a wash rather than a filled chip, so it doesn't read as a
+     catalog either. The editor puts member names and clash lines straight on the tint; the mark is
+     the dot beside a type's name, a shape that clears 3:1 against the card. */
+  --type-skill-tint: rgba(20, 184, 166, 0.1);
+  --type-skill-edge: rgba(20, 184, 166, 0.35);
+  --type-skill-mark: #0d9488;
+  --type-agent-tint: rgba(99, 102, 241, 0.09);
+  --type-agent-edge: rgba(99, 102, 241, 0.35);
+  --type-agent-mark: #6366f1;
+  --type-prompt-tint: rgba(192, 38, 211, 0.07);
+  --type-prompt-edge: rgba(192, 38, 211, 0.3);
+  --type-prompt-mark: #c026d3;
+
   /* ---- Accent --------------------------------------------------------------------
      The app talking about itself: work in progress, the primary action, the current
      selection. Never a report about an entry — that is what --status-* is for. */
@@ -123,8 +139,9 @@
   --control-off: #6b6b72;
 
   /* ---- Elevation -----------------------------------------------------------------
-     For the one thing that floats over content: a toast. */
+     For what floats over content: a toast, and a dialog with the page dimmed behind it. */
   --shadow-float: rgb(0 0 0 / 18%);
+  --scrim: rgb(0 0 0 / 25%);
 }
 
 /* ---- Catalog identity ----------------------------------------------------------
@@ -187,6 +204,17 @@
     --status-danger-tint: rgba(252, 165, 165, 0.12);
     --accent-tint: rgba(147, 197, 253, 0.12);
 
+    /* The 300 tones, as the status tints are. */
+    --type-skill-tint: rgba(94, 234, 212, 0.08);
+    --type-skill-edge: rgba(94, 234, 212, 0.3);
+    --type-skill-mark: #5eead4;
+    --type-agent-tint: rgba(165, 180, 252, 0.08);
+    --type-agent-edge: rgba(165, 180, 252, 0.3);
+    --type-agent-mark: #a5b4fc;
+    --type-prompt-tint: rgba(240, 171, 252, 0.07);
+    --type-prompt-edge: rgba(240, 171, 252, 0.28);
+    --type-prompt-mark: #f0abfc;
+
     --accent-bright: #60a5fa;
 
     /* A lighter green with a dark knob: 6.89:1 against the card. */
@@ -197,6 +225,7 @@
     /* A shadow is darker than what it falls on, and the dark page is already near black:
        the light-mode alpha disappears. */
     --shadow-float: rgb(0 0 0 / 50%);
+    --scrim: rgb(0 0 0 / 55%);
   }
 
   /* Light chips with dark text. */

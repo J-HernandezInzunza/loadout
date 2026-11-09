@@ -71,7 +71,7 @@ describe("capabilities", () => {
   it("grants only the app commands no plugin covers", () => {
     // App permissions carry no plugin prefix; build.rs's app manifest denies any command not granted here.
     const app = permissions.filter((p): p is string => typeof p === "string" && !p.includes(":"));
-    expect(app).toEqual(["allow-real-path", "allow-secret-get", "allow-secret-set", "allow-secret-delete"]);
+    expect(app).toEqual(["allow-real-path", "allow-which", "allow-secret-get", "allow-secret-set", "allow-secret-delete"]);
   });
 
   it("lets the window follow the appearance toggle (setTheme isn't in core:default)", () => {

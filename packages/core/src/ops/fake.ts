@@ -19,12 +19,14 @@ export interface FakeState {
   /** what scan() reports in the install dirs */
   scanned: ScanItem[];
   loadouts: LoadoutRecord[];
+  /** whether `loadout` is on the PATH */
+  loadoutOnPath: boolean;
 }
 
 const refused = async () => err({ code: "REFUSED" as const, message: "not modelled by the fake; override it in the test" });
 
 export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Partial<Library> = {}): Library & { state: FakeState } {
-  const state: FakeState = { catalogs: [], entries: [], pins: [], accounts: {}, scanned: [], loadouts: [], ...seed };
+  const state: FakeState = { catalogs: [], entries: [], pins: [], accounts: {}, scanned: [], loadouts: [], loadoutOnPath: true, ...seed };
   const inCatalog = (catalog?: string) => state.entries.filter((e) => catalog === undefined || e.catalog === catalog);
   // Remote catalogs only, as the real refresh does; the fake never pulls, so each serves its cached copy.
   const refreshed = () => state.catalogs.filter((c) => c.kind === "remote").map((c) => ({ id: c.id, outcome: "cached" as const }));
@@ -119,6 +121,9 @@ export function createFakeLibrary(seed: Partial<FakeState> = {}, overrides: Part
     planDeleteLoadout: refused,
     applyDeleteLoadout: refused,
     launchCommand: refused,
+    async loadoutOnPath() {
+      return ok(state.loadoutOnPath);
+    },
     suggestSource: refused,
   };
   return { ...library, ...overrides, state };

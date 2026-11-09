@@ -84,6 +84,7 @@ export async function createSandbox(): Promise<Sandbox> {
           guard("proc.run cwd", cwd);
           return inner.proc.run(program, args, { ...opts, cwd, env: { ...opts.env, ...gitEnv } });
         },
+        which: (program) => inner.proc.which(program),
       },
       http: {
         request(req) {

@@ -74,6 +74,7 @@ export interface HostProc {
   run(program: "git", args: string[], opts: {
     cwd?: string; env?: Record<string, string>; timeoutMs?: number; signal?: AbortSignal;
   }): Promise<ProcResult>;
+  which(program: string): Promise<string | null>;           // first executable of that name on the process PATH (§5.3)
 }
 
 export interface HostSecrets {                               // macOS Keychain in the app (§5.5)
@@ -182,6 +183,7 @@ export interface Library {
   planDeleteLoadout(name: string): Promise<Result<DeleteLoadoutPlan>>;
   applyDeleteLoadout(plan: DeleteLoadoutPlan): Promise<Result<{ name: string; removedFolder: boolean }>>;
   launchCommand(name: string, opts?: { members?: LoadoutMember[] }): Promise<Result<LaunchCommand>>;   // run, command, clashes; members previews a draft
+  loadoutOnPath(): Promise<Result<boolean>>;   // whether a terminal finds `loadout`, so a card offers `loadout run` or the bare command
 
   // one-time import
   planImport(toolDir?: string): Promise<Result<ImportPlan>>;
@@ -557,7 +559,9 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
 - **State** per member, in `loadouts()`: `failed` (no catalog defines it), `missing` (nothing it built
   is in the folder), `stale` (the copy isn't what its entry would build now: the source was repointed,
   the copy edited, or a local source changed; a moved remote source only with `checkRemote`, as
-  `list()`), else `built`.
+  `list()`), else `built`. With `checkRemote`, a member whose remote can't be reached stays `built`
+  (UPD-06's unknown head) and is marked `unchecked`, so the screen's Check for updates doesn't call it
+  up to date.
 - **Sync** includes loadouts: `SyncPlan.loadouts` and `SyncReport.loadouts`, per loadout. Each
   resolved member's closure is checked against the loadout's receipts with `checkUpdate`, so what is
   provably unchanged is skipped (UPD-04/05); unlike installs, what is missing or unreceipted is built.
@@ -573,7 +577,9 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
   (`<loadout>:<name>`), or `hidden` when that skill is turned off; a skill clashing with a prompt
   `shadows` it; a prompt clashing with either is `prefixed`, since it is built under the namespace
   (below); an agent is `unknown`. Project, bundled
-  and plugin items depend on where and how the session starts, so they aren't claimed.
+  and plugin items depend on where and how the session starts, so they aren't claimed. A card shows
+  one of the two commands: `loadout run <name>` when `loadoutOnPath()` finds `loadout` on the PATH
+  Loadout runs with (§5.3), else the bare command, which also works without it.
 - **A clashing prompt** (decided 2026-11-07): a prompt, member or requirement, named like a loadable
   global prompt or skill when the loadout is built or synced goes to `commands/<loadout>/<name>.md`,
   which Claude Code runs as `/<loadout>:<name>` (S13; a global skill turned off doesn't hide it); the
@@ -654,6 +660,10 @@ put them in shell-plugin scopes, but the static capability file cannot know them
 paths, a setting that only matters when (1) fails. Doctor gains a check: `git --version` runs, `xcode-
 select -p` succeeds, and, for each host with a protected catalog, that an account is connected and its
 token still works (§5.5).
+
+The app's `which` command answers `HostProc.which` from this repaired PATH, so the core can tell
+whether a terminal would find the `loadout` command (§4.6) without widening the shell scope, which holds
+only git, or the fs scope, which stops at `$HOME`.
 
 ### 5.4 Offline behaviour
 

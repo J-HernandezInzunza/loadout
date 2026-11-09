@@ -38,6 +38,8 @@ export interface HostProc {
     args: string[],
     opts: { cwd?: string; env?: Record<string, string>; timeoutMs?: number; signal?: AbortSignal },
   ): Promise<ProcResult>;
+  /** the first executable file named `program` in a directory of the process PATH, or null */
+  which(program: string): Promise<string | null>;
 }
 
 /** macOS Keychain in the app (architecture.md §5.5); in memory on the Node host. */

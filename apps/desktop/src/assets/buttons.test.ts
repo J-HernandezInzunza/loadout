@@ -23,6 +23,8 @@ const ALLOWED = new Set([
   "components/EntryDetail.vue: .entry-detail__dep",
   // The invisible hit target stretched over an entry card.
   "components/EntryList.vue: .entry-list__open",
+  // A loadout card's summary line, which opens its members: text that discloses, sized as the text.
+  "components/LoadoutsView.vue: .loadouts__peek-toggle",
   // Icon buttons, sized by their icon.
   "components/AppearanceToggle.vue: .appearance-toggle",
   "components/ToastStack.vue: .toasts__close",

@@ -1314,15 +1314,143 @@ everything. Added as M9.10.
 
 ---
 
-## M10. Fewer Keychain reads
+## M10. A clearer Loadouts screen
 
-Exit: every M10 task checked; git commands against a signed-in host read the account's token from
+Exit: every M10 task checked; a loadout's card offers the one command that works on this machine,
+and the editor and the list show a loadout's members by type; the owner checked both in a built app.
+
+Decided 2026-11-07 (owner, after using the Loadouts screen): a card offers one command, picked for the
+machine by whether `loadout` is on the PATH Loadout sees, in a field with its Copy button inside; Sync
+shows only when the loadout needs it. The editor shows members in a tinted column per type, stacked
+into groups when narrow, and the list card counts members by type. The tints are teal, indigo and
+orchid washes; if they fight the status or catalog colours, neutral columns with a type dot are the
+fallback.
+
+Decided 2026-11-09 (owner, from a mockup of three ways to peek): a card opens its members in place,
+read-only, in the editor's columns, rather than a hover popover or names always on the card. Added as
+M10.04.
+
+- [x] **M10.01 One command per card.** `HostProc` gains `which(cmd)`: the path of an executable named
+  `cmd` in a directory of the process PATH, or null. The desktop host answers it in Rust, from the
+  PATH `path.rs` repaired from the login shell (the shell scope allows only git and the fs scope stops
+  at `$HOME`); host-node reads `PATH`. A library op reports whether `loadout` is found, and the view
+  reads it with the list, so Copy still writes with no await. Each card shows one command in a field
+  with Copy inside it: `loadout run <name>` when found, else the bare command and a line saying
+  Homebrew gives the short one. A successful copy turns the button into "Copied" for 1.5 s instead of
+  the toast; a failed one still toasts. Sync shows only when `needsSync`, beside the stale line; Edit
+  and Delete move to the card's head; the lead says to paste the command into a terminal in the
+  project's folder.
+  - Rules: none
+  - Depends: M9.07, M9.10
+  - Done when: `which` finds an executable and misses a plain file and an absent name in a temp PATH
+    (host-node); against the fake, a card shows `loadout run` when found and the bare command with
+    its line when not, Copy writes the shown text and flips its label, a rejected write toasts, and
+    Sync is absent on an all-built loadout and present on a stale one; the owner copies from a card
+    in a Finder-launched build and the pasted command starts a session.
+
+- [x] **M10.02 A loadout's makeup by type.** The editor's members sit in three columns, Skills, Agents
+  and Prompts, each with its count, a tint from new `--type-{skill,agent,prompt}-*` tokens (light and
+  dark, in `tokens.css`), and "No agents yet" (and so on) when empty. A tile shows the name, its
+  catalog, what it adds, and a short clash line from `clashShort()` (beside `clashText()`, one per
+  outcome) with the full sentence as its title and accessible description; × removes it, named
+  "Remove <name>". A column's "+ Add" sets the picker's type and focuses its search; each picker row
+  carries its type's dot. Below about 560px of editor width (a container query) the columns stack into
+  groups (removed in M10.04: the window's 860px minimum keeps the editor near 780px, so it never
+  applied). The list card's summary counts by type with the same dots: `8 skills · 3 prompts · 1 out
+  of date`.
+  - Rules: none
+  - Depends: M9.07, M9.09
+  - Done when: against the fake, members land in their type's column with the right counts, an empty
+    column says so, "+ Add" sets the filter and focuses the search, adding and removing update the
+    counts, and each outcome's short line and full title are tested; `loadoutSummary` counts by type
+    and keeps its state parts, and an empty loadout says it has no members; `contrast.test.ts` covers
+    tile text on each tint in both themes and `buttons.test.ts` admits the ×; the owner edits a
+    loadout in the built app, wide and narrow.
+
+- [x] **M10.03 Unsaved edits say so.** Nothing in the editor is saved until Save, which builds the
+  folder. Save and Cancel sit at the top right of the editor, beside its title, and while the draft
+  differs from what the editor opened (a member added or removed; for a new loadout, a name or a
+  member) "Unsaved changes" shows beside them. Cancel, or Back on the Loadouts screen, with such a
+  draft open asks in a modal dialog: "Discard your changes to <name>?" (or "Discard this new
+  loadout?") with Keep editing and Discard, and Escape keeps editing. Discard closes the editor, and
+  after Back leaves the screen too; with an unchanged draft both act at once. A member added and
+  removed again leaves the draft unchanged.
+  - Rules: none
+  - Depends: M10.02
+  - Done when: against the fake, the line appears after an add and after a remove and goes when the
+    draft is back as opened; Cancel and Back on a changed draft open the dialog as a modal, Keep
+    editing and Escape keep the draft, and Discard closes the editor without saving (and after Back
+    leaves the screen); Cancel and Back with an unchanged draft or an untouched new loadout act at
+    once; the owner tries both in the built app.
+
+- [x] **M10.04 Peek at a loadout.** A card's summary is a button that opens the loadout's members in
+  place, read-only, in the editor's three tinted columns (the column shell becomes one component both
+  use): each member with its state when it isn't built (out of date, not built, in no catalog) and its
+  short clash line, with the full sentence as its title and accessible description. The clashes come
+  from `launchCommand` the first time a card opens after each load, so the columns show at once and
+  the lines follow. Several cards can be open, and stay open while the screen is. Member names don't
+  open entry pages yet: Back from one returns to the catalog list, not here.
+  - Rules: none
+  - Depends: M10.02
+  - Done when: against the fake, the summary opens and closes the peek, with `aria-expanded`; members
+    land in their type's column with their state; clash lines appear once `launchCommand` answers,
+    asked once per card per load; the editor's column tests pass on the shared shell; the owner
+    peeks in the built app.
+
+- [x] **M10.05 Check for updates says what it found.** The Loadouts screen's "Check sources" becomes
+  "Check for updates", and when it finishes the view's banner says what it found: "Every loadout is
+  up to date.", or how many members need Sync in how many loadouts, with each listed by loadout in the
+  banner's detail. A remote source that can't be reached is neither: UPD-06 leaves its member built,
+  so an offline check would read as up to date. With `checkRemote`, `loadouts()` marks such a member
+  `unchecked` (`remoteHeadUnknown` beside `isStale`, on the same cached head, so `list()` is
+  unchanged), and the banner says how many couldn't be checked instead of claiming everything is
+  current.
+  - Rules: none
+  - Depends: M10.01
+  - Done when: a git-harness test shows a member whose remote is gone reads built and `unchecked` with
+    `checkRemote`, and not without it or when the remote answers; the banner's wording is unit-tested
+    for nothing to sync, one loadout, several, and members that couldn't be checked; the button's
+    label and banner are tested against the fake, and a failed read shows no outcome; the owner
+    checks for updates in the built app.
+
+- [x] **M10.06 A shorter editor.** Editing opened tall: the catalog picker's list showed at once, under
+  a Name field that can't change. The picker is closed by default behind an "Add from the catalog"
+  button; a column's "+ Add" opens it set to that type, with the search focused, and it stays open
+  while members are added, until Close or Escape. A new loadout opens with it open, since adding is
+  what it's for. When editing, the Name field and its help go; the title already names the loadout.
+  - Rules: none
+  - Depends: M10.02, M10.03
+  - Done when: against the fake, editing opens with the picker closed and no Name field; the button
+    and each column's "+ Add" open it (the latter with its type set and the search focused); adding
+    keeps it open; Close and Escape close it; a new loadout opens with it open; the owner edits a
+    loadout in the built app.
+
+- [x] **M10.07 The editor is a page of its own.** With the editor above the list, the loadout being
+  edited was still on screen below it, and its peek showed a second copy of what was changing. The
+  Loadouts screen now shows the list or the editor, never both: the editor takes the whole page, under
+  the shared page header with "← Loadouts", "Edit <name>" or "New loadout" as its title, and Save,
+  Cancel and "Unsaved changes" as the header's actions. "← Loadouts" from the editor closes it, as
+  Cancel does, behind the same unsaved-changes dialog (so M10.03's Back now returns to the list rather
+  than leaving the screen); "← Loadout" from the list leaves as before. Saving returns to the list with
+  the save's banner.
+  - Rules: none
+  - Depends: M10.03, M10.06
+  - Done when: against the fake, opening Edit or New loadout hides the list and shows the editor's
+    header; Back and Cancel on an unchanged draft return to the list, and on a changed one open the
+    dialog, whose Discard returns to the list without leaving the screen; Save returns to the list
+    with its banner; the owner edits and creates a loadout in the built app.
+
+---
+
+## M11. Fewer Keychain reads
+
+Exit: every M11 task checked; git commands against a signed-in host read the account's token from
 the Keychain at most once every 15 minutes.
 
 Decided 2026-11-07 (owner): 15 minutes, the default of git's own credential cache, rather than the
 whole session.
 
-- [ ] **M10.01 Keep an account's token for 15 minutes.** `createAccounts` keeps each host's token
+- [ ] **M11.01 Keep an account's token for 15 minutes.** `createAccounts` keeps each host's token
   set for 15 minutes after it reads it from `Host.secrets`, for the life of its Library instance, in
   memory only (never on disk, in logs or in the audit log); after that the next call reads the
   Keychain again. `connect` and a Bitbucket refresh replace it, `disconnect` drops it, and

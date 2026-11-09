@@ -93,6 +93,23 @@ describe("host-tauri proc", () => {
     ]);
     expect(JSON.stringify(log.events())).not.toContain("s3cret-token");
   });
+
+  it("which asks the app's which command, which searches the repaired PATH", async () => {
+    const asked: unknown[] = [];
+    mockIPC((cmd, payload) => {
+      asked.push({ cmd, payload });
+      const isLoadout = (payload as { program: string }).program === "loadout";
+      return isLoadout ? "/opt/homebrew/bin/loadout" : null;
+    });
+    const proc = createTauriProc(() => {});
+
+    expect(await proc.which("loadout")).toBe("/opt/homebrew/bin/loadout");
+    expect(await proc.which("absent")).toBeNull();
+    expect(asked).toEqual([
+      { cmd: "which", payload: { program: "loadout" } },
+      { cmd: "which", payload: { program: "absent" } },
+    ]);
+  });
 });
 
 describe("audit log", () => {

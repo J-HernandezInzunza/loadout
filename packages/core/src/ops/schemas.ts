@@ -184,8 +184,10 @@ export const LoadoutRecord = z.strictObject({
   name: z.string(),
   run: z.string(),
   command: z.string(),
-  /** resolvesTo: the catalog the member resolves to, null when no catalog defines it; state: its copy in the loadout's folder */
-  members: z.array(LoadoutMember.extend({ resolvesTo: z.string().nullable(), state: z.enum(["built", "stale", "missing", "failed"]) })),
+  /** resolvesTo: the catalog the member resolves to, null when no catalog defines it; state: its copy in the loadout's folder; unchecked: its remote couldn't be reached */
+  members: z.array(
+    LoadoutMember.extend({ resolvesTo: z.string().nullable(), state: z.enum(["built", "stale", "missing", "failed"]), unchecked: z.literal(true).exactOptional() }),
+  ),
 });
 export type LoadoutRecord = z.infer<typeof LoadoutRecord>;
 
@@ -424,5 +426,6 @@ export const ops = {
       ),
     }),
   },
+  loadoutOnPath: { input: z.strictObject({}), output: z.boolean() },
   suggestSource: { input: z.strictObject({ path: z.string() }), output: z.strictObject({ url: z.string().nullable(), why: z.string() }) },
 };

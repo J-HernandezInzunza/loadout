@@ -205,6 +205,7 @@ describe("loadouts", () => {
     expect(ops.applySaveLoadout.output.parse(value(await library.applySaveLoadout(save)))).toMatchObject({ name: "review", build: { built: [{ name: "x" }] } });
     expect(ops.loadouts.output.parse(value(await library.loadouts()))).toHaveLength(1);
     expect(ops.launchCommand.output.parse(value(await library.launchCommand("review")))).toMatchObject({ run: "loadout run review" });
+    expect(typeof ops.loadoutOnPath.output.parse(value(await library.loadoutOnPath()))).toBe("boolean");
     const remove = value(await library.planDeleteLoadout("review"));
     expect(ops.planDeleteLoadout.output.safeParse(remove).success).toBe(true);
     expect(ops.applyDeleteLoadout.output.parse(value(await library.applyDeleteLoadout(remove)))).toEqual({ name: "review", removedFolder: true });
@@ -341,6 +342,22 @@ describe("keeping loadouts current", () => {
     };
     return { sb, remote, ctx, save, states, sync, folder: (name: string) => loadoutDir(sb.host.paths.appData, name) };
   }
+
+  it("marks a member whose remote can't be reached as unchecked, only when asked to check remotes", async () => {
+    const { remote, ctx, save } = await setupRemote(["a"]);
+    await save("review", [skill("a")]);
+    const member = async (checkRemote: boolean) => {
+      const listed = await listLoadouts(ctx, { checkRemote });
+      if (!listed.ok) throw new Error(listed.error.message);
+      return listed.value[0]!.members[0]!;
+    };
+    expect(await member(true)).not.toHaveProperty("unchecked");
+
+    await rm(remote.path, { recursive: true, force: true });
+
+    expect(await member(false)).not.toHaveProperty("unchecked");
+    expect(await member(true)).toMatchObject({ name: "a", state: "built", unchecked: true });
+  });
 
   it("a catalog change makes a member stale, Sync rebuilds it, and an unchanged member is skipped", async () => {
     const { sb, remote, save, states, sync, folder } = await setupRemote(["a", "b"]);
@@ -494,6 +511,16 @@ describe("launch command", () => {
     const preview = await launchCommand(ctx, "draft", { members: [{ type: "skill", name: "grilling" }] });
 
     expect(preview).toMatchObject({ ok: true, value: { run: "loadout run draft", clashes: [{ name: "grilling", outcome: "prefixed", sessionName: "draft:grilling" }] } });
+  });
+
+  it("says whether a terminal finds the loadout command on its PATH", async () => {
+    const sb = await createSandbox();
+    const asked: string[] = [];
+    const finding = (path: string | null) => createLibrary({ ...sb.host, proc: { ...sb.host.proc, which: async (program) => (asked.push(program), path) } });
+
+    expect(await finding("/opt/homebrew/bin/loadout").loadoutOnPath()).toEqual({ ok: true, value: true, warnings: [] });
+    expect(await finding(null).loadoutOnPath()).toEqual({ ok: true, value: false, warnings: [] });
+    expect(asked).toEqual(["loadout", "loadout"]);
   });
 });
 

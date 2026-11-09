@@ -85,13 +85,13 @@ describe("doctor: environment and config", () => {
   });
 
   it("git: an error when git can't run, and the Xcode tools hint when it's Apple's shim", async () => {
-    const missing = await setup((host) => ({ ...host, proc: { run: () => Promise.reject(Object.assign(new Error("spawn git ENOENT"), { code: "ENOENT" })) } }));
+    const missing = await setup((host) => ({ ...host, proc: { ...host.proc, run: () => Promise.reject(Object.assign(new Error("spawn git ENOENT"), { code: "ENOENT" })) } }));
     await missing.register({ team: yaml({}) });
     has(await missing.checks(), "git", "error", /^git isn't installed/);
 
     const shim = await setup((host) => ({
       ...host,
-      proc: { run: async () => ({ code: 1, stdout: "", stderr: "xcrun: error: invalid active developer path (/Library/Developer/CommandLineTools)\n", durationMs: 1 }) },
+      proc: { ...host.proc, run: async () => ({ code: 1, stdout: "", stderr: "xcrun: error: invalid active developer path (/Library/Developer/CommandLineTools)\n", durationMs: 1 }) },
     }));
     await shim.register({ team: yaml({}) });
     has(await shim.checks(), "xcode", "error", /xcode-select --install/);
