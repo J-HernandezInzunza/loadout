@@ -390,7 +390,7 @@ onMounted(() => load());
             <code class="loadouts__run">{{ commandOf(l) }}</code>
             <button
               type="button"
-              class="ghost btn-sm"
+              class="btn-sm"
               aria-live="polite"
               @click="copy(l)"
             >
