@@ -1383,7 +1383,7 @@ M10.04.
     leaves the screen); Cancel and Back with an unchanged draft or an untouched new loadout act at
     once; the owner tries both in the built app.
 
-- [ ] **M10.04 Peek at a loadout.** A card's summary is a button that opens the loadout's members in
+- [x] **M10.04 Peek at a loadout.** A card's summary is a button that opens the loadout's members in
   place, read-only, in the editor's three tinted columns (the column shell becomes one component both
   use): each member with its state when it isn't built (out of date, not built, in no catalog) and its
   short clash line, with the full sentence as its title and accessible description. The clashes come
@@ -1397,7 +1397,7 @@ M10.04.
     asked once per card per load; the editor's column tests pass on the shared shell; the owner
     peeks in the built app.
 
-- [ ] **M10.05 Check for updates says what it found.** The Loadouts screen's "Check sources" becomes
+- [x] **M10.05 Check for updates says what it found.** The Loadouts screen's "Check sources" becomes
   "Check for updates", and when it finishes the view's banner says what it found: "Every loadout is
   up to date.", or how many members need Sync in how many loadouts, with each listed by loadout in the
   banner's detail. A remote source that can't be reached is neither: UPD-06 leaves its member built,
