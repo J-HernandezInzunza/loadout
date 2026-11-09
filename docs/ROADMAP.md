@@ -40,6 +40,14 @@ Planned as M9 in `PLAN.md`, with its decisions.
 - **Team loadouts.** Loadouts in a catalog's `library.yaml`, shared and changed through the same PR
   flow as entries. Needs the local format to settle first.
 - **A loadout per project.** Remember which loadout a repo uses, so its command is one click.
+- **Rename a loadout.** Today a loadout keeps its name (delete and create, M9). The name is its
+  folder and the prefix Claude Code gives a clashing member, so a rename moves
+  `<appData>/loadouts/<old>` to the new name, re-keys it in `config.json`, and rebuilds what the name
+  decides: a namespaced prompt's `commands/<loadout>/` folder and each `/<loadout>:<name>`. A
+  session already running from the old folder loses it mid-session, and copied commands, aliases
+  and scripts that say `loadout run <old>` stop working, so the rename says both before it runs. A
+  plan/apply pair like save and delete; the editor's Name field (hidden when editing since M10.06)
+  comes back, editable.
 - **Always on in a repo.** A loadout that loads in one repo with no launch command: built as a
   plugin in a local marketplace and turned on in that repo's `.claude/settings.local.json`
   (`enabledPlugins`). Everything in it is then prefixed (`<loadout>:<name>`), and `skillOverrides`
