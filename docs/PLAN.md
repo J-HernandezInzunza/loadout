@@ -1425,7 +1425,7 @@ M10.04.
     keeps it open; Close and Escape close it; a new loadout opens with it open; the owner edits a
     loadout in the built app.
 
-- [ ] **M10.07 The editor is a page of its own.** With the editor above the list, the loadout being
+- [x] **M10.07 The editor is a page of its own.** With the editor above the list, the loadout being
   edited was still on screen below it, and its peek showed a second copy of what was changing. The
   Loadouts screen now shows the list or the editor, never both: the editor takes the whole page, under
   the shared page header with "← Loadouts", "Edit <name>" or "New loadout" as its title, and Save,
