@@ -1326,6 +1326,10 @@ into groups when narrow, and the list card counts members by type. The tints are
 orchid washes; if they fight the status or catalog colours, neutral columns with a type dot are the
 fallback.
 
+Decided 2026-11-09 (owner, from a mockup of three ways to peek): a card opens its members in place,
+read-only, in the editor's columns, rather than a hover popover or names always on the card. Added as
+M10.04.
+
 - [x] **M10.01 One command per card.** `HostProc` gains `which(cmd)`: the path of an executable named
   `cmd` in a directory of the process PATH, or null. The desktop host answers it in Rust, from the
   PATH `path.rs` repaired from the login shell (the shell scope allows only git and the fs scope stops
@@ -1377,6 +1381,20 @@ fallback.
     editing and Escape keep the draft, and Discard closes the editor without saving (and after Back
     leaves the screen); Cancel and Back with an unchanged draft or an untouched new loadout act at
     once; the owner tries both in the built app.
+
+- [ ] **M10.04 Peek at a loadout.** A card's summary is a button that opens the loadout's members in
+  place, read-only, in the editor's three tinted columns (the column shell becomes one component both
+  use): each member with its state when it isn't built (out of date, not built, in no catalog) and its
+  short clash line, with the full sentence as its title and accessible description. The clashes come
+  from `launchCommand` the first time a card opens after each load, so the columns show at once and
+  the lines follow. Several cards can be open, and stay open while the screen is. Member names don't
+  open entry pages yet: Back from one returns to the catalog list, not here.
+  - Rules: none
+  - Depends: M10.02
+  - Done when: against the fake, the summary opens and closes the peek, with `aria-expanded`; members
+    land in their type's column with their state; clash lines appear once `launchCommand` answers,
+    asked once per card per load; the editor's column tests pass on the shared shell; the owner
+    peeks in the built app.
 
 ---
 
