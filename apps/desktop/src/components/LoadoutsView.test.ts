@@ -135,6 +135,30 @@ describe("Loadouts", () => {
     expect(useViewStore().sync).toBe(false);
   });
 
+  it("checks for updates and says what it found", async () => {
+    const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review" })] });
+
+    await press(wrapper, "Check for updates");
+
+    expect(banner(wrapper).classes()).toContain("status-banner--success");
+    expect(banner(wrapper).text()).toBe("Every loadout is up to date.");
+  });
+
+  it("claims nothing about updates when the check can't read the loadouts", async () => {
+    let reads = 0;
+    const { wrapper } = await mountLoadouts({}, {
+      loadouts: async () => {
+        reads++;
+        if (reads === 1) return ok([loadoutRecord({ name: "review" })]);
+        return { ok: false as const, error: { code: "REFUSED" as const, message: "config.json is unreadable" }, warnings: [] };
+      },
+    });
+
+    await press(wrapper, "Check for updates");
+
+    expect(wrapper.findAll(".status-banner").map((b) => b.text())).toEqual([expect.stringContaining("Couldn't read your loadouts.")]);
+  });
+
   it("says when there are none yet", async () => {
     const { wrapper } = await mountLoadouts({ loadouts: [] });
     expect(wrapper.find(".loadouts__empty").text()).toContain("No loadouts yet");
@@ -386,7 +410,7 @@ describe("Loadouts", () => {
       await flushPromises();
       expect(asked).toEqual(["review"]);
 
-      await press(wrapper, "Check sources");
+      await press(wrapper, "Check for updates");
       expect(asked).toEqual(["review", "review"]);
       expect(card(wrapper, "review").find(".loadouts__peek .clash-line").exists()).toBe(true);
     });

@@ -1,6 +1,6 @@
 import { loadoutRecord } from "@loadout/core/testing";
 import { describe, expect, it } from "vitest";
-import { clashShort, clashText, loadoutSummary, needsSync, savedOutcome, syncedOutcome } from "./loadouts.ts";
+import { checkedOutcome, clashShort, clashText, loadoutSummary, needsSync, savedOutcome, syncedOutcome } from "./loadouts.ts";
 
 const member = (name: string, state: "built" | "stale" | "missing" | "failed", type: "skill" | "agent" | "prompt" = "skill") => ({ type, name, resolvesTo: "team", state });
 const summary = (loadout: Parameters<typeof loadoutSummary>[0]) => loadoutSummary(loadout).map((part) => part.text).join(" · ");
@@ -20,6 +20,31 @@ describe("loadout wording", () => {
     expect(summary(mixed)).toBe("2 skills · 1 agent · 1 prompt · all built");
     expect(loadoutSummary(loadoutRecord({ members: [] }))).toEqual([{ type: null, text: "No members" }]);
     expect([needsSync(fine), needsSync(behind), needsSync(unknown)]).toEqual([false, true, false]);
+  });
+
+  it("says what a check for updates found: nothing, members that need Sync, or members it couldn't check", () => {
+    const fine = loadoutRecord({ name: "review", members: [member("a", "built")] });
+    const docs = loadoutRecord({ name: "docs", members: [member("a", "stale"), member("b", "missing"), member("c", "failed")] });
+    const kit = loadoutRecord({ name: "kit", members: [member("d", "stale")] });
+    const offline = loadoutRecord({ name: "solo", members: [{ ...member("e", "built"), unchecked: true }, member("f", "built")] });
+
+    expect(checkedOutcome([fine])).toEqual({ kind: "success", message: "Every loadout is up to date." });
+    expect(checkedOutcome([fine, docs])).toEqual({ kind: "warning", message: "2 members of docs need Sync.", detail: "docs: a (out of date), b (not built)" });
+    expect(checkedOutcome([docs, kit])).toEqual({
+      kind: "warning",
+      message: "3 members in 2 loadouts need Sync.",
+      detail: "docs: a (out of date), b (not built)\nkit: d (out of date)",
+    });
+    expect(checkedOutcome([offline])).toEqual({
+      kind: "warning",
+      message: "1 member's source couldn't be reached, so it wasn't checked. The rest are up to date.",
+      detail: "solo: e (not checked)",
+    });
+    expect(checkedOutcome([kit, offline])).toEqual({
+      kind: "warning",
+      message: "1 member of kit needs Sync. 1 member's source couldn't be reached, so it wasn't checked.",
+      detail: "kit: d (out of date)\nsolo: e (not checked)",
+    });
   });
 
   it("says what a session makes of each kind of clash, in full and in short", () => {

@@ -8,7 +8,8 @@ type Outcome = { kind: "success" | "warning"; message: string; detail?: string }
 /** One piece of a loadout's summary; a count of one type carries the type, for its dot. */
 type SummaryPart = { type: EntryType | null; text: string };
 
-type MemberState = LoadoutRecord["members"][number]["state"];
+type Member = LoadoutRecord["members"][number];
+type MemberState = Member["state"];
 
 const TYPES: EntryType[] = ["skill", "agent", "prompt"];
 const STATE_TEXT: Record<MemberState, string | null> = { built: null, stale: "out of date", missing: "not built", failed: "in no catalog" };
@@ -38,8 +39,37 @@ export function loadoutSummary(loadout: LoadoutRecord): SummaryPart[] {
 }
 
 /** Sync rebuilds what's out of date and builds what's missing; a member no catalog defines needs an edit instead. */
+const syncFixes = (member: Member) => member.state === "stale" || member.state === "missing";
+
 export function needsSync(loadout: LoadoutRecord): boolean {
-  return loadout.members.some((m) => m.state === "stale" || m.state === "missing");
+  return loadout.members.some(syncFixes);
+}
+
+/**
+ * The banner after Check for updates: what needs Sync, and which members couldn't be checked because
+ * their remote didn't answer. Those read as built, so without them an offline check would say all is well.
+ */
+export function checkedOutcome(loadouts: LoadoutRecord[]): Outcome {
+  const behind = loadouts.filter(needsSync);
+  const toSync = behind.flatMap((l) => l.members.filter(syncFixes)).length;
+  const unchecked = loadouts.flatMap((l) => l.members.filter((m) => m.unchecked)).length;
+  if (toSync === 0 && unchecked === 0) return { kind: "success", message: "Every loadout is up to date." };
+
+  const sentences: string[] = [];
+  if (toSync > 0) {
+    const where = behind.length === 1 ? `of ${behind[0]!.name}` : `in ${behind.length} loadouts`;
+    sentences.push(`${toSync} ${plural(toSync, "member", "members")} ${where} ${plural(toSync, "needs", "need")} Sync.`);
+  }
+  if (unchecked > 0) {
+    const whose = unchecked === 1 ? "1 member's source" : `${unchecked} members' sources`;
+    sentences.push(`${whose} couldn't be reached, so ${plural(unchecked, "it wasn't", "they weren't")} checked.`);
+    if (toSync === 0) sentences.push("The rest are up to date.");
+  }
+  const lines = loadouts.flatMap((l) => {
+    const listed = l.members.filter((m) => syncFixes(m) || m.unchecked).map((m) => `${m.name} (${m.unchecked ? "not checked" : stateText(m.state)})`);
+    return listed.length ? [`${l.name}: ${listed.join(", ")}`] : [];
+  });
+  return { kind: "warning", message: sentences.join(" "), detail: lines.join("\n") };
 }
 
 export function clashText(clash: Clash): string {

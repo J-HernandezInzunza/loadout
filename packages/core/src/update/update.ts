@@ -93,6 +93,18 @@ export async function localSourceMoved(host: Host, entry: Entry, receipt: Receip
  * receipt's commit, without unmoved content, is stale; an unknown head stays installed, a local source
  * is never stale, and receipts are never advanced here.
  */
+/**
+ * UPD-06's unknown head: a remote source whose branch head couldn't be read (unreachable, or no such
+ * branch), which `isStale` reads as not stale. On the operation's cached head, so asking both costs one call.
+ */
+export async function remoteHeadUnknown(ctx: UpdateCtx, entry: Entry, receipt: ReceiptV2): Promise<boolean> {
+  if (receipt.commit === null) return false;
+  const src = parsed(ctx.host, entry);
+  if (src === null || src.kind === "local") return false;
+  const head = await ctx.op.heads.head(src);
+  return head === null;
+}
+
 export async function isStale(ctx: UpdateCtx, entry: Entry, receipt: ReceiptV2): Promise<boolean> {
   if (receipt.commit === null) return false;
   const src = parsed(ctx.host, entry);

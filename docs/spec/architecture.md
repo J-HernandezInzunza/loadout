@@ -559,7 +559,9 @@ switches nothing off and changes nothing in `~/.claude` or Claude Code's setting
 - **State** per member, in `loadouts()`: `failed` (no catalog defines it), `missing` (nothing it built
   is in the folder), `stale` (the copy isn't what its entry would build now: the source was repointed,
   the copy edited, or a local source changed; a moved remote source only with `checkRemote`, as
-  `list()`), else `built`.
+  `list()`), else `built`. With `checkRemote`, a member whose remote can't be reached stays `built`
+  (UPD-06's unknown head) and is marked `unchecked`, so the screen's Check for updates doesn't call it
+  up to date.
 - **Sync** includes loadouts: `SyncPlan.loadouts` and `SyncReport.loadouts`, per loadout. Each
   resolved member's closure is checked against the loadout's receipts with `checkUpdate`, so what is
   provably unchanged is skipped (UPD-04/05); unlike installs, what is missing or unreceipted is built.

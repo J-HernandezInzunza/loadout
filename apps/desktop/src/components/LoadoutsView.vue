@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { EntryType, Library, LoadoutRecord } from "@loadout/core";
 import { computed, defineAsyncComponent, onMounted, ref, useTemplateRef } from "vue";
-import { loadoutSummary, needsSync, savedOutcome, stateText, syncedOutcome, type Clash } from "../loadouts.ts";
+import { checkedOutcome, loadoutSummary, needsSync, savedOutcome, stateText, syncedOutcome, type Clash } from "../loadouts.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useToastStore } from "../stores/toasts.ts";
@@ -70,7 +70,7 @@ const discardQuestion = computed(() => {
 /** `checkRemote` asks each remote source whether it moved, which takes the network. */
 async function load(checkRemote = false) {
   loading.value = true;
-  const label = checkRemote ? "checking each loadout's sources…" : "reading loadouts…";
+  const label = checkRemote ? "checking for updates…" : "reading loadouts…";
   const [listed, found] = await activity.withActivity(label, () => Promise.all([library.loadouts({ checkRemote }), library.loadoutOnPath()]));
   loading.value = false;
   // The bare command runs with or without `loadout`, so it's what a card offers when the lookup fails.
@@ -113,6 +113,13 @@ function peekColumns(loadout: LoadoutRecord) {
 
 function clashOf(name: string, member: Member): Clash | undefined {
   return clashes.value[name]?.find((c) => c.type === member.type && c.name === member.name);
+}
+
+/** Asks each remote source whether it moved, then says what that found, or nothing if the list couldn't be read. */
+async function checkForUpdates() {
+  outcome.value = null;
+  await load(true);
+  if (failure.value === null) outcome.value = checkedOutcome(loadouts.value);
 }
 
 function closeEditor() {
@@ -210,9 +217,9 @@ onMounted(() => load());
           type="button"
           class="ghost"
           :disabled="loading"
-          @click="load(true)"
+          @click="checkForUpdates()"
         >
-          Check sources
+          Check for updates
         </button>
         <button
           type="button"

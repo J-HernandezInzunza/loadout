@@ -343,6 +343,22 @@ describe("keeping loadouts current", () => {
     return { sb, remote, ctx, save, states, sync, folder: (name: string) => loadoutDir(sb.host.paths.appData, name) };
   }
 
+  it("marks a member whose remote can't be reached as unchecked, only when asked to check remotes", async () => {
+    const { remote, ctx, save } = await setupRemote(["a"]);
+    await save("review", [skill("a")]);
+    const member = async (checkRemote: boolean) => {
+      const listed = await listLoadouts(ctx, { checkRemote });
+      if (!listed.ok) throw new Error(listed.error.message);
+      return listed.value[0]!.members[0]!;
+    };
+    expect(await member(true)).not.toHaveProperty("unchecked");
+
+    await rm(remote.path, { recursive: true, force: true });
+
+    expect(await member(false)).not.toHaveProperty("unchecked");
+    expect(await member(true)).toMatchObject({ name: "a", state: "built", unchecked: true });
+  });
+
   it("a catalog change makes a member stale, Sync rebuilds it, and an unchanged member is skipped", async () => {
     const { sb, remote, save, states, sync, folder } = await setupRemote(["a", "b"]);
     await save("review", [skill("a"), skill("b")]);

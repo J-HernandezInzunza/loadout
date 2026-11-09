@@ -12,7 +12,7 @@ import { err, ok, type Entry, type EntryType, type Result, type Warning } from "
 import { createReceiptStore, type ReceiptV2 } from "../receipts/receipts.ts";
 import { loadRegistry, type Registry } from "../registry/registry.ts";
 import { destFor, destState, scanInstallDirs } from "../scan/scan.ts";
-import { checkUpdate, isStale, localSourceMoved } from "../update/update.ts";
+import { checkUpdate, isStale, localSourceMoved, remoteHeadUnknown } from "../update/update.ts";
 
 export type { LoadoutMember };
 
@@ -30,8 +30,11 @@ export interface LoadoutRecord {
   run: string;
   /** the same launch without the `loadout` command: `claude --add-dir='<folder>'`, quoted for a shell */
   command: string;
-  /** each with the catalog it resolves to (null when no catalog defines it) and the state of its copy */
-  members: (LoadoutMember & { resolvesTo: string | null; state: MemberState })[];
+  /**
+   * each with the catalog it resolves to (null when no catalog defines it) and the state of its copy;
+   * `unchecked` when remotes were checked but its remote source couldn't be reached, so a move went unseen
+   */
+  members: (LoadoutMember & { resolvesTo: string | null; state: MemberState; unchecked?: true })[];
 }
 
 type Ref = Pick<Entry, "type" | "name" | "catalog">;
@@ -273,24 +276,32 @@ export async function applyLoadoutSync(ctx: InstallCtx, plan: LoadoutSyncPlan, o
 }
 
 /** Without `op`, a remote source that moved isn't noticed: that takes the network. */
-async function memberState(into: InstallCtx, byDest: Map<string, ReceiptV2>, member: LoadoutMember, entry: Entry | null, op: Operation | null): Promise<MemberState> {
+async function memberState(
+  into: InstallCtx,
+  byDest: Map<string, ReceiptV2>,
+  member: LoadoutMember,
+  entry: Entry | null,
+  op: Operation | null,
+): Promise<{ state: MemberState; unchecked?: true }> {
   const { host } = into;
-  if (entry === null) return "failed";
+  if (entry === null) return { state: "failed" };
   const dest = destOf(into, member.type, member.name);
   const receipt = byDest.get(dest) ?? null;
   const present = await host.fs.exists(dest);
   if (receipt === null || !present) {
     // Built, but where a clash that came or went no longer puts it: Sync moves it.
     const elsewhere = [...byDest.values()].some((r) => keyOf(r) === keyOf(member) && r.dest !== dest);
-    return elsewhere ? "stale" : "missing";
+    return { state: elsewhere ? "stale" : "missing" };
   }
-  if (receipt.source !== entry.source) return "stale";
+  if (receipt.source !== entry.source) return { state: "stale" };
   const copy = await destState(host, dest, receipt);
-  if (copy.state !== "installed") return "stale";
-  if (await localSourceMoved(host, entry, receipt)) return "stale";
-  const remoteMoved = op !== null && (await isStale({ host, op, receipts: into.receipts }, entry, receipt));
-  if (remoteMoved) return "stale";
-  return "built";
+  if (copy.state !== "installed") return { state: "stale" };
+  if (await localSourceMoved(host, entry, receipt)) return { state: "stale" };
+  if (op === null) return { state: "built" };
+  const update = { host, op, receipts: into.receipts };
+  if (await remoteHeadUnknown(update, entry, receipt)) return { state: "built", unchecked: true };
+  const remoteMoved = await isStale(update, entry, receipt);
+  return { state: remoteMoved ? "stale" : "built" };
 }
 
 async function recordOf(
@@ -308,7 +319,7 @@ async function recordOf(
   const members: LoadoutRecord["members"] = [];
   for (const m of loadout.members) {
     const entry = entryOf(registry, m);
-    members.push({ ...m, resolvesTo: entry?.catalog ?? null, state: await memberState(into, byDest, m, entry, op) });
+    members.push({ ...m, resolvesTo: entry?.catalog ?? null, ...(await memberState(into, byDest, m, entry, op)) });
   }
   return ok({ name, ...commandsFor(ctx.host.paths.appData, name), members }, receipts.warnings);
 }
