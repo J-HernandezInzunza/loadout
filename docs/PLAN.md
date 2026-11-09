@@ -1363,17 +1363,20 @@ fallback.
     loadout in the built app, wide and narrow.
 
 - [ ] **M10.03 Unsaved edits say so.** Nothing in the editor is saved until Save, which builds the
-  folder, so a draft that differs from what the editor opened (a member added or removed; for a new
-  loadout, a name or a member) shows "Unsaved changes" beside Cancel and Save. Cancel on such a draft
-  asks inline, as Delete does: "Discard your changes to <name>?" (or "Discard this new loadout?") with
-  Keep editing and Discard; an unchanged draft closes at once. A member added and removed again leaves
-  the draft unchanged. Leaving the screen another way still drops the draft.
+  folder. Save and Cancel sit at the top right of the editor, beside its title, and while the draft
+  differs from what the editor opened (a member added or removed; for a new loadout, a name or a
+  member) "Unsaved changes" shows beside them. Cancel, or Back on the Loadouts screen, with such a
+  draft open asks in a modal dialog: "Discard your changes to <name>?" (or "Discard this new
+  loadout?") with Keep editing and Discard, and Escape keeps editing. Discard closes the editor, and
+  after Back leaves the screen too; with an unchanged draft both act at once. A member added and
+  removed again leaves the draft unchanged.
   - Rules: none
   - Depends: M10.02
   - Done when: against the fake, the line appears after an add and after a remove and goes when the
-    draft is back as opened; Cancel on a changed draft asks, Keep editing keeps the draft, and Discard
-    closes the editor without saving; Cancel on an unchanged draft and on an untouched new loadout
-    closes at once.
+    draft is back as opened; Cancel and Back on a changed draft open the dialog as a modal, Keep
+    editing and Escape keep the draft, and Discard closes the editor without saving (and after Back
+    leaves the screen); Cancel and Back with an unchanged draft or an untouched new loadout act at
+    once; the owner tries both in the built app.
 
 ---
 
