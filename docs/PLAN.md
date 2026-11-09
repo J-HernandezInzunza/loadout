@@ -1413,7 +1413,7 @@ M10.04.
     label and banner are tested against the fake, and a failed read shows no outcome; the owner
     checks for updates in the built app.
 
-- [ ] **M10.06 A shorter editor.** Editing opened tall: the catalog picker's list showed at once, under
+- [x] **M10.06 A shorter editor.** Editing opened tall: the catalog picker's list showed at once, under
   a Name field that can't change. The picker is closed by default behind an "Add from the catalog"
   button; a column's "+ Add" opens it set to that type, with the search focused, and it stays open
   while members are added, until Close or Escape. A new loadout opens with it open, since adding is
@@ -1424,6 +1424,21 @@ M10.04.
     and each column's "+ Add" open it (the latter with its type set and the search focused); adding
     keeps it open; Close and Escape close it; a new loadout opens with it open; the owner edits a
     loadout in the built app.
+
+- [ ] **M10.07 The editor is a page of its own.** With the editor above the list, the loadout being
+  edited was still on screen below it, and its peek showed a second copy of what was changing. The
+  Loadouts screen now shows the list or the editor, never both: the editor takes the whole page, under
+  the shared page header with "← Loadouts", "Edit <name>" or "New loadout" as its title, and Save,
+  Cancel and "Unsaved changes" as the header's actions. "← Loadouts" from the editor closes it, as
+  Cancel does, behind the same unsaved-changes dialog (so M10.03's Back now returns to the list rather
+  than leaving the screen); "← Loadout" from the list leaves as before. Saving returns to the list with
+  the save's banner.
+  - Rules: none
+  - Depends: M10.03, M10.06
+  - Done when: against the fake, opening Edit or New loadout hides the list and shows the editor's
+    header; Back and Cancel on an unchanged draft return to the list, and on a changed one open the
+    dialog, whose Discard returns to the list without leaving the screen; Save returns to the list
+    with its banner; the owner edits and creates a loadout in the built app.
 
 ---
 
