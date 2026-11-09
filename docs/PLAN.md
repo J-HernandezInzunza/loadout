@@ -1397,6 +1397,22 @@ M10.04.
     asked once per card per load; the editor's column tests pass on the shared shell; the owner
     peeks in the built app.
 
+- [ ] **M10.05 Check for updates says what it found.** The Loadouts screen's "Check sources" becomes
+  "Check for updates", and when it finishes the view's banner says what it found: "Every loadout is
+  up to date.", or how many members need Sync in how many loadouts, with each listed by loadout in the
+  banner's detail. A remote source that can't be reached is neither: UPD-06 leaves its member built,
+  so an offline check would read as up to date. With `checkRemote`, `loadouts()` marks such a member
+  `unchecked` (`remoteHeadUnknown` beside `isStale`, on the same cached head, so `list()` is
+  unchanged), and the banner says how many couldn't be checked instead of claiming everything is
+  current.
+  - Rules: none
+  - Depends: M10.01
+  - Done when: a git-harness test shows a member whose remote is gone reads built and `unchecked` with
+    `checkRemote`, and not without it or when the remote answers; the banner's wording is unit-tested
+    for nothing to sync, one loadout, several, and members that couldn't be checked; the button's
+    label and banner are tested against the fake, and a failed read shows no outcome; the owner
+    checks for updates in the built app.
+
 ---
 
 ## M11. Fewer Keychain reads
