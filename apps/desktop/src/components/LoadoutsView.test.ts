@@ -238,40 +238,94 @@ describe("Loadouts", () => {
     expect(unsaved().text()).toBe("Unsaved changes");
   });
 
-  it("asks before Cancel throws a changed draft away", async () => {
-    const { wrapper, saves } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint"), member("notes")] })] });
-    await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
-    await flushPromises();
-    await memberRow(wrapper, "lint").find("button").trigger("click");
-    const discard = () => wrapper.find(".loadout-editor__discard");
+  describe("a changed draft", () => {
+    // jsdom has <dialog> but not showModal, the call that makes it modal.
+    const showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.open = true;
+    });
+    beforeEach(() => {
+      showModal.mockClear();
+      HTMLDialogElement.prototype.showModal = showModal;
+    });
+    afterEach(() => Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal"));
 
-    await press(wrapper, "Cancel");
-    expect(discard().text()).toContain("Discard your changes to review? The saved loadout stays as it was.");
-    await press(wrapper, "Keep editing");
-    expect(discard().exists()).toBe(false);
-    expect(columns(wrapper)[0]).toEqual(["Skills", "1", ["notes"]]);
+    const dialog = (w: Wrapper) => w.find("dialog.confirm-dialog");
+    const settle = async () => {
+      await vi.dynamicImportSettled();
+      await flushPromises();
+    };
+    /** The editor open on review, with lint removed, on a screen that was opened from the catalog. */
+    async function editedReview() {
+      const mounted = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review", members: [member("lint"), member("notes")] })] });
+      useViewStore().loadouts = true;
+      await card(mounted.wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+      await flushPromises();
+      await memberRow(mounted.wrapper, "lint").find("button").trigger("click");
+      return mounted;
+    }
 
-    await press(wrapper, "Cancel");
-    await press(wrapper, "Discard");
-    expect(wrapper.find(".loadout-editor").exists()).toBe(false);
-    expect(saves).toEqual([]);
-  });
+    it("asks in a modal before Cancel throws it away; Keep editing and Escape keep it", async () => {
+      const { wrapper, saves } = await editedReview();
 
-  it("closes at once on Cancel when nothing changed, and asks about a new loadout once it has a name", async () => {
-    const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review" })] });
-    await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
-    await flushPromises();
-    await press(wrapper, "Cancel");
-    expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+      await press(wrapper, "Cancel");
+      await settle();
+      expect(dialog(wrapper).text()).toContain("Discard your changes to review? The saved loadout stays as it was.");
+      expect(showModal.mock.contexts).toEqual([dialog(wrapper).element]);
+      await press(wrapper, "Keep editing");
+      expect(dialog(wrapper).exists()).toBe(false);
+      expect(columns(wrapper)[0]).toEqual(["Skills", "1", ["notes"]]);
 
-    await press(wrapper, "New loadout");
-    await press(wrapper, "Cancel");
-    expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+      await press(wrapper, "Cancel");
+      await settle();
+      await dialog(wrapper).trigger("cancel");
+      expect(dialog(wrapper).exists()).toBe(false);
+      expect(wrapper.find(".loadout-editor").exists()).toBe(true);
 
-    await press(wrapper, "New loadout");
-    await typeName(wrapper, "kit");
-    await press(wrapper, "Cancel");
-    expect(wrapper.find(".loadout-editor__discard").text()).toContain("Discard this new loadout? Nothing in it has been saved.");
+      await press(wrapper, "Cancel");
+      await settle();
+      await press(wrapper, "Discard");
+      expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+      expect(useViewStore().loadouts).toBe(true);
+      expect(saves).toEqual([]);
+    });
+
+    it("asks before Back leaves the screen, and Discard leaves it", async () => {
+      const { wrapper, saves } = await editedReview();
+
+      await press(wrapper, "← Loadout");
+      await settle();
+      expect(dialog(wrapper).text()).toContain("Discard your changes to review?");
+      expect(useViewStore().loadouts).toBe(true);
+      await press(wrapper, "Discard");
+
+      expect(useViewStore().loadouts).toBe(false);
+      expect(saves).toEqual([]);
+    });
+
+    it("isn't asked about when nothing changed, and is once a new loadout has a name", async () => {
+      const { wrapper } = await mountLoadouts({ loadouts: [loadoutRecord({ name: "review" })] });
+      await card(wrapper, "review").findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+      await flushPromises();
+      await press(wrapper, "Cancel");
+      expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+
+      await press(wrapper, "New loadout");
+      await press(wrapper, "Cancel");
+      expect(wrapper.find(".loadout-editor").exists()).toBe(false);
+
+      await press(wrapper, "New loadout");
+      await typeName(wrapper, "kit");
+      await press(wrapper, "Cancel");
+      await settle();
+      expect(dialog(wrapper).text()).toContain("Discard this new loadout? Nothing in it has been saved.");
+      await press(wrapper, "Keep editing");
+
+      useViewStore().loadouts = true;
+      await typeName(wrapper, "");
+      await press(wrapper, "← Loadout");
+      expect(dialog(wrapper).exists()).toBe(false);
+      expect(useViewStore().loadouts).toBe(false);
+    });
   });
 
   it("deletes one only after asking", async () => {

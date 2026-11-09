@@ -139,8 +139,9 @@
   --control-off: #6b6b72;
 
   /* ---- Elevation -----------------------------------------------------------------
-     For the one thing that floats over content: a toast. */
+     For what floats over content: a toast, and a dialog with the page dimmed behind it. */
   --shadow-float: rgb(0 0 0 / 18%);
+  --scrim: rgb(0 0 0 / 25%);
 }
 
 /* ---- Catalog identity ----------------------------------------------------------
@@ -224,6 +225,7 @@
     /* A shadow is darker than what it falls on, and the dark page is already near black:
        the light-mode alpha disappears. */
     --shadow-float: rgb(0 0 0 / 50%);
+    --scrim: rgb(0 0 0 / 55%);
   }
 
   /* Light chips with dark text. */

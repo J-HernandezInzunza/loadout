@@ -49,8 +49,6 @@ const saving = ref(false);
 const failure = ref<string | null>(null);
 const clashes = ref<Clash[]>([]);
 const search = useTemplateRef<HTMLInputElement>("search");
-/** Cancel was pressed on a changed draft: it asks before throwing the draft away */
-const discarding = ref(false);
 
 const key = (m: { type: EntryType; name: string }) => `${m.type}:${m.name}`;
 /** Also the catalog it's pinned to: the same name from another catalog is another member. */
@@ -113,12 +111,6 @@ function remove(m: Member) {
   members.value = members.value.filter((x) => key(x) !== key(m));
 }
 
-const discardQuestion = editing ? `Discard your changes to ${name.value}? The saved loadout stays as it was.` : "Discard this new loadout? Nothing in it has been saved.";
-
-function cancel() {
-  if (changed.value) discarding.value = true;
-  else emit("cancel");
-}
 
 // A later edit can answer before an earlier one, so only the latest request may set the clashes.
 let asked = 0;
@@ -136,6 +128,9 @@ watch(
   },
   { deep: true, immediate: true },
 );
+
+// The screen asks before Cancel or its Back throws a changed draft away.
+defineExpose({ changed });
 
 async function save() {
   failure.value = null;
@@ -161,12 +156,35 @@ async function save() {
     class="loadout-editor card fade-in"
     aria-labelledby="loadout-editor-title"
   >
-    <h3
-      id="loadout-editor-title"
-      class="loadout-editor__title"
-    >
-      {{ editing ? `Edit ${name}` : "New loadout" }}
-    </h3>
+    <div class="loadout-editor__top">
+      <h3
+        id="loadout-editor-title"
+        class="loadout-editor__title"
+      >
+        {{ editing ? `Edit ${name}` : "New loadout" }}
+      </h3>
+      <div class="loadout-editor__actions">
+        <span
+          v-if="changed"
+          class="loadout-editor__unsaved"
+        >Unsaved changes</span>
+        <button
+          type="button"
+          class="ghost btn-sm"
+          @click="emit('cancel')"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn-sm"
+          :disabled="!canSave"
+          @click="save()"
+        >
+          {{ saving ? "Saving…" : "Save" }}
+        </button>
+      </div>
+    </div>
     <StatusBanner
       v-if="failure"
       kind="error"
@@ -335,51 +353,6 @@ async function save() {
         Nothing in the catalog matches.
       </li>
     </ul>
-
-    <div class="loadout-editor__actions">
-      <span
-        v-if="changed"
-        class="loadout-editor__unsaved"
-      >Unsaved changes</span>
-      <button
-        type="button"
-        class="ghost"
-        @click="cancel()"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        :disabled="!canSave"
-        @click="save()"
-      >
-        {{ saving ? "Saving…" : "Save" }}
-      </button>
-    </div>
-    <div
-      v-if="discarding"
-      class="loadout-editor__discard fade-in"
-    >
-      <p class="loadout-editor__discard-q">
-        {{ discardQuestion }}
-      </p>
-      <div class="loadout-editor__discard-actions">
-        <button
-          type="button"
-          class="ghost btn-sm"
-          @click="discarding = false"
-        >
-          Keep editing
-        </button>
-        <button
-          type="button"
-          class="danger btn-sm"
-          @click="emit('cancel')"
-        >
-          Discard
-        </button>
-      </div>
-    </div>
   </section>
 </template>
 
@@ -389,8 +362,15 @@ async function save() {
   container-type: inline-size;
   margin-bottom: 1.25rem;
 }
+.loadout-editor__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
 .loadout-editor__title {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 1rem;
 }
 .loadout-editor__label {
@@ -570,26 +550,12 @@ async function save() {
 }
 .loadout-editor__actions {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-left: auto;
 }
 .loadout-editor__unsaved {
   font-size: 0.8rem;
   color: var(--status-attention-ink);
-}
-.loadout-editor__discard {
-  margin-top: 0.75rem;
-  text-align: right;
-}
-.loadout-editor__discard-q {
-  margin: 0 0 0.5rem;
-  font-size: 0.85rem;
-}
-.loadout-editor__discard-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
 }
 </style>

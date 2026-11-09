@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Library, LoadoutRecord } from "@loadout/core";
-import { computed, onMounted, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref, useTemplateRef } from "vue";
 import { loadoutSummary, needsSync, savedOutcome, syncedOutcome } from "../loadouts.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
@@ -11,6 +11,8 @@ import LoadoutEditor from "./LoadoutEditor.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
 import TypeDot from "./TypeDot.vue";
+
+const ConfirmDialog = defineAsyncComponent(() => import("./ConfirmDialog.vue"));
 
 type Saved = Extract<Awaited<ReturnType<Library["applySaveLoadout"]>>, { ok: true }>["value"];
 type Outcome = { kind: "success" | "warning" | "error"; message: string; detail?: string };
@@ -40,6 +42,14 @@ const copied = ref<string | null>(null);
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 const edited = computed(() => loadouts.value.find((l) => l.name === editing.value) ?? null);
+const editor = useTemplateRef<InstanceType<typeof LoadoutEditor>>("editor");
+/** asked before a changed draft goes: what Discard does then, close the editor or leave the screen */
+const discarding = ref<"close" | "leave" | null>(null);
+const discardQuestion = computed(() => {
+  const isNew = editing.value === NEW;
+  if (isNew) return "Discard this new loadout? Nothing in it has been saved.";
+  return `Discard your changes to ${editing.value}? The saved loadout stays as it was.`;
+});
 
 /** `checkRemote` asks each remote source whether it moved, which takes the network. */
 async function load(checkRemote = false) {
@@ -55,6 +65,23 @@ async function load(checkRemote = false) {
   }
   failure.value = null;
   loadouts.value = listed.value;
+}
+
+function closeEditor() {
+  if (editor.value?.changed) discarding.value = "close";
+  else editing.value = null;
+}
+
+function back() {
+  if (editor.value?.changed) discarding.value = "leave";
+  else views.loadouts = false;
+}
+
+function discard() {
+  const isLeaving = discarding.value === "leave";
+  discarding.value = null;
+  editing.value = null;
+  if (isLeaving) views.loadouts = false;
 }
 
 function open(name: string) {
@@ -128,7 +155,7 @@ onMounted(() => load());
     <PageHeader
       title="Loadouts"
       back="Loadout"
-      @back="views.loadouts = false"
+      @back="back()"
     >
       <template #actions>
         <button
@@ -178,11 +205,20 @@ onMounted(() => load());
 
       <LoadoutEditor
         v-if="editing !== null"
+        ref="editor"
         :key="editing"
         :loadout="edited"
         :taken="loadouts.map((l) => l.name)"
         @saved="saved"
-        @cancel="editing = null"
+        @cancel="closeEditor()"
+      />
+      <ConfirmDialog
+        v-if="discarding"
+        :question="discardQuestion"
+        keep="Keep editing"
+        confirm="Discard"
+        @keep="discarding = null"
+        @confirm="discard()"
       />
 
       <BusyIndicator
