@@ -335,9 +335,7 @@ async function save() {
 </template>
 
 <style scoped>
-/* The container the member columns measure: they stack when the editor, not the window, is narrow. */
 .loadout-editor {
-  container-type: inline-size;
   margin-bottom: 1.25rem;
 }
 .loadout-editor__top {
@@ -387,11 +385,6 @@ async function save() {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
   gap: 0.6rem;
-}
-@container (max-width: 560px) {
-  .loadout-editor__columns {
-    grid-template-columns: 1fr;
-  }
 }
 .loadout-editor__members,
 .loadout-editor__candidates {

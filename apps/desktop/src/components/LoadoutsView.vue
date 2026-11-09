@@ -443,9 +443,7 @@ onMounted(() => load());
   padding: 0;
   list-style: none;
 }
-/* The container the peek's columns measure: they stack when the card is narrow. */
 .loadouts__item {
-  container-type: inline-size;
   margin-bottom: 1rem;
 }
 .loadouts__hint {
@@ -518,11 +516,6 @@ onMounted(() => load());
   align-items: start;
   gap: 0.5rem;
   margin-top: 0.6rem;
-}
-@container (max-width: 560px) {
-  .loadouts__peek {
-    grid-template-columns: 1fr;
-  }
 }
 .loadouts__peek-members {
   display: grid;
