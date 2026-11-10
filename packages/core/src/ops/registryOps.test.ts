@@ -134,6 +134,14 @@ describe("facade: registry, accounts and maintenance", () => {
     expect(await sb.host.secrets.get("github")).toBeNull();
   });
 
+  it("checkAccount reads the Keychain again instead of the token held since connect", async () => {
+    const { sb, stub, library } = await setup({ A: ["x"] });
+    stub.addToken("github", "gh-token", "octo", ["repo"]);
+    value(await library.connect("github", { accessToken: "gh-token" }), ops.connect.output);
+    await sb.host.secrets.delete("github"); // removed in Keychain Access
+    expect(await library.checkAccount("github")).toMatchObject({ ok: false, error: { code: "NOT_CONNECTED" } });
+  });
+
   it("a connected account's token reaches git through the library's own git client, as the app builds it", async () => {
     // The app passes no `git` option, so this is the client every real clone goes through. Without the
     // account wired in, a teammate with no SSH key could list a private catalog but not clone it.
