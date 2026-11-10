@@ -181,6 +181,94 @@ describe("accounts", () => {
     expect(await host.secrets.get("github")).toBeNull();
   });
 
+  describe("holding the token in memory (arch §5.5)", () => {
+    const minutes = (n: number) => n * 60_000;
+
+    async function counted(opts: Omit<AccountsOptions, "apiBases"> = {}) {
+      const s = await setup();
+      const reads: string[] = [];
+      const secrets = s.host.secrets;
+      const host = { ...s.host, secrets: { ...secrets, get: (on: string) => (reads.push(on), secrets.get(on)) } };
+      const accounts = createAccounts(host, s.store, { apiBases: s.stub.bases, ...opts });
+      return { ...s, host, accounts, reads };
+    }
+
+    it("reads the Keychain once across tokenFor calls inside 15 minutes, again after", async () => {
+      const { sb, stub, clock, accounts, reads } = await counted();
+      stub.addToken("github", "gh-1", "octo");
+      await accounts.connect("github", { accessToken: "gh-1" });
+
+      for (const at of [0, 1, 14]) {
+        clock.now = new Date(t0.getTime() + minutes(at));
+        expect(await accounts.tokenFor("github")).toMatchObject({ ok: true, value: "gh-1" });
+      }
+      expect(reads).toEqual([]); // connect's token set is held
+
+      clock.now = new Date(t0.getTime() + minutes(15));
+      expect(await accounts.tokenFor("github")).toMatchObject({ ok: true, value: "gh-1" });
+      clock.now = new Date(t0.getTime() + minutes(29));
+      expect(await accounts.tokenFor("github")).toMatchObject({ ok: true, value: "gh-1" });
+      expect(reads).toEqual(["github"]);
+      expect(JSON.stringify(sb.audit)).not.toContain("gh-1");
+    });
+
+    it("shares one read between concurrent calls, as when every catalog refreshes at once", async () => {
+      const { host, accounts, reads } = await counted();
+      await host.secrets.set("github", JSON.stringify({ accessToken: "gh-1" }));
+      const tokens = await Promise.all([1, 2, 3].map(() => accounts.tokenFor("github")));
+      expect(tokens.map((t) => t.ok && t.value)).toEqual(["gh-1", "gh-1", "gh-1"]);
+      expect(reads).toEqual(["github"]);
+    });
+
+    it("reads again after connect replaces the token and after disconnect, and holds no missing token", async () => {
+      const { stub, host, accounts, reads } = await counted();
+      stub.addToken("github", "gh-1", "octo");
+      stub.addToken("github", "gh-2", "octo");
+      await host.secrets.set("github", JSON.stringify({ accessToken: "gh-1" }));
+      await accounts.tokenFor("github");
+
+      await accounts.connect("github", { accessToken: "gh-2" });
+      expect(await accounts.tokenFor("github")).toMatchObject({ ok: true, value: "gh-2" });
+      expect(reads).toEqual(["github"]);
+
+      await accounts.disconnect("github");
+      expect(await accounts.tokenFor("github")).toMatchObject({ ok: false, error: { code: "NOT_CONNECTED" } });
+      await host.secrets.set("github", JSON.stringify({ accessToken: "gh-1" })); // stored by another process
+      expect(await accounts.tokenFor("github")).toMatchObject({ ok: true, value: "gh-1" });
+      expect(reads).toEqual(["github", "github", "github"]);
+    });
+
+    it("drops the token when connect can't save config.json", async () => {
+      const { stub, host, accounts } = await counted();
+      stub.addToken("github", "gh-1", "octo");
+      await host.fs.writeTextAtomic(join(host.paths.appData, "config.json"), "{");
+      await accounts.connect("github", { accessToken: "gh-1" });
+      expect(await accounts.tokenFor("github")).toMatchObject({ ok: false, error: { code: "NOT_CONNECTED" } });
+    });
+
+    it("holds a refreshed Bitbucket token, and reread skips what is held", async () => {
+      const { stub, clock, accounts, reads } = await counted({ bitbucketClient: { id: "cid", secret: "s" } });
+      stub.addToken("bitbucket", "bb-1", "jose");
+      stub.addRefreshToken("rt-1", "jose");
+      await accounts.connect("bitbucket", {
+        accessToken: "bb-1",
+        refreshToken: "rt-1",
+        expiresAt: new Date(t0.getTime() + minutes(10)).toISOString(),
+      });
+
+      clock.now = new Date(t0.getTime() + minutes(12)); // expired while held: refreshed as today
+      expect(await accounts.tokenFor("bitbucket")).toMatchObject({ ok: true, value: "bb-access-1" });
+      clock.now = new Date(t0.getTime() + minutes(20));
+      expect(await accounts.tokenFor("bitbucket")).toMatchObject({ ok: true, value: "bb-access-1" });
+      expect(reads).toEqual([]);
+
+      expect(await accounts.tokenFor("bitbucket", { reread: true })).toMatchObject({ ok: true, value: "bb-access-1" });
+      expect(await accounts.tokenFor("bitbucket")).toMatchObject({ ok: true, value: "bb-access-1" });
+      expect(reads).toEqual(["bitbucket"]);
+      expect(stub.requests.filter((r) => r.api === "bitbucketAuth")).toHaveLength(1);
+    });
+  });
+
   it("treats an unreadable stored token as not connected", async () => {
     const { host, accounts } = await setup();
     await host.secrets.set("github", "not json");
