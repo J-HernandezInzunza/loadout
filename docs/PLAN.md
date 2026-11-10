@@ -1464,4 +1464,70 @@ whole session.
 
 ---
 
+## M12. Rename a loadout
+
+Exit: every M12 task checked; a renamed loadout launches under its new name with nothing fetched
+again; the owner renamed one in a built app.
+
+Decided 2026-11-10 (owner, from the ROADMAP item):
+
+- Rename is its own plan/apply pair, as save and delete are. The editor runs it, then saves the
+  members if they changed too; a rename that lands before a failed save is reported as such.
+- The old name is gone after a rename, with nothing left behind (no forwarding link), and is free to
+  reuse. The editor warns first that sessions already running with it, and `loadout run <old>` in
+  aliases and scripts, stop working.
+- Always warn: the app doesn't look for running sessions (that would take a new Rust command).
+- A spike first checks what a running session does when its folder moves, so the warning says what
+  happens.
+- Defaults, reversible: the folder moves on disk and its receipts are rewritten, so nothing is
+  fetched; the folder moves before `config.json` changes and moves back if the config can't be
+  saved; an unlisted folder already at the new path is replaced (only Loadout writes there); the
+  editor's title keeps the old name until Save.
+
+- [ ] **M12.01 A running session whose loadout moves.** Extend S13: start a session with `loadout run
+  <name>` on a loadout holding a skill, a bare prompt and a namespaced prompt; rename its folder; in
+  that session run each member and `/skills`. Then start a new session from the moved folder, as it is
+  with no rebuild, and run them again.
+  - Rules: none (spikes.md S13)
+  - Depends: none
+  - Done when: S13 records what the running session and the new one did, and the wording M12.03's
+    dialog uses for running sessions.
+
+- [ ] **M12.02 Rename in core.** `planRenameLoadout(from, to)`: REFUSED for a name that isn't a slug or
+  is the loadout's own, NOT_FOUND for an unknown loadout, DUPLICATE for a taken name; the plan holds
+  the loadout as saved and both folders. `applyRenameLoadout`: STALE_PLAN when `from` changed or `to`
+  was taken since; moves `<appData>/loadouts/<from>` to `<to>` (audited), rewrites the dests in its
+  `receipts.json`, moves `.claude/commands/<from>/` to `commands/<to>/` with their receipts, then
+  re-keys `config.json` with the members unchanged; if the config can't be saved, the folder moves
+  back. A loadout never built changes in config only. Returns the new `LoadoutRecord`. Library ops,
+  schemas and the fake gain the pair.
+  - Rules: none (arch §4.6, amended by this task)
+  - Depends: none
+  - Done when: tests show every member built under the new name with no git process in the audit
+    log, a namespaced prompt under `commands/<to>/` with its clash read as `<to>:<name>`, the old
+    folder gone and its name free to save again, a never-built loadout renamed, each refusal,
+    STALE_PLAN, and a failed config save leaving the old name with its folder; arch §4.6 says how a
+    rename moves the folder.
+
+- [ ] **M12.03 Rename from the editor.** When editing, the Name field is back and editable; the taken
+  check skips the loadout's own name, and a changed name counts as unsaved. Save with a new name asks
+  first in `ConfirmDialog`, with M12.01's wording for running sessions and that `loadout run <old>`
+  stops working; then it renames and, if the members changed too, saves them. The banner says
+  "Renamed <old> to <new>." with the build's summary; a rename that lands before a failed save says
+  the loadout was renamed and its members weren't saved. Cancel in the dialog keeps the draft.
+  - Rules: none
+  - Depends: M12.01, M12.02
+  - Done when: tests against the fake show the field when editing, the taken check, the dialog and
+    its Cancel, a rename alone, a rename with member changes, and the partial failure's banner.
+
+- [ ] **M12.04 Rename in the built app (manual).** In the `app:build` bundle, Finder-launched, the
+  owner renames a loadout holding a namespaced prompt; a new session from the card's new command
+  loads its members and runs the prompt as `/<new>:<name>`, and `loadout run <old>` exits pointing at
+  Loadout.
+  - Rules: none
+  - Depends: M12.03
+  - Done when: the owner's walk is recorded in PROGRESS.md and every problem found is a task or fixed.
+
+---
+
 Roadmap (not planned): `docs/ROADMAP.md`.
