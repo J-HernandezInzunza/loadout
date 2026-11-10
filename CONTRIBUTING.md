@@ -147,18 +147,24 @@ Check Actions → Tap is green, then on a Mac that has Loadout installed,
 
 ### 5. Announce
 
-Tell the people who use Loadout, wherever they'll see it. Say what's new in a line or two per item
-under Features in the notes, how to get it, and that macOS blocks it the first time:
+Tell the people who use Loadout, wherever they'll see it. Copy this as is, replace `<version>`, and
+write what's new in a line or two per item under Features in the notes:
 
-> Loadout 0.1.0 is out: <link to the release>
-> What's new: <a line or two per feature>
-> New: `brew install --cask j-hernandezinzunza/tap/loadout`, or the `.dmg` from the release.
-> Already have it: `brew upgrade --cask loadout`.
-> Bugs: <link to Issues → New issue → Bug report>
->
-> macOS blocks it the first time (and sometimes after upgrade): To fix, go to System Settings →
-> Privacy & Security → Open Anyway.
-> Details: <link to the README's "Opening Loadout the first time">
+```text
+Loadout <version> is out :tada: - https://github.com/J-HernandezInzunza/loadout/releases/tag/v<version>
+
+What's new:
+
+<a line or two per item under Features in the notes>
+
+New user: brew install --cask j-hernandezinzunza/tap/loadout, or download and install the .dmg file from the release.
+Already have it: brew upgrade --cask loadout
+
+macOS blocks it the first time (and sometimes after upgrade): To fix, go to System Settings → Privacy & Security → Open Anyway.
+Details: https://github.com/J-HernandezInzunza/loadout#opening-loadout-the-first-time
+
+Bug reports: https://github.com/J-HernandezInzunza/loadout/issues/new?template=bug_report.yml
+```
 
 ### 6. When a release goes wrong
 
