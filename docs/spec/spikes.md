@@ -402,3 +402,107 @@ notarization would be at risk with the attribute; a script isn't. Run on 2026-11
 session's shell; confirmed on 2026-11-07 with the released v0.3.0: after `brew reinstall --cask
 loadout`, `/Applications/Loadout.app/Contents/Resources/bin/loadout` still carried
 `com.apple.quarantine`, and `loadout list` ran through Homebrew's `/opt/homebrew/bin/loadout` link.
+
+## S15. The global set as a baseline: items moved in and out of `~/.claude`
+
+(S14 is reserved for M14.01, which hasn't run.)
+
+What a session does when a skill, a prompt or an agent leaves `~/.claude` and comes back, whether a
+loadout's copy then takes the bare name, and how symlinks compare with copies there (ROADMAP, "Off
+globally, on in its loadouts"). Run on 2026-11-13 against Claude Code 2.1.323, in this machine's
+`~/.claude` with the owner's go-ahead. Fixtures, all removed afterwards: a skill `lo-spike-skill`
+whose text runs a script through `${CLAUDE_SKILL_DIR}`, a prompt `lo-spike-prompt` and an agent
+`lo-spike-agent`, each with a codeword naming its copy; a loadout folder `lospk` holding a skill and
+an agent of the same names; and, for links, a store folder outside `~/.claude` and a loadout
+`lolink` whose skill and agent link into it.
+
+Method: one session per case, sent several turns: `claude -p --model haiku --input-format
+stream-json --output-format stream-json --verbose --no-session-persistence`, from an empty folder.
+Every turn opens with a `system`/`init` message carrying the current `skills`, `slash_commands` and
+`agents`, and a `system`/`commands_changed` message is pushed when the skill and prompt list
+reloads, so both were read between file moves; each item was also invoked, to see which copy ran.
+No settings file was edited: permissions went in as `--permission-mode` and `--allowedTools`.
+
+**Moved out, each item leaves a running session; moved back, it returns.** No restart either way.
+
+| Item | Leaves and returns | Invoked after it left |
+|---|---|---|
+| skill folder | `commands_changed` 1.5 to 2.7 s after the move (ten moves) | Skill tool: `Unknown skill: lo-spike-skill` |
+| prompt file | the same message | `/lo-spike-prompt` runs nothing; the model answers that it isn't available |
+| agent file | no message; still listed 0.6 s after the move, gone (or back) at 5.6 s | Agent tool: `Agent type 'lo-spike-agent' not found` |
+
+Asked what it could see just after the move, the model still named the skill and the prompt: the
+earlier list stays in its conversation. So a session may try a switched-off item once and get the
+error above.
+
+**A skill in use loses its script.** The loaded skill text had `${CLAUDE_SKILL_DIR}` written out as
+`~/.claude/skills/lo-spike-skill`, and the script ran. With the folder moved out, the same command
+failed (`No such file or directory`, exit 127); the model listed the folder, reported it gone and
+stopped, recreating nothing; a new Skill call returned `Unknown skill`. The skill's text stays in
+the conversation. Moved back, the same command ran again with no new Skill call.
+
+**A loadout's skill takes the bare name once the global copy is gone,** at launch and during the
+session (`claude --add-dir='<folder>'`).
+
+| Global copy | The session lists | The bare name runs |
+|---|---|---|
+| present at launch | `lo-spike-skill` and `lospk:lo-spike-skill` (as S13) | the global copy |
+| absent at launch | `lo-spike-skill` | the loadout's |
+| moved out during the session | 2.3 s later, `lo-spike-skill` only; `lospk:lo-spike-skill` is `Unknown skill` | the loadout's |
+| moved back during the session | 2.5 s later, both again | the global copy |
+
+So the prefixed name exists only while the global copy does: a session that used
+`lospk:lo-spike-skill` has to use the bare name after the switch. While both exist, invoking the
+bare name adds a note for the model that `lospk:lo-spike-skill` is a variant "for files under
+lospk/", to be invoked when it works on files there.
+
+Not run: `/add-dir` during a session. In `-p` mode it answers "/add-dir isn't available in this
+environment", so it needs a terminal; M13.01 records which members load that way, and under what
+names.
+
+**A loadout's agent already wins.** With a global agent and a loadout agent of one name (S13 left
+agents unchecked), the session listed one `lo-spike-agent` and ran the loadout's, at launch and
+after the global one was moved out and back. There is no prefixed twin. So an agent loads from a
+loadout whether or not it is on globally, and in that session it hides the global agent of its name.
+
+**Links in `~/.claude`.** The three fixtures as symlinks into the store:
+
+- All three load and run. `${CLAUDE_SKILL_DIR}` is the link's path: the script's `$0` was under
+  `~/.claude/skills/lo-spike-skill` and its real folder was the store. So a session loses a removed
+  link's script as it loses a moved copy's.
+- Files replaced in the store, then the links pointed at a second store: no `commands_changed`
+  either time (the names didn't change), and the next use of each, 8 to 22 s later, ran the new
+  text: skill, prompt and agent. Not compared with editing a copy in place.
+- Links removed: `commands_changed` after 2.1 s, and all three gone with the errors above. Linked
+  again: back after 2.7 s.
+- One target, two links: with the global link and `lolink`'s link on the same folder, the skill
+  loaded once, as `lo-spike-skill`, its base directory the global link's path. Pointing the global
+  link at the second store split it into `lo-spike-skill` and `lolink:lo-spike-skill` 1.7 s later;
+  pointing it back merged them 1.5 s later. Two copies always list twice (the table above).
+
+**Reading a skill's files in the default permission mode.** `--permission-mode default`, the Read
+tool on the skill's script, by the base directory the session was given. The skill itself loaded in
+every case. "Asks" was a refusal here, since nobody answers in `-p` mode.
+
+| Where the skill is | Read |
+|---|---|
+| copy in `~/.claude/skills` | asks: "Path is outside allowed working directories" |
+| the same, with `Read(~/.claude/skills/lo-spike-skill/**)` allowed | allowed |
+| link in `~/.claude/skills`, with that rule | asks, with the same message |
+| link, with a rule for the store instead | asks |
+| link, with both rules | allowed |
+| copy in a loadout folder (`--add-dir`) | allowed, with no rule |
+| link in a loadout folder, to the store | asks: the path "resolves through a symlink to" the store, "which is outside the allowed working directories" |
+
+So a link's path and its target each have to be allowed. In `~/.claude` a copy asks too unless a
+rule covers it; in a loadout a copy never asks and a link does. Running the script with Bash was
+allowed by a rule naming the link's path.
+
+**For the plan.** The direction holds as the ROADMAP describes it: off as absence reaches a running
+session in about 2 s for skills and prompts and within 6 s for agents, on returns the same way, and
+a loadout's skill takes the bare name at launch and during the session. Costs to show: a running
+session loses a switched-off skill's script, and a prefixed name stops working when the global copy
+leaves. Agents need no baseline to load from a loadout. Copies and links behave alike on loading,
+reloading and losing scripts. They differ in two ways: links to one target list a shared item once
+where copies list it twice, and a link needs its target allowed for file reads, which shows in a
+loadout, where a copy needs nothing.
