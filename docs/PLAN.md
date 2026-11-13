@@ -1530,4 +1530,79 @@ Decided 2026-11-10 (owner, from the ROADMAP item):
 
 ---
 
+## M13. A loadout in a running session
+
+Exit: every M13 task checked; S13 records what adding a loadout's folder to a running session loads,
+and what launching with `--add-dir` loads on the current Claude Code; the owner has chosen what, if
+anything, a card offers for it.
+
+Decided 2026-11-10 (owner, from the ROADMAP item for a `loadout` skill for agents):
+
+- The need behind that item is using a loadout in the session already running, not starting a second
+  one. The skill is parked: a headless run already works as `loadout run <name> -p "…"`, and an
+  agent opening a pane saves little over typing the command.
+- Spike first. Claude Code's docs (checked 2026-11-12) say `/add-dir` during a session loads the
+  folder's `.claude/skills`, `commands` and `agents` as `--add-dir` does, and that only the skills of
+  a folder passed at launch reload live. What a card offers is planned from the results, within M10's
+  one command per card.
+
+- [ ] **M13.01 A loadout added to a running session.** Extend S13 on the current Claude Code, in a
+  terminal (`/add-dir` is typed in an interactive session), with a loadout holding a skill, a bare
+  prompt, a namespaced prompt, an agent and a skill that clashes with a global one. At launch:
+  `loadout run <name>`, and which members load. Mid-session: in a session started with plain `claude`
+  in a project, `/add-dir` with the loadout's folder; record which members load, and whether at once
+  or only after a restart; the clashing skill's name; how the path, with its space, has to be typed;
+  what `/add-dir` asks (this session only, or remembered for the project, and where that is saved,
+  since `permissions.additionalDirectories` loads no skills); whether a second loadout can be added
+  beside it; whether the loadout's Sync during the session reaches it; and whether it can be taken out
+  again.
+  - Rules: none (spikes.md S13)
+  - Depends: none
+  - Done when: S13 records each result with the Claude Code version; a member that no longer loads at
+    launch is a task (it changes M9's prompts and agents, and M12.01, which uses the same fixtures);
+    and the owner has chosen what the card offers, planned as the next M13 tasks, or the ROADMAP says
+    why there is nothing to offer.
+
+---
+
+## M14. Does the skill list fit
+
+Exit: every M14 task checked; S14 records how Claude Code budgets the skill list on this machine,
+against Loadout's own count; the owner has chosen where the measure shows and what it offers.
+
+Decided 2026-11-10 (owner, from the ROADMAP items on context cost):
+
+- The measure is whether the skill list fits, not what it costs. Claude Code caps the list Claude
+  reads each turn (1% of the context window by default, `skillListingBudgetFraction`, or a fixed
+  `SLASH_COMMAND_TOOL_CHAR_BUDGET`; each entry's `description` and `when_to_use` cut at
+  `skillListingMaxDescChars`, 1,536 by default). Past the cap the least-used skills lose their
+  descriptions: Claude can still call them but doesn't see when to. One measure covers the global set
+  and a loadout on top of it. `/doctor` already estimates the list's cost and its largest entries
+  inside a session; Loadout's measure is for before one starts, where the global set and loadouts are
+  chosen.
+- Characters, not tokens: Claude Code budgets in characters, and Loadout counts them exactly, with no
+  tokenizer and no network.
+- Counted: skills and prompts in `~/.claude`, a loadout's folder, and installed plugins' skills.
+  Claude Code's bundled skills and a project's own aren't, and the measure says so.
+- Spike first, as M13 does.
+
+Chosen after the spike: where the measure shows (the global list, the loadout editor) and what it
+offers beside a large entry: off, a move into a loadout, a shorter description in its catalog,
+`name-only` (Q14 A shows it read-only), or a larger budget.
+
+- [ ] **M14.01 How the skill list is budgeted.** A new spike, S14, on the current Claude Code:
+  Loadout's count (each skill's and prompt's name, arguments, `description` and `when_to_use`, cut at
+  the cap) against what `/context`, `/doctor` and `/skill-doctor` report here, for the global set
+  alone and with a loadout added. Record how the 1% becomes characters, and for which context window
+  (each model this machine uses); whether plugin and bundled skills share the budget; what a prompt's
+  entry is made of; what an `off`, a `name-only` and a `user-invocable-only` entry count; and, with
+  the list over budget, whether a loadout's members are the first to lose their descriptions.
+  - Rules: none (spikes.md S14)
+  - Depends: none
+  - Done when: S14 records each result with the Claude Code version; Loadout's count matches the
+    reported one within a stated margin, or the difference is explained; and the owner has chosen
+    where the measure shows and what it offers, planned as the next M14 tasks.
+
+---
+
 Roadmap (not planned): `docs/ROADMAP.md`.
