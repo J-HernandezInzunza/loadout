@@ -1464,4 +1464,145 @@ whole session.
 
 ---
 
+## M12. Rename a loadout
+
+Exit: every M12 task checked; a renamed loadout launches under its new name with nothing fetched
+again; the owner renamed one in a built app.
+
+Decided 2026-11-10 (owner, from the ROADMAP item):
+
+- Rename is its own plan/apply pair, as save and delete are. The editor runs it, then saves the
+  members if they changed too; a rename that lands before a failed save is reported as such.
+- The old name is gone after a rename, with nothing left behind (no forwarding link), and is free to
+  reuse. The editor warns first that sessions already running with it, and `loadout run <old>` in
+  aliases and scripts, stop working.
+- Always warn: the app doesn't look for running sessions (that would take a new Rust command).
+- A spike first checks what a running session does when its folder moves, so the warning says what
+  happens.
+- Defaults, reversible: the folder moves on disk and its receipts are rewritten, so nothing is
+  fetched; the folder moves before `config.json` changes and moves back if the config can't be
+  saved; an unlisted folder already at the new path is replaced (only Loadout writes there); the
+  editor's title keeps the old name until Save.
+
+- [ ] **M12.01 A running session whose loadout moves.** Extend S13: start a session with `loadout run
+  <name>` on a loadout holding a skill, a bare prompt and a namespaced prompt; rename its folder; in
+  that session run each member and `/skills`. Then start a new session from the moved folder, as it is
+  with no rebuild, and run them again.
+  - Rules: none (spikes.md S13)
+  - Depends: none
+  - Done when: S13 records what the running session and the new one did, and the wording M12.03's
+    dialog uses for running sessions.
+
+- [ ] **M12.02 Rename in core.** `planRenameLoadout(from, to)`: REFUSED for a name that isn't a slug or
+  is the loadout's own, NOT_FOUND for an unknown loadout, DUPLICATE for a taken name; the plan holds
+  the loadout as saved and both folders. `applyRenameLoadout`: STALE_PLAN when `from` changed or `to`
+  was taken since; moves `<appData>/loadouts/<from>` to `<to>` (audited), rewrites the dests in its
+  `receipts.json`, moves `.claude/commands/<from>/` to `commands/<to>/` with their receipts, then
+  re-keys `config.json` with the members unchanged; if the config can't be saved, the folder moves
+  back. A loadout never built changes in config only. Returns the new `LoadoutRecord`. Library ops,
+  schemas and the fake gain the pair.
+  - Rules: none (arch §4.6, amended by this task)
+  - Depends: none
+  - Done when: tests show every member built under the new name with no git process in the audit
+    log, a namespaced prompt under `commands/<to>/` with its clash read as `<to>:<name>`, the old
+    folder gone and its name free to save again, a never-built loadout renamed, each refusal,
+    STALE_PLAN, and a failed config save leaving the old name with its folder; arch §4.6 says how a
+    rename moves the folder.
+
+- [ ] **M12.03 Rename from the editor.** When editing, the Name field is back and editable; the taken
+  check skips the loadout's own name, and a changed name counts as unsaved. Save with a new name asks
+  first in `ConfirmDialog`, with M12.01's wording for running sessions and that `loadout run <old>`
+  stops working; then it renames and, if the members changed too, saves them. The banner says
+  "Renamed <old> to <new>." with the build's summary; a rename that lands before a failed save says
+  the loadout was renamed and its members weren't saved. Cancel in the dialog keeps the draft.
+  - Rules: none
+  - Depends: M12.01, M12.02
+  - Done when: tests against the fake show the field when editing, the taken check, the dialog and
+    its Cancel, a rename alone, a rename with member changes, and the partial failure's banner.
+
+- [ ] **M12.04 Rename in the built app (manual).** In the `app:build` bundle, Finder-launched, the
+  owner renames a loadout holding a namespaced prompt; a new session from the card's new command
+  loads its members and runs the prompt as `/<new>:<name>`, and `loadout run <old>` exits pointing at
+  Loadout.
+  - Rules: none
+  - Depends: M12.03
+  - Done when: the owner's walk is recorded in PROGRESS.md and every problem found is a task or fixed.
+
+---
+
+## M13. A loadout in a running session
+
+Exit: every M13 task checked; S13 records what adding a loadout's folder to a running session loads,
+and what launching with `--add-dir` loads on the current Claude Code; the owner has chosen what, if
+anything, a card offers for it.
+
+Decided 2026-11-10 (owner, from the ROADMAP item for a `loadout` skill for agents):
+
+- The need behind that item is using a loadout in the session already running, not starting a second
+  one. The skill is parked: a headless run already works as `loadout run <name> -p "…"`, and an
+  agent opening a pane saves little over typing the command.
+- Spike first. Claude Code's docs (checked 2026-11-12) say `/add-dir` during a session loads the
+  folder's `.claude/skills`, `commands` and `agents` as `--add-dir` does, and that only the skills of
+  a folder passed at launch reload live. What a card offers is planned from the results, within M10's
+  one command per card.
+
+- [ ] **M13.01 A loadout added to a running session.** Extend S13 on the current Claude Code, in a
+  terminal (`/add-dir` is typed in an interactive session), with a loadout holding a skill, a bare
+  prompt, a namespaced prompt, an agent and a skill that clashes with a global one. At launch:
+  `loadout run <name>`, and which members load. Mid-session: in a session started with plain `claude`
+  in a project, `/add-dir` with the loadout's folder; record which members load, and whether at once
+  or only after a restart; the clashing skill's name; how the path, with its space, has to be typed;
+  what `/add-dir` asks (this session only, or remembered for the project, and where that is saved,
+  since `permissions.additionalDirectories` loads no skills); whether a second loadout can be added
+  beside it; whether the loadout's Sync during the session reaches it; and whether it can be taken out
+  again.
+  - Rules: none (spikes.md S13)
+  - Depends: none
+  - Done when: S13 records each result with the Claude Code version; a member that no longer loads at
+    launch is a task (it changes M9's prompts and agents, and M12.01, which uses the same fixtures);
+    and the owner has chosen what the card offers, planned as the next M13 tasks, or the ROADMAP says
+    why there is nothing to offer.
+
+---
+
+## M14. Does the skill list fit
+
+Exit: every M14 task checked; S14 records how Claude Code budgets the skill list on this machine,
+against Loadout's own count; the owner has chosen where the measure shows and what it offers.
+
+Decided 2026-11-10 (owner, from the ROADMAP items on context cost):
+
+- The measure is whether the skill list fits, not what it costs. Claude Code caps the list Claude
+  reads each turn (1% of the context window by default, `skillListingBudgetFraction`, or a fixed
+  `SLASH_COMMAND_TOOL_CHAR_BUDGET`; each entry's `description` and `when_to_use` cut at
+  `skillListingMaxDescChars`, 1,536 by default). Past the cap the least-used skills lose their
+  descriptions: Claude can still call them but doesn't see when to. One measure covers the global set
+  and a loadout on top of it. `/doctor` already estimates the list's cost and its largest entries
+  inside a session; Loadout's measure is for before one starts, where the global set and loadouts are
+  chosen.
+- Characters, not tokens: Claude Code budgets in characters, and Loadout counts them exactly, with no
+  tokenizer and no network.
+- Counted: skills and prompts in `~/.claude`, a loadout's folder, and installed plugins' skills.
+  Claude Code's bundled skills and a project's own aren't, and the measure says so.
+- Spike first, as M13 does.
+
+Chosen after the spike: where the measure shows (the global list, the loadout editor) and what it
+offers beside a large entry: off, a move into a loadout, a shorter description in its catalog,
+`name-only` (Q14 A shows it read-only), or a larger budget.
+
+- [ ] **M14.01 How the skill list is budgeted.** A new spike, S14, on the current Claude Code:
+  Loadout's count (each skill's and prompt's name, arguments, `description` and `when_to_use`, cut at
+  the cap) against what `/context`, `/doctor` and `/skill-doctor` report here, for the global set
+  alone and with a loadout added. Record how the 1% becomes characters, and for which context window
+  (each model this machine uses); whether plugin and bundled skills share the budget; what a prompt's
+  entry is made of; what an `off`, a `name-only` and a `user-invocable-only` entry count; and, with
+  the list over budget, whether a loadout's members are the first to lose their descriptions.
+  - Rules: none (spikes.md S14)
+  - Depends: none
+  - Done when: S14 records each result with the Claude Code version; Loadout's count matches the
+    reported one within a stated margin, or the difference is explained; and the owner has chosen
+    where the measure shows and what it offers, planned as the next M14 tasks.
+
+---
+
 Roadmap (not planned): `docs/ROADMAP.md`.
