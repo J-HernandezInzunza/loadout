@@ -5,7 +5,8 @@ catalog (a git repository with a `library.yaml`); Loadout installs them into `~/
 and off, keeps them up to date, and sends your edits back to the catalog as a pull request.
 
 Needs an Apple Silicon Mac with macOS 14 (Sonoma) or later, and `git` (run `xcode-select --install`
-if you don't have it).
+if you don't have it). Loadout is Mac-only for now; Linux and Windows are on the
+[roadmap](docs/ROADMAP.md).
 
 ## Install
 
