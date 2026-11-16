@@ -124,6 +124,8 @@ describe("UI-34: the preview", () => {
       ["lint", "dependency", "new"],
       ["tidy", "edited locally"],
     ]);
+    expect(wrapper.find(".status-chip--absent").text()).toBe("new");
+    expect(wrapper.find(".status-chip--attention").text()).toBe("edited locally");
     expect(wrapper.findAll(".install-preview__files li").map((l) => l.text().replace(/\s+/g, " "))).toEqual(["~ SKILL.md · you edited this", "~ notes.md", "+ new.md", "- old.md"]);
     expect(wrapper.find(".install-preview__scope").text()).toBe("nothing has been written");
   });
@@ -132,6 +134,7 @@ describe("UI-34: the preview", () => {
     const { wrapper } = await mountInstall([[item("tidy", { state: "installed", preview: { kind: "destination-only" } })]]);
     await press(wrapper, "Preview install");
     expect(wrapper.text()).toContain("Couldn't fetch the source, so only the destinations are shown");
+    expect(wrapper.find(".status-chip--installed").text()).toBe("already installed");
     expect(wrapper.find(".install-preview__files").exists()).toBe(false);
   });
 

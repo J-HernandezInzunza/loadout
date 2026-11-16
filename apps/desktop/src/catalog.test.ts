@@ -1,6 +1,6 @@
 import { entryRecord, installedRecord } from "@loadout/core/testing";
 import { describe, expect, it } from "vitest";
-import { catalogHue, describePush, installStatus, rowsFor, searchRows, type ListFilter } from "./catalog.ts";
+import { catalogHue, describePush, destTone, installStatus, rowsFor, searchRows, type ListFilter } from "./catalog.ts";
 
 const label = (rows: ReturnType<typeof rowsFor>) => rows.map((r) => `${r.entry.name}@${r.entry.catalog}`);
 
@@ -24,6 +24,10 @@ describe("UI-19: the install badge", () => {
 
   it("calls a copy that is on the machine but switched off disabled, whatever else is true of it", () => {
     expect(installStatus(installedRecord("drifted", { disabled: true }))).toEqual({ status: "disabled", tone: "disabled" });
+  });
+
+  it("gives a destination in an install plan the tone its copy has in the list", () => {
+    expect((["installed", "unmanaged", "drifted", "absent"] as const).map(destTone)).toEqual(["installed", "installed", "attention", "absent"]);
   });
 });
 

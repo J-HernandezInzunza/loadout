@@ -2,12 +2,13 @@
 import { discardsEdits, type Library } from "@loadout/core";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from "vue";
-import { describeDestState, describeInstallAction, summarizeChanges } from "../catalog.ts";
+import { describeDestState, describeInstallAction, destTone, summarizeChanges } from "../catalog.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
+import StatusChip from "./StatusChip.vue";
 import UiCheckbox from "./ui/UiCheckbox.vue";
 import UiSelect from "./ui/UiSelect.vue";
 
@@ -246,10 +247,9 @@ onUnmounted(() => void discard());
                 v-if="item.requiredBy.length"
                 class="install-preview__role"
               >dependency</span>
-              <span
-                class="install-preview__state"
-                :class="{ 'install-preview__state--drifted': item.state === 'drifted' }"
-              >{{ describeDestState(item.state) }}</span>
+              <StatusChip :tone="destTone(item.state)">
+                {{ describeDestState(item.state) }}
+              </StatusChip>
             </span>
             <code class="install-preview__dest">{{ item.dest }}</code>
             <p
@@ -529,11 +529,6 @@ onUnmounted(() => void discard());
   padding: 0.05rem 0.4rem;
   border-radius: 999px;
   background: var(--surface-sunken);
-}
-.install-preview__state--drifted {
-  background: var(--status-attention-tint);
-  color: var(--status-attention-ink);
-  font-weight: 600;
 }
 .install-preview__dest {
   display: block;

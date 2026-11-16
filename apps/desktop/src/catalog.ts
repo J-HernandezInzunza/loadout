@@ -176,6 +176,19 @@ export function describeDestState(state: PlanItem["state"]): string {
   }
 }
 
+/** The badge tone for the same state, so a destination reads here as its copy does in the list. */
+export function destTone(state: PlanItem["state"]): Row["tone"] {
+  switch (state) {
+    case "installed":
+    case "unmanaged":
+      return "installed";
+    case "drifted":
+      return "attention";
+    case "absent":
+      return "absent";
+  }
+}
+
 /** One line for what an install changed, as the CLI words it. */
 export function summarizeChanges(preview: PlanItem["preview"]): string {
   if (preview.kind === "destination-only") return "installed";
