@@ -75,9 +75,12 @@ const summary = computed(() => {
 /** Why there is nothing to show when the search isn't the reason. */
 const emptyLine = computed(() => {
   if (from.value !== null) {
-    return state.value === "installed" ? `None of ${from.value}'s ${noun.value} is installed.` : `${from.value} has no ${noun.value} yet.`;
+    if (state.value === "installed") return `None of ${from.value}'s ${noun.value} is installed.`;
+    if (state.value === "not_installed") return `All of ${from.value}'s ${noun.value} are installed.`;
+    return `${from.value} has no ${noun.value} yet.`;
   }
   if (state.value === "installed") return `No ${noun.value} installed yet.`;
+  if (state.value === "not_installed") return `All ${noun.value} are installed.`;
   return `No catalog holds any ${noun.value} yet.`;
 });
 
@@ -170,6 +173,13 @@ const freshness = computed(() => {
           >
             Installed
           </button>
+          <button
+            type="button"
+            :aria-pressed="state === 'not_installed'"
+            @click="state = 'not_installed'"
+          >
+            Not installed
+          </button>
           <!-- Absent while nothing is off: a choice that can only show an empty list is a dead end. -->
           <button
             v-if="disabledCount"
@@ -181,7 +191,7 @@ const freshness = computed(() => {
           </button>
         </div>
         <label
-          v-if="from === null && state === 'any' && overriddenCount"
+          v-if="from === null && (state === 'any' || state === 'not_installed') && overriddenCount"
           class="toolbar__toggle"
         >
           <UiCheckbox

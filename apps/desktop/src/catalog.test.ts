@@ -51,6 +51,12 @@ describe("UI-12: which rows a filter shows", () => {
     expect(label(rowsFor({ ...all, state: "disabled" }, records))).toEqual(["off@B"]);
   });
 
+  it("shows the copies that aren't on the machine as Not installed, a switched-off one left out", () => {
+    expect(label(rowsFor({ ...all, state: "not_installed" }, records))).toEqual(["x@A", "x@B", "lint@A"]);
+    expect(label(rowsFor({ ...all, state: "not_installed", hideOverridden: true }, records))).toEqual(["x@A", "lint@A"]);
+    expect(label(rowsFor({ ...all, state: "not_installed", from: "B" }, records))).toEqual(["x@B"]);
+  });
+
   it("combines the type, the catalog and the state", () => {
     expect(label(rowsFor({ ...all, type: "skill" }, records))).toEqual(["x@A", "x@B", "lint@A", "off@B"]);
     expect(label(rowsFor({ ...all, type: "prompt", state: "installed" }, records))).toEqual(["style@A"]);

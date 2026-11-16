@@ -113,10 +113,10 @@ describe("UI-13: From and the state", () => {
     const skipped = catalogRow({ id: "old", precedence: 3, entries: null, skipped: "not cloned yet" });
     const { wrapper } = await mountList({ ...seededState(), catalogs: [...seededState().catalogs, skipped] });
     expect(fromOptions(wrapper)).toEqual(["every catalog", "personal (3)", "team (9)", "old (not loaded)"]);
-    expect(states(wrapper)).toEqual(["Any", "Installed", "Disabled 1"]);
+    expect(states(wrapper)).toEqual(["Any", "Installed", "Not installed", "Disabled 1"]);
 
     const none = await mountList({ catalogs: [catalogRow()], entries: [installedRecord("installed", { name: "a" })] });
-    expect(states(none.wrapper)).toEqual(["Any", "Installed"]);
+    expect(states(none.wrapper)).toEqual(["Any", "Installed", "Not installed"]);
     expect(fromOptions(none.wrapper)).toEqual(["every catalog", "personal (0)"]);
   });
 
@@ -129,8 +129,16 @@ describe("UI-13: From and the state", () => {
     library.state.entries = library.state.entries.map((e) => ({ ...e, disabled: false }));
     await useCatalogStore().reload();
     await flushPromises();
-    expect(states(wrapper)).toEqual(["Any", "Installed"]);
+    expect(states(wrapper)).toEqual(["Any", "Installed", "Not installed"]);
     expect(wrapper.find(".toolbar__state [aria-pressed=true]").text()).toBe("Any");
+  });
+
+  it("shows only what isn't on the machine as Not installed, and still offers Hide overridden", async () => {
+    const { wrapper } = await mountList();
+    await show(wrapper, "Not installed");
+    expect(names(wrapper)).toEqual(["review", "review", "deploy", "deploy", "standup"]);
+    await wrapper.find(".toolbar__toggle input").setValue(true);
+    expect(names(wrapper)).toEqual(["review", "deploy", "standup"]);
   });
 
   it("falls back to every catalog once the chosen one is unregistered", async () => {
@@ -245,6 +253,14 @@ describe("UI-17: empty states", () => {
     await browse(wrapper, "All");
     await show(wrapper, "Installed");
     expect(wrapper.find(".state").text()).toBe("No entries installed yet.");
+  });
+
+  it("says when Not installed leaves nothing, for one catalog and for every one", async () => {
+    const { wrapper } = await mountList({ catalogs: two, entries: [installedRecord("installed", { name: "a" })] });
+    await show(wrapper, "Not installed");
+    expect(wrapper.find(".state").text()).toBe("All entries are installed.");
+    await from(wrapper, "personal");
+    expect(wrapper.find(".state").text()).toBe("All of personal's entries are installed.");
   });
 
   it("says so plainly when no catalog holds anything", async () => {
