@@ -66,41 +66,15 @@ Planned as M9 in `PLAN.md`, with its decisions.
   `/usr/local/bin` needs an admin prompt on most Macs (root-owned or missing on Apple Silicon);
   `~/.local/bin` needs none but is on PATH only for users who added it. Never by editing shell
   startup files.
-- **Off globally, on in its loadouts: the global set as a baseline** (owner, 2026-11-10; direction
-  chosen 2026-11-13). Switch a niche skill off in `~/.claude` to keep it out of every session, and
-  still have it load in the loadouts that hold it. Today it doesn't: the override is by name, so it
-  hides the loadout's copy too, prefixed or not (S13, the `hidden` clash). Works now without a
-  change: uninstall the global copy, since a loadout builds its own copy from the catalog.
-  Direction: `~/.claude` becomes a view of what is switched on, built as a loadout's folder is
-  (M9.03), so off means absent from `~/.claude` and a loadout's copy loads under its bare name, at
-  launch and mid-session. It replaces §4.5's override for what Loadout installs. To confirm when it
-  is planned:
-  1. On/off is saved per entry in `config.json`; the disk is the result, so off and deleted by hand
-     differ.
-  2. Copies, not symlinks. Measured 2026-11-13 through `--add-dir` (2.1.323): linked skill folders,
-     command and agent files load and reload live, but `${CLAUDE_SKILL_DIR}` is the link's path, so a
-     session still loses a switched-off skill's scripts; `rm -rf` on a linked folder with a trailing
-     slash deletes the shared copy; an editor's save by rename turns a linked `.md` into a real file;
-     a dotfiles repo of `~/.claude` stores `~/Library` paths; and the scan (every link reads as
-     unmanaged), `Host.fs` (no link creation) and a versioned store with clean-up would all be new.
-     Links' one gain, one copy for an item on globally and in a loadout, isn't this case.
-  3. Off moves Loadout's copy into a cache in app data; on reuses it when it still matches what the
-     entry would build now, else installs fresh with the preview. Edits survive and on works
-     offline. A cache, so Sync never keeps it current (unlike the archive INST-06 refreshed).
-  4. A skill another switched-on item requires stays in while it's needed ("on for <item>"), and
-     switching an item on brings what it requires.
-  5. Only what Loadout installed; other items keep the override switch, which the UI says also
-     hides a loadout's copy. Adopting an unmanaged item (below) brings it in.
-  6. Overrides Loadout wrote convert once, after the user has seen the list (as §4.5 rule 7).
-  Agents switch on and off the same way, with no deny rule. Costs: a running session loses a
-  switched-off item's files, Claude Code's `/skills` can't switch it back on, and the UI has two kinds
-  of off; about M9's size. Spike first, in `~/.claude` itself (it needs the owner's go-ahead to write
-  there): a skill, a prompt and an agent moved out during a session (each leaves it? a session
-  running the skill's scripts?); a loadout's copy loading under its bare name once the global copy is
-  gone, at launch and with `/add-dir`; and the link results above, repeated in `~/.claude`. Set
-  aside for this need: a `--settings` file per loadout (the global copy comes back, listed twice), a
-  renamed folder (leans on S10's undocumented match) and loadouts built as plugins. Ties to M14,
-  where off becomes the strongest fix.
+- **Off globally, on in its loadouts.** Planned as M15 in `PLAN.md`, with its decisions.
+- **Links instead of copies.** One stored copy of an item, linked into `~/.claude` and into each
+  loadout that holds it. Measured in S15: links load, reload and lose a switched-off skill's script as
+  copies do; two links to one target list the item once, where an item on globally and in a loadout
+  lists twice as copies; a linked skill's file reads need its target allowed, which asks in a loadout
+  where a copy asks nothing. Also new: a link command in the host (`Host.fs` has none), a scan that
+  knows Loadout's own links (every link reads as unmanaged now), and a store with one folder per
+  version and clean-up. Worth it if M14 shows the double listing costs descriptions; it would also let
+  an installed skill link into its catalog's clone, so an edit in place becomes a change to offer.
 - **Instructions in a loadout.** A `CLAUDE.md` in the folder, launched with the variable above.
 - **MCP servers in a loadout.** `--mcp-config` adds servers for the session.
 
@@ -122,8 +96,8 @@ Planned as M9 in `PLAN.md`, with its decisions.
   and written with the same careful edit as the skill switch (arch §4.5). It blocks an agent rather
   than hiding it (whether its description still sits in what Claude reads is unchecked), and deny
   lists merge across settings files, so a user-level deny can't be lifted in one project. A deny by
-  name may also block a loadout's agent of that name; the baseline (above) would switch agents off
-  without one.
+  name may also block a loadout's agent of that name. M15 switches the agents Loadout installed off
+  without one; this is left for agents it didn't install.
 - **Adopt an unmanaged item into a catalog** (left out of M8: for a link it means replacing it or
   keeping two sources).
 - **Small follow-ups from M8:** one shared switch component for EntryList and UnmanagedList; one

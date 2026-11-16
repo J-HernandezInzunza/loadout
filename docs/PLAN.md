@@ -1605,4 +1605,185 @@ offers beside a large entry: off, a move into a loadout, a shorter description i
 
 ---
 
+## M15. Off globally, on in its loadouts
+
+Exit: every M15 task checked; an item Loadout installed can be switched off so that it is absent
+from `~/.claude` and still loads, under its own name, in a loadout that holds it; switching it on
+puts it back with nothing fetched when its entry's source hasn't been repointed; the owner walked
+it in a built app.
+
+Decided 2026-11-14 (owner, from the ROADMAP item; spikes.md S15):
+
+- Off means absent. `~/.claude` holds what is switched on, as a loadout's folder holds its members,
+  so a loadout's copy of an off item has nothing to clash with and loads under its bare name, at
+  launch and in a session already running (S15). For what Loadout installed, this replaces the
+  `skillOverrides` switch (arch §4.5), which is by name and hides a loadout's copy too (S13).
+- Copies, not symlinks. S15 measured both in `~/.claude`: they load, reload and lose a switched-off
+  skill's script alike. Links to one target would list an item once when it is on globally and in a
+  loadout, where copies list it twice. Against that, a linked skill's file reads need its target
+  allowed, which asks in a loadout where a copy asks nothing, and links need a link command in the
+  host, a scan that knows Loadout's own links, and a shared store with clean-up. What listing twice
+  costs is M14's to measure; links stay a ROADMAP item until then.
+- Off moves the copy and its receipt into a cache in app data. On moves them back, with no fetch,
+  when the entry's source hasn't been repointed (and, for a local source, hasn't changed), so on
+  works offline and local edits survive. Otherwise on is an install, with its preview. Sync never
+  refreshes the cache; a remote source that moved is Sync's to find once the item is back, as for
+  any install.
+- A requirement is asked about, not kept. Switching off an item that a switched-on item requires
+  lists those items and offers to switch them off too, or cancel. Switching an item on, installing
+  one or syncing one switches its off requirements on with it, and says so. So nothing switched on
+  requires something off.
+- Overrides convert once. At launch the app lists the items Loadout installed that an `off` under
+  `skillOverrides` hides (Loadout never recorded which keys it wrote, so any such key counts).
+  After the user has seen the list, each moves to the cache and its key is deleted, as arch §4.5
+  rule 7 did for parked skills.
+
+Defaults, reversible (from the ROADMAP item, not asked again; say so in review if one should
+change):
+
+- On and off are saved in `config.json`, as an `off` list of `{ type, name }`; the disk is the
+  result. So an off item and one deleted by hand differ: the second reads as missing. A build from
+  before M15 refuses a config holding the key, as one from before M9 refuses `loadouts`.
+- Only what Loadout installed. Content it didn't install, links included, keeps the
+  `skillOverrides` switch, and the UI says that switch also hides a loadout's copy of that name.
+- Agents get the switch, the same way and with no deny rule. A loadout's agent already replaces a
+  global one of its name (S15), and its clash line says so.
+- The cache is `<appData>/off/`, laid out as a loadout's folder is, with its own `receipts.json`.
+- Switching an item off leaves what it requires switched on.
+- Accepted: a session already running loses a switched-off skill's script (S15); Claude Code's
+  `/skills` can't switch such an item back on; and a loadout prompt built bare while a global item
+  was off is hidden once that item is switched on, until the next Sync or save (as M9.09).
+
+- [ ] **M15.01 Off in the config, and the cache.** `config.json` gains optional `off`: `{ type, name
+  }[]` (absent means none, so existing configs read unchanged; removing the last drops the key).
+  `offDir(appData)` is `<appData>/off`, and `offCtx(ctx)` is an `InstallCtx` whose `dest` is
+  `destFor(offDir, …)` with receipts at `<appData>/off/receipts.json`, as `loadoutCtx` is for a
+  loadout. `offEntries()` returns each off item with what the cache holds for it: `cached` (a copy
+  with its receipt) or `empty`. Library ops, schemas and the fake gain it.
+  - Rules: none (arch §4.1, §4.5, amended by this task)
+  - Depends: none
+  - Done when: tests show a config without the key reading and saving byte for byte, one with it
+    round-tripping, and `offEntries()` reporting a cached and an empty item; arch §4.1 lists the
+    folder and the key.
+
+- [ ] **M15.02 Switch off in core.** `planSwitch({ names, state: "off" })`: every name resolves first
+  (RES-05), by its catalog winner, else by its receipt; NOT_FOUND for a name neither knows; REFUSED
+  for content Loadout didn't install (no receipt, or a link), saying the override switch is the one
+  for it; an item already off is `unchanged`. Each planned item holds its destination, its
+  fingerprint and `requiredBy`: the switched-on items outside the batch whose requirements include
+  it (`dependents`). `applySwitch`: REFUSED while any item's `requiredBy` isn't empty; STALE_PLAN
+  when a destination changed since the plan; then, per item, the copy moves to the cache (a rename;
+  across volumes copy, verify by manifest, delete, as `moveBack` does), replacing an older cached
+  copy, its receipt moves to the cache's store with the dest rewritten, and the item joins `off`.
+  If the config can't be saved, the copies and receipts move back. A copy edited since it was
+  installed moves as it is. Library ops, schemas and the fake gain the pair.
+  - Rules: none (arch §4.5, amended by this task)
+  - Depends: M15.01
+  - Done when: tests show a skill, a prompt and an agent each gone from the home and cached with
+    its receipt, with no git process in the audit log; an edited copy's edits in the cache; each
+    refusal; `requiredBy` filled, REFUSED, then applied once the batch holds the requiring items;
+    STALE_PLAN; a move across volumes; and a failed config save leaving every item switched on.
+
+- [ ] **M15.03 Switch on in core.** `planSwitch({ names, state: "on" })`: a name that isn't off is
+  `unchanged`; each name's requirements that are off join the plan with `requiredBy` set. A cached
+  item whose receipt's source is still its entry's (and whose local source is unchanged), or whose
+  entry no catalog defines any more, is `reuse`: no fetch, no `ls-remote`. Any other is a `PlanItem`
+  built as an install builds one, its preview against the cached copy (so `editedLocally` shows
+  what a fresh copy would discard); an off item with nothing cached is one too, and NOT_FOUND when
+  no catalog defines it. A home destination something else has taken since needs consent, as an
+  unmanaged destination does. `applySwitch`: every check before the first effect (STALE_PLAN,
+  REFUSED without consent); a `reuse` item's copy and receipt move back; a fresh one is installed
+  and its cached copy and receipt are removed; each leaves `off`. One item's failure doesn't stop
+  the rest, and it stays off.
+  - Rules: none (arch §4.5, amended by this task)
+  - Depends: M15.02
+  - Done when: tests show a remote item switched on with no git process in the audit log and its
+    edits intact; a repointed entry and a changed local source each planned as an install with a
+    preview; an empty cache; an off requirement switched on with its `requiredBy`; a taken
+    destination refused without consent and replaced with it; STALE_PLAN; and a failed item left
+    off beside ones that succeeded.
+
+- [ ] **M15.04 Install, Sync, uninstall and removing a catalog.** A global install whose closure holds
+  an off item switches it on as M15.03 does (reused or fresh), marked `switchedOn` in the plan and
+  the report, and installing an off item by name is switching it on; a loadout's build never looks
+  at `off`. `planSync` doesn't target off items and never refreshes the cache; a target's
+  requirement that is off is switched on and reported with the dependencies. `uninstall` of an off
+  item removes its cached copy, its receipt and its `off` entry, and reports it as deleted.
+  `removeCatalog({ purgeInstalls })` purges that catalog's cached copies and `off` entries with its
+  installs. Switching an installed item's pin leaves an off one cached, to be found repointed when
+  it is switched on.
+  - Rules: none (arch §4.5, amended by this task)
+  - Depends: M15.03
+  - Done when: tests show an install and a Sync each switching an off requirement on and saying
+    so; a Sync leaving an off item's cached copy at its old commit; a loadout built while a member
+    is off globally, with `off` unchanged; an off item uninstalled; a purge emptying the cache of
+    that catalog's items only; and a pin switch followed by switch on planned as an install.
+
+- [ ] **M15.05 What the lists, loadouts and doctor read.** `list()` and `show()` read an off item as
+  installed and off, from the cache's receipt, never as missing; `EntryRecord` says which off
+  applies (the `off` list, or a `skillOverrides` key as today). The scan is unchanged: an off item
+  isn't in `~/.claude`, so it isn't loadable there, a loadout's skill of its name has no clash and
+  its prompt no namespace. A clash's `hidden` is left for a global skill off by override; an agent
+  member named like a global agent is `replaces` (the session uses the member, S15), in place of
+  `unknown`. Doctor warns of an off item with nothing cached, and of a cached copy `off` doesn't
+  list. Arch §4.5 is rewritten around the new switch, keeping the rules that still govern the
+  override for content Loadout didn't install; §4.6 gains the clash outcomes.
+  - Rules: none (arch §4.5, §4.6, amended by this task)
+  - Depends: M15.02
+  - Done when: tests show an off entry's record; a loadout holding a skill, a prompt and an agent
+    of an off item's names with no clash and the prompt built bare; `hidden` only under an
+    override; `replaces` for an agent; both doctor warnings; and arch §4.5 and §4.6 say the above.
+
+- [ ] **M15.06 Convert overrides in core.** `planConvertOverrides()` lists every item with a receipt,
+  present in `~/.claude`, whose user-level override is `off`, each with the switched-on items that
+  require it. `applyConvertOverrides(plan)` re-checks each; one that a switched-on item requires is
+  left in place and reported with those items; the rest are switched off as M15.02 does, then their
+  keys are deleted in one settings edit (arch §4.5 rule 2). If the settings can't be edited, the
+  items stay switched off and the keys are reported as left. `name-only` and
+  `user-invocable-only` are never touched. `setSkillState(…, "off")` refuses an item Loadout
+  installed, pointing at the switch; `"on"` still deletes a key that was left.
+  - Rules: none (arch §4.5, amended by this task)
+  - Depends: M15.02
+  - Done when: tests show an overridden skill and prompt converted, with `settings.json` changed
+    only by the deleted keys; a required one left in place; a `name-only` key untouched; a settings
+    file that can't be written; and an empty plan when nothing is overridden.
+
+- [ ] **M15.07 The switch in the app.** In EntryList every installed, winning entry has the switch,
+  agents too. Off plans first: when items require it, `ConfirmDialog` lists them with "Switch off
+  these too" (a new plan holding them) and Cancel. On applies at once when every item is reused,
+  and opens `InstallPreview` when one is a fresh install or needs consent. The toast names what
+  moved and what was switched on with it, and says a session already open follows within seconds
+  and loses a switched-off skill's scripts (S15), in place of `SESSION_TIMING`. EntryDetail says an
+  off item isn't in `~/.claude` and that loadouts holding it still load it; UninstallControl says
+  an off item's cached copy goes too. UnmanagedList keeps the override switch, and says it also
+  hides a loadout's copy of that name. `clashText` and `clashShort` word `hidden` for the override
+  alone and gain `replaces`.
+  - Rules: none
+  - Depends: M15.04, M15.05
+  - Done when: tests against the fake show an agent's switch; the dialog, its Cancel and "Switch
+    off these too"; on applied at once; on through the preview; each toast; the detail and
+    uninstall wording for an off item; UnmanagedList's wording; and both clash lines.
+
+- [ ] **M15.08 The conversion list at launch.** As ParkedSkills does: at startup the app plans the
+  conversion and, when it lists anything, shows the items with one button that converts them; the
+  ones left in place are named with the items that require them, and the list returns only while
+  such items exist.
+  - Rules: none
+  - Depends: M15.06, M15.07
+  - Done when: tests against the fake show no list when the plan is empty, the list and its button,
+    the report of converted and left items, and the catalog reloaded afterwards.
+
+- [ ] **M15.09 Off in the built app (manual).** In the `app:build` bundle, Finder-launched, the owner
+  switches off a skill that a loadout holds: a new session from `loadout run <name>` runs it under
+  its bare name, a plain `claude` session doesn't list it, and a session already open drops it
+  within seconds. Then: switch it on with the network off; switch off a skill another requires and
+  take both answers; switch an agent off and on; and, with an `off` key written by hand for an
+  installed skill, relaunch and convert it, with `settings.json` otherwise unchanged.
+  - Rules: none
+  - Depends: M15.08
+  - Done when: the owner's walk is recorded in PROGRESS.md and every problem found is a task or
+    fixed.
+
+---
+
 Roadmap (not planned): `docs/ROADMAP.md`.
