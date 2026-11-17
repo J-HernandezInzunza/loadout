@@ -85,6 +85,15 @@ Planned as M9 in `PLAN.md`, with its decisions.
   audit for this in another repository of their engineering library to build on.
 - **Usage.** Which skills sessions actually use, from Claude Code's transcripts, to suggest switching
   off what is never used or building a loadout from what is.
+- **Cycles in `requires` are allowed** (owner, 2026-11-17). A skill that needs an agent which needs
+  the skill back is a pair that installs together, not a fault. Installs already bring both in once
+  (`resolveDeps` stops at the re-entry); only the reporting calls it broken. Change: reaching an
+  entry that is still being walked skips it silently, with no `cycle` item in `unresolved` and no
+  warning; doctor check 24 goes, or drops to info for a cycle that may be accidental. The entry
+  screen then shows nothing under Unresolved for a cycle (today it says "This entry will install
+  without it", which is false for a cycle). Uninstall already lists the other half as a dependent.
+  DEP-05 and check 24 come from `library.py` (check 24 tagged `contract`), so this is a recorded
+  divergence: a new row in `open-questions.md` beside A29.
 
 ## Proposed 2026-11-14
 
