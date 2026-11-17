@@ -681,6 +681,12 @@ Users connect a GitHub and/or Bitbucket account from an Accounts screen with a b
 - **Tokens** live in the macOS Keychain through `Host.secrets` (service `com.jhernandezinzunza.loadout`,
   account `<host>`). Non-secret account facts (login, scopes, connected-at) live in `config.json`
   under `accounts`. Disconnect deletes both.
+- **Held in memory (M11.01, decided 2026-11-07).** Each Keychain read can be a prompt, so
+  `createAccounts` holds a host's token set in memory for 15 minutes after reading it (git's own
+  credential cache default), for the life of its `Library` instance; never on disk, in logs or in
+  `Host.audit`. Concurrent calls share one pending read. `connect` and a Bitbucket refresh replace
+  the held set, `disconnect` drops it, and `checkAccount` reads the Keychain again. A missing token
+  isn't held. Expiry and refresh are checked on the held set as on a fresh read.
 - **git** gets the token per command, never on disk: for an https URL on a connected host, the core
   runs `git -c credential.helper= -c 'credential.helper=!f() { test "$1" = get && printf
   "username=%s\npassword=%s\n" "$LOADOUT_GIT_USER" "$LOADOUT_GIT_TOKEN"; }; f' …` with the two

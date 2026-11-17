@@ -31,8 +31,11 @@ export interface Accounts {
   /** Deletes the token and the account's facts; succeeds when nothing was connected. */
   disconnect(on: AccountHost): Promise<Result<void>>;
   accounts(): Promise<Result<Partial<Record<AccountHost, AccountInfo>>>>;
-  /** The access token to use now, refreshing an expired Bitbucket token first. */
-  tokenFor(on: AccountHost): Promise<Result<string>>;
+  /**
+   * The access token to use now, refreshing an expired Bitbucket token first. A token set read from
+   * Host.secrets is held for 15 minutes; `reread` reads it again anyway.
+   */
+  tokenFor(on: AccountHost, opts?: { reread?: boolean }): Promise<Result<string>>;
   /** The login and scopes a token belongs to; AUTH_FAILED when the host rejects it. */
   whoami(on: AccountHost, accessToken: string): Promise<Result<{ login: string; scopes: string[] | null }>>;
 }
@@ -41,9 +44,17 @@ const names: Record<AccountHost, string> = { github: "GitHub", bitbucket: "Bitbu
 // Refresh a little early, so a token does not expire between tokenFor() and its use.
 const refreshMarginMs = 60_000;
 const timeoutMs = 15_000;
+// git's own credential cache default; each read can be a Keychain prompt (arch §5.5)
+const holdMs = 15 * 60_000;
 
 export function createAccounts(host: Host, store: ConfigStore, opts: AccountsOptions = {}): Accounts {
   const bases = opts.apiBases ?? defaultApiBases;
+  // Token sets in memory only. A pending read is held too, so concurrent git commands share it.
+  const held = new Map<AccountHost, { at: number; tokens: Promise<TokenSet | null> }>();
+
+  function hold(on: AccountHost, tokens: TokenSet) {
+    held.set(on, { at: host.now().getTime(), tokens: Promise.resolve(tokens) });
+  }
 
   async function request(req: Parameters<Host["http"]["request"]>[0]) {
     try {
@@ -76,7 +87,20 @@ export function createAccounts(host: Host, store: ConfigStore, opts: AccountsOpt
     return ok({ login, scopes: scopes === undefined ? null : scopes.split(",").map((s) => s.trim()).filter(Boolean) });
   }
 
-  async function readTokens(on: AccountHost): Promise<TokenSet | null> {
+  async function readTokens(on: AccountHost, reread: boolean): Promise<TokenSet | null> {
+    const kept = held.get(on);
+    if (!reread && kept !== undefined && host.now().getTime() - kept.at < holdMs) return kept.tokens;
+    const entry = { at: host.now().getTime(), tokens: readStored(on) };
+    held.set(on, entry);
+    const tokens = await entry.tokens.catch((e: unknown) => {
+      if (held.get(on) === entry) held.delete(on);
+      throw e;
+    });
+    if (tokens === null && held.get(on) === entry) held.delete(on); // nothing to hold
+    return tokens;
+  }
+
+  async function readStored(on: AccountHost): Promise<TokenSet | null> {
     const raw = await host.secrets.get(on);
     if (raw === null) return null;
     try {
@@ -110,6 +134,7 @@ export function createAccounts(host: Host, store: ConfigStore, opts: AccountsOpt
       ...(answer.scopes !== undefined ? { scopes: answer.scopes.split(" ") } : tokens.scopes && { scopes: tokens.scopes }),
     };
     await host.secrets.set("bitbucket", JSON.stringify(next));
+    hold("bitbucket", next);
     return ok(next);
   }
 
@@ -124,14 +149,20 @@ export function createAccounts(host: Host, store: ConfigStore, opts: AccountsOpt
         scopes: who.value.scopes ?? tokens.scopes ?? [],
         connectedAt: host.now().toISOString(),
       };
-      await host.secrets.set(on, JSON.stringify(TokenSet.parse(tokens)));
+      const stored = TokenSet.parse(tokens);
+      await host.secrets.set(on, JSON.stringify(stored));
       const saved = await store.updateConfig((c) => ({ ...c, accounts: { ...c.accounts, [on]: info } }));
-      if (saved.ok) return ok(info);
+      if (saved.ok) {
+        hold(on, stored);
+        return ok(info);
+      }
+      held.delete(on);
       await host.secrets.delete(on);
       return saved;
     },
 
     async disconnect(on) {
+      held.delete(on);
       await host.secrets.delete(on);
       const saved = await store.updateConfig((c) => {
         if (c.accounts?.[on] === undefined) return c;
@@ -147,8 +178,8 @@ export function createAccounts(host: Host, store: ConfigStore, opts: AccountsOpt
       return loaded.ok ? ok(loaded.value.config.accounts ?? {}) : loaded;
     },
 
-    async tokenFor(on) {
-      const tokens = await readTokens(on);
+    async tokenFor(on, o = {}) {
+      const tokens = await readTokens(on, o.reread === true);
       if (tokens === null) return err({ code: "NOT_CONNECTED", message: `No ${names[on]} account is connected` });
       const expired =
         tokens.expiresAt !== undefined && Date.parse(tokens.expiresAt) - refreshMarginMs <= host.now().getTime();

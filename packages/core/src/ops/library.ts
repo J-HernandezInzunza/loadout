@@ -520,7 +520,7 @@ export function createLibrary(host: Host, opts: LibraryOptions = {}): Library {
     },
 
     async checkAccount(on) {
-      const token = await accounts.tokenFor(on);
+      const token = await accounts.tokenFor(on, { reread: true });
       if (!token.ok) return token;
       return accounts.whoami(on, token.value);
     },

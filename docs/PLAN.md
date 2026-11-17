@@ -1450,7 +1450,7 @@ the Keychain at most once every 15 minutes.
 Decided 2026-11-07 (owner): 15 minutes, the default of git's own credential cache, rather than the
 whole session.
 
-- [ ] **M11.01 Keep an account's token for 15 minutes.** `createAccounts` keeps each host's token
+- [x] **M11.01 Keep an account's token for 15 minutes.** `createAccounts` keeps each host's token
   set for 15 minutes after it reads it from `Host.secrets`, for the life of its Library instance, in
   memory only (never on disk, in logs or in the audit log); after that the next call reads the
   Keychain again. `connect` and a Bitbucket refresh replace it, `disconnect` drops it, and
