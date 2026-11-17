@@ -9,13 +9,13 @@ export function catalogHue(precedence: number): number {
   return HUES[(precedence - 1) % HUES.length]!;
 }
 
-/** What the list shows: which type, every catalog or one, and every copy or only the installed or switched-off ones. */
+/** What the list shows: which type, every catalog or one, and every copy or only the installed, missing or switched-off ones. */
 export interface ListFilter {
   /** null: every type */
   type: EntryType | null;
   /** null: every catalog */
   from: string | null;
-  state: "any" | "installed" | "disabled";
+  state: "any" | "installed" | "not_installed" | "disabled";
   /** with every catalog, only the copies that would install */
   hideOverridden: boolean;
 }
@@ -59,6 +59,7 @@ export function rowsFor(filter: ListFilter, records: EntryRecord[]): Row[] {
   else if (filter.hideOverridden) shown = records.filter((e) => e.overriddenBy === null);
   else shown = groupByName(records);
   if (filter.state === "installed") shown = shown.filter((e) => e.installed);
+  if (filter.state === "not_installed") shown = shown.filter((e) => !e.installed);
   if (filter.state === "disabled") shown = shown.filter((e) => e.overriddenBy === null && e.disabled);
   if (filter.type !== null) shown = shown.filter((e) => e.type === filter.type);
   return shown.map((entry) => ({
@@ -172,6 +173,19 @@ export function describeDestState(state: PlanItem["state"]): string {
       return "installed outside Loadout";
     case "absent":
       return "new";
+  }
+}
+
+/** The badge tone for the same state, so a destination reads here as its copy does in the list. */
+export function destTone(state: PlanItem["state"]): Row["tone"] {
+  switch (state) {
+    case "installed":
+    case "unmanaged":
+      return "installed";
+    case "drifted":
+      return "attention";
+    case "absent":
+      return "absent";
   }
 }
 

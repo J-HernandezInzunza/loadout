@@ -1,6 +1,6 @@
 import { entryRecord, installedRecord } from "@loadout/core/testing";
 import { describe, expect, it } from "vitest";
-import { catalogHue, describePush, installStatus, rowsFor, searchRows, type ListFilter } from "./catalog.ts";
+import { catalogHue, describePush, destTone, installStatus, rowsFor, searchRows, type ListFilter } from "./catalog.ts";
 
 const label = (rows: ReturnType<typeof rowsFor>) => rows.map((r) => `${r.entry.name}@${r.entry.catalog}`);
 
@@ -24,6 +24,10 @@ describe("UI-19: the install badge", () => {
 
   it("calls a copy that is on the machine but switched off disabled, whatever else is true of it", () => {
     expect(installStatus(installedRecord("drifted", { disabled: true }))).toEqual({ status: "disabled", tone: "disabled" });
+  });
+
+  it("gives a destination in an install plan the tone its copy has in the list", () => {
+    expect((["installed", "unmanaged", "drifted", "absent"] as const).map(destTone)).toEqual(["installed", "installed", "attention", "absent"]);
   });
 });
 
@@ -49,6 +53,12 @@ describe("UI-12: which rows a filter shows", () => {
     expect(fromB[0]!.status).toBe("not installed");
     expect(rowsFor({ ...all, from: "A" }, records)[0]!.overrides).toEqual([]);
     expect(label(rowsFor({ ...all, state: "disabled" }, records))).toEqual(["off@B"]);
+  });
+
+  it("shows the copies that aren't on the machine as Not installed, a switched-off one left out", () => {
+    expect(label(rowsFor({ ...all, state: "not_installed" }, records))).toEqual(["x@A", "x@B", "lint@A"]);
+    expect(label(rowsFor({ ...all, state: "not_installed", hideOverridden: true }, records))).toEqual(["x@A", "lint@A"]);
+    expect(label(rowsFor({ ...all, state: "not_installed", from: "B" }, records))).toEqual(["x@B"]);
   });
 
   it("combines the type, the catalog and the state", () => {

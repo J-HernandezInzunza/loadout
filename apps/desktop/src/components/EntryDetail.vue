@@ -12,6 +12,7 @@ import CopyChooser from "./CopyChooser.vue";
 import InstalledCopies from "./InstalledCopies.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
+import StatusChip from "./StatusChip.vue";
 
 const props = defineProps<{
   stop: EntryStop;
@@ -99,13 +100,12 @@ const handoff = computed(() =>
         >
           {{ detail.entry.catalog }}
         </span>
-        <span
+        <StatusChip
           v-if="status"
-          class="entry-detail__status"
-          :class="`entry-detail__status--${status.tone}`"
+          :tone="status.tone"
         >
           {{ status.status }}
-        </span>
+        </StatusChip>
       </template>
 
       <BusyIndicator
@@ -186,10 +186,9 @@ const handoff = computed(() =>
               >
                 <span class="entry-detail__dep-head">
                   <strong>{{ dep.name }}</strong>
-                  <span
-                    class="entry-detail__dep-state"
-                    :class="{ 'entry-detail__dep-state--missing': !dep.installed }"
-                  >{{ dep.installed ? "installed" : "not installed" }}</span>
+                  <StatusChip :tone="dep.installed ? 'installed' : 'absent'">
+                    {{ dep.installed ? "installed" : "not installed" }}
+                  </StatusChip>
                 </span>
                 <span class="entry-detail__req-desc">{{ dep.description }}</span>
               </button>
@@ -213,10 +212,9 @@ const handoff = computed(() =>
               >
                 <span class="entry-detail__dep-head">
                   <strong>{{ dep.name }}</strong>
-                  <span
-                    class="entry-detail__dep-state"
-                    :class="{ 'entry-detail__dep-state--missing': !dep.installed }"
-                  >{{ dep.installed ? "installed" : "not installed" }}</span>
+                  <StatusChip :tone="dep.installed ? 'installed' : 'absent'">
+                    {{ dep.installed ? "installed" : "not installed" }}
+                  </StatusChip>
                 </span>
               </button>
             </li>
@@ -243,10 +241,9 @@ const handoff = computed(() =>
                     v-if="!user.direct"
                     class="entry-detail__indirect"
                   >via another entry</span>
-                  <span
-                    class="entry-detail__dep-state"
-                    :class="{ 'entry-detail__dep-state--missing': !user.installed }"
-                  >{{ user.installed ? "installed" : "not installed" }}</span>
+                  <StatusChip :tone="user.installed ? 'installed' : 'absent'">
+                    {{ user.installed ? "installed" : "not installed" }}
+                  </StatusChip>
                 </span>
                 <span class="entry-detail__req-desc">{{ user.description }}</span>
               </button>
@@ -288,34 +285,6 @@ const handoff = computed(() =>
   text-transform: uppercase;
   letter-spacing: 0.03em;
   opacity: 0.6;
-}
-.entry-detail__status {
-  font-size: 0.7rem;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: var(--status-ok-tint);
-  color: var(--status-ok-ink);
-}
-.entry-detail__status--absent {
-  background: var(--surface-sunken);
-  color: inherit;
-  opacity: 0.75;
-}
-.entry-detail__status--disabled {
-  /* Matches the list's badge: violet reads as neither the green of a loading skill nor
-     the grey of one that was never installed. Without this the base rule's green would
-     put "disabled" in the colour of a skill that is loading. */
-  background: var(--status-disabled-tint);
-  color: var(--status-disabled-ink);
-}
-.entry-detail__status--attention {
-  background: var(--status-attention-tint);
-  color: var(--status-attention-ink);
-}
-.entry-detail__status--overridden {
-  background: var(--surface-sunken);
-  color: inherit;
-  opacity: 0.75;
 }
 .entry-detail__handoff {
   display: flex;
@@ -461,18 +430,6 @@ const handoff = computed(() =>
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-}
-.entry-detail__dep-state {
-  font-size: 0.7rem;
-  padding: 0.05rem 0.4rem;
-  border-radius: 999px;
-  background: var(--status-ok-tint);
-  color: var(--status-ok-ink);
-}
-.entry-detail__dep-state--missing {
-  background: var(--surface-sunken);
-  color: inherit;
-  opacity: 0.7;
 }
 .entry-detail__indirect {
   font-size: 0.7rem;

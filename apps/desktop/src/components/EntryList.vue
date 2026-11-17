@@ -7,6 +7,7 @@ import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import { useToastStore } from "../stores/toasts.ts";
 import type { EntryStop } from "../stores/views.ts";
+import StatusChip from "./StatusChip.vue";
 
 const props = defineProps<{
   rows: Row[];
@@ -180,12 +181,12 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
             </span>
             <!-- Whether this copy is on the machine, apart from the precedence pills, so an overridden
                  copy can say both "overridden by X" and "not installed". -->
-            <span
+            <StatusChip
               class="entry-list__status"
-              :class="`entry-list__status--${row.tone}`"
+              :tone="row.tone"
             >
               {{ row.status }}
-            </span>
+            </StatusChip>
           </div>
 
           <p class="entry-list__desc">
@@ -350,29 +351,6 @@ const hueByCatalog = computed(() => new Map(props.catalogs.map((c) => [c.id, cat
 .entry-list__status {
   /* Pushed to the card's top-right, apart from the precedence pills on the left. */
   margin-left: auto;
-  font-size: 0.7rem;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-.entry-list__status--installed {
-  background: var(--status-ok-tint);
-  color: var(--status-ok-ink);
-}
-.entry-list__status--absent {
-  background: var(--surface-sunken);
-  opacity: 0.8;
-}
-.entry-list__status--disabled {
-  /* Violet, so "switched off" reads as neither the green of a loading skill nor the grey
-     of one that was never installed. */
-  background: var(--status-disabled-tint);
-  color: var(--status-disabled-ink);
-}
-.entry-list__status--attention {
-  background: var(--status-attention-tint);
-  color: var(--status-attention-ink);
-  font-weight: 600;
 }
 .entry-list__overridden {
   font-size: 0.7rem;

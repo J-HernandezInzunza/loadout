@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { discardsEdits, type Library } from "@loadout/core";
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { describeDestState, summarizeChanges } from "../catalog.ts";
+import { describeDestState, destTone, summarizeChanges } from "../catalog.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
@@ -9,6 +9,7 @@ import { useViewStore } from "../stores/views.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import PageHeader from "./PageHeader.vue";
 import StatusBanner from "./StatusBanner.vue";
+import StatusChip from "./StatusChip.vue";
 import UiCheckbox from "./ui/UiCheckbox.vue";
 
 type Plan = Parameters<Library["applySync"]>[0];
@@ -153,7 +154,9 @@ onUnmounted(() => void discard());
                 v-if="item.requiredBy.length"
                 class="sync__badge"
               >dependency</span>
-              <span class="sync__badge">{{ describeDestState(item.state) }}</span>
+              <StatusChip :tone="destTone(item.state)">
+                {{ describeDestState(item.state) }}
+              </StatusChip>
               <span
                 v-if="item.status !== 'ready'"
                 class="sync__detail"
@@ -177,7 +180,9 @@ onUnmounted(() => void discard());
             >
               <div class="sync__head">
                 <span class="sync__name">{{ item.name }}</span>
-                <span class="sync__badge">{{ describeDestState(item.state) }}</span>
+                <StatusChip :tone="destTone(item.state)">
+                  {{ describeDestState(item.state) }}
+                </StatusChip>
                 <span
                   v-if="item.status !== 'ready'"
                   class="sync__detail"

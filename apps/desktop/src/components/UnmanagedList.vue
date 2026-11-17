@@ -12,6 +12,7 @@ import { useToastStore } from "../stores/toasts.ts";
 import { useViewStore } from "../stores/views.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
+import StatusChip from "./StatusChip.vue";
 
 const GROUPS = [
   { type: "skill", label: "Skills" },
@@ -138,13 +139,14 @@ async function reveal(path: string) {
             />
             <span class="unmanaged__name">{{ item.name }}</span>
             <!-- The list's badge for the same state, with when the change lands on hover. -->
-            <span
+            <StatusChip
               v-if="item.disabled"
               class="unmanaged__status"
+              tone="disabled"
               :title="SESSION_TIMING"
             >
               disabled
-            </span>
+            </StatusChip>
             <button
               type="button"
               class="ghost btn-xs unmanaged__reveal"
@@ -229,14 +231,6 @@ async function reveal(path: string) {
   font-weight: 600;
   min-width: 0;
   overflow-wrap: anywhere;
-}
-.unmanaged__status {
-  font-size: 0.7rem;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  white-space: nowrap;
-  background: var(--status-disabled-tint);
-  color: var(--status-disabled-ink);
 }
 .unmanaged__reveal {
   margin-left: auto;

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { discardsEdits, type Library } from "@loadout/core";
 import { computed, onUnmounted, ref, watch } from "vue";
-import { describeDestState } from "../catalog.ts";
+import { describeDestState, destTone } from "../catalog.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
 import BusyIndicator from "./BusyIndicator.vue";
 import StatusBanner from "./StatusBanner.vue";
+import StatusChip from "./StatusChip.vue";
 import UiCheckbox from "./ui/UiCheckbox.vue";
 
 type Plan = Parameters<Library["applyInstall"]>[0];
@@ -263,10 +264,9 @@ onUnmounted(() => void discard());
             v-if="item.requiredBy.length"
             class="bulk__role"
           >dependency</span>
-          <span
-            class="bulk__state"
-            :class="{ 'bulk__state--drifted': item.state === 'drifted' }"
-          >{{ describeDestState(item.state) }}</span>
+          <StatusChip :tone="destTone(item.state)">
+            {{ describeDestState(item.state) }}
+          </StatusChip>
         </li>
       </ul>
       <label
@@ -347,14 +347,6 @@ onUnmounted(() => void discard());
   text-transform: uppercase;
   letter-spacing: 0.04em;
   opacity: 0.5;
-}
-.bulk__state {
-  font-size: 0.72rem;
-  opacity: 0.65;
-}
-.bulk__state--drifted {
-  color: var(--status-attention-ink);
-  opacity: 1;
 }
 .bulk__ack {
   display: flex;
