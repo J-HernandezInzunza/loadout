@@ -262,7 +262,11 @@ the suggested one. Mechanisms were read from Claude Code's docs, not run, so eac
 
 - **Developer ID signing and notarization,** which removes the Open Anyway step (arch §7, Q2 A), then
   `tauri-plugin-updater`.
-- **Recording workflows in the native app** for README demos (open-questions Q13 c).
+- **Recording workflows** for README demos (open-questions Q13 c). Planned as M16 in `PLAN.md`,
+  in a browser over the real core, with its decisions.
+- **Driving the native app.** WebdriverIO's Tauri service with its embedded WebDriver plugin, plus a
+  window recorder, for what M16's browser can't show: the window frame, WKWebView quirks and the real
+  app-data folder. Its macOS support was unconfirmed beyond starting the app (2026-11-18).
 - **Agents on and off** ("agents later", Q15 A), through `permissions.deny: ["Agent(<name>)"]` in
   `~/.claude/settings.json`, Claude Code's documented way, keyed by the agent's frontmatter `name`,
   and written with the same careful edit as the skill switch (arch §4.5). It blocks an agent rather

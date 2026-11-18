@@ -1786,4 +1786,121 @@ change):
 
 ---
 
+## M16. Browser mode, flows and recordings
+
+Exit: every M16 task checked; `npm run demo` serves the app in a browser, on the real core over a
+seeded sandbox; `npm run flows` runs every flow headless and passes; `npm run record -- <flow>`
+writes a video of that flow that the owner judged fit for a README; the ui-verifier agent checked a
+change through the demo URL; a release build holds none of it.
+
+Decided 2026-11-18 (owner, from the ROADMAP item "Recording workflows", open-questions Q13 c):
+
+- Playwright, in a browser, over driving the native app. One script per workflow both verifies it
+  and records it, with `page.screencast` (Playwright 1.59+) drawing the cursor, click highlights and
+  chapter cards. Driving the real app (WebdriverIO's Tauri service with its embedded WebDriver
+  plugin, plus a window recorder) stays a ROADMAP item: its macOS support is unconfirmed beyond
+  starting the app, and it would read the real app-data folder.
+- The real core, sandboxed, not a fake. In browser mode the frontend runs `createLibrary` as the app
+  does, over a bridge `Host` whose calls go to the Vite dev server, which answers them with
+  `createNodeHost` confined to a temp root: seeded catalogs, bare git remotes behind `github.com` and
+  `bitbucket.org` URLs (as the git harness does), and the API stub for GitHub and Bitbucket. Installs,
+  diffs, receipts and PRs are real; nothing has to be kept in step with the core. The in-memory fake
+  refuses almost every mutation, so it can't drive a flow as it stands.
+- Flows stay out of the gate. `npm run flows` runs them; a CI job comes once they prove stable, so
+  `check:offline` needs no browser download.
+
+Defaults, reversible (say so in review if one should change):
+
+- Flows are Playwright tests in `apps/desktop/flows/`, one file per workflow. Recording runs the same
+  file with `RECORD=1`; a `chapter(title)` helper shows a card when recording and does nothing
+  otherwise, so verifying and recording can't drift apart.
+- Each flow starts from a fresh sandbox (a reset endpoint on the bridge), so flows are independent
+  and repeatable. The sandbox lives under the OS temp folder and is deleted when the server stops.
+- The window is 1100×760, the app's default size, for verifying and recording.
+- Output goes to `apps/desktop/demo/out/` (git-ignored). Publishing a video is done by hand.
+- The Tauri calls the UI makes itself (opener, dialog, deep link, events, app version, window) are
+  answered with `mockIPC` in browser mode. Opener calls are recorded on the page for flows to read
+  rather than opening anything; the file dialog answers a path inside the sandbox.
+- Sign-in uses GitHub's device flow against the API stub. Bitbucket's browser redirect is not
+  covered.
+- The skill that ties it together is tracked in the repo at `.claude/skills/`, so teammates get it.
+
+- [ ] **M16.01 Spike: screencast on this app.** Record the current read-only screens (the dev build
+  over the in-memory fake, `mockIPC` answering plugin calls in a plain browser) at 1100×760 with the
+  cursor, click highlights and one chapter card. Compare `page.screencast`'s WebM with its JPEG frames
+  piped to ffmpeg as H.264, for legible text in the catalog list and in a diff. Check whether the
+  screencast works on Playwright's WebKit (closer to the app's WKWebView) or only on Chromium, and
+  whether `mockIPC` covers every plugin call the UI makes. Record it as S16 in
+  `docs/spec/spikes.md`.
+  - Rules: none (spike)
+  - Depends: none
+  - Done when: S16 records the encoder chosen (and whether ffmpeg is needed, from where), the
+    browser for verifying and for recording, file sizes for a one-minute flow, and the plugin calls
+    `mockIPC` can't answer; the owner judged the chosen encoder's output legible.
+
+- [ ] **M16.02 The sandbox outside Vitest.** Move the path confinement in `packages/core/test/
+  sandbox.ts`, the git harness's remotes and the API stub's server into code that runs in plain
+  Node, with clean-up passed in instead of `onTestFinished`; the test helpers become thin wrappers
+  over it. Nothing it contains may reach a release build.
+  - Rules: none (tooling)
+  - Depends: none
+  - Done when: every existing test passes unchanged in substance, and a Node script (no Vitest)
+    creates a sandbox, a remote and the stub, then removes them all.
+
+- [ ] **M16.03 A seeded sandbox.** `seedDemo(sandbox)` registers a local `personal` catalog and a
+  remote `team` catalog (`bitbucket.org/acme/catalog`, PR mode), and installs through the real core
+  so receipts are real. Then it edits one copy (drifted), copies one in by hand (unmanaged), moves
+  one source ahead (stale), switches one off, pins one name, and connects a GitHub account through
+  the stub. Names and descriptions read as real content, since recordings show them.
+  - Rules: none (tooling)
+  - Depends: M16.02
+  - Done when: a Node test seeds a sandbox and `list` and `show` report every one of those states.
+
+- [ ] **M16.04 The bridge host.** `createBridgeHost(base)` implements `Host` in the browser with
+  one POST per call; bytes travel as base64, an `AbortSignal` aborts the request, and a rejection
+  keeps its `code` (`ENOENT`, `EXDEV`, `AbortError`, `TimeoutError`). A Vite plugin, applied only in
+  browser mode, answers those calls with the sandbox's Node host and serves `POST /__demo/reset`,
+  which replaces the sandbox with a freshly seeded one. It listens on loopback only, and a path
+  outside the sandbox root is refused.
+  - Rules: none (tooling)
+  - Depends: M16.03
+  - Done when: tests round-trip every `Host` method through the plugin's handler, show each error
+    code kept, a path outside the root refused, and reset giving back the seeded state.
+
+- [ ] **M16.05 Browser mode.** `npm run demo` (`vite --mode browser`) loads `src/main.browser.ts`:
+  `createLibrary` over the bridge host, `apiBases` pointing at the stub, and `mockIPC` for the
+  plugin calls, recording opener calls on the page. `main.ts` and release builds don't import it.
+  - Rules: none (tooling)
+  - Depends: M16.01, M16.04
+  - Done when: the app opens in a browser on the seeded sandbox, an install and a remove change the
+    sandbox's files, and a test fails if the release bundle (`vite build`) contains the bridge or
+    the sandbox code.
+
+- [ ] **M16.06 The first flows.** Playwright in `apps/desktop/flows/`, `npm run flows`, every flow
+  starting with a reset, in the browser S16 chose for verifying. Two flows: install a skill from the
+  catalog, through its preview; and an installed copy on its entry page: Reveal in Finder (the call
+  recorded), Send edits back on the drifted copy (its modal, the diff, a PR opened on the stub) and
+  Remove (its modal, the files gone).
+  - Rules: none (tooling)
+  - Depends: M16.05
+  - Done when: both flows pass headless twice in a row from one server start.
+
+- [ ] **M16.07 Recording.** `npm run record -- <flow>` runs one flow with `RECORD=1`: the screencast
+  with the cursor and click highlights, its `chapter` cards, pacing that lets each change settle, and
+  the encoder S16 chose, written to `apps/desktop/demo/out/<flow>`. Add a "Flows and recordings"
+  section to CONTRIBUTING.md.
+  - Rules: none (tooling)
+  - Depends: M16.06
+  - Done when: both flows record; the owner watched both and judged them fit for a README.
+
+- [ ] **M16.08 The skill.** A project skill that starts browser mode and does one of three things:
+  verify a change (brief the ui-verifier agent with the demo URL, the reset endpoint, what changed
+  and the steps), run or record a named flow, or write a new flow from steps the user describes.
+  - Rules: none (tooling)
+  - Depends: M16.07
+  - Done when: the skill verified a change through the ui-verifier agent end to end and recorded a
+    flow, and its runs are recorded in PROGRESS.md.
+
+---
+
 Roadmap (not planned): `docs/ROADMAP.md`.
