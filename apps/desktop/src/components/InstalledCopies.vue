@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { EntryRecord } from "@loadout/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { computed, ref, watch } from "vue";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { computed, defineAsyncComponent, ref, watch } from "vue";
 import type { PushOutcome } from "../catalog.ts";
 import { useViewStore } from "../stores/views.ts";
-import PushControl from "./PushControl.vue";
 import StatusBanner from "./StatusBanner.vue";
-import UninstallControl from "./UninstallControl.vue";
+
+const PushControl = defineAsyncComponent(() => import("./PushControl.vue"));
+const UninstallControl = defineAsyncComponent(() => import("./UninstallControl.vue"));
 
 const props = defineProps<{
   /** the page's entry with the install fields of its destination */
@@ -18,7 +19,7 @@ const emit = defineEmits<{ changed: [] }>();
 
 const views = useViewStore();
 
-/** One panel at a time, held as one value so two open forms aren't representable. */
+/** One modal at a time, held as one value so two open forms aren't representable. */
 type Panel = { dest: string; mode: "push" | "remove" };
 const panel = ref<Panel | null>(null);
 /**
@@ -28,17 +29,23 @@ const panel = ref<Panel | null>(null);
 const outcome = ref<{ kind: "success" | "error"; text: string; detail?: string; push?: PushOutcome } | null>(null);
 
 function show(dest: string, mode: Panel["mode"]) {
-  const open = panel.value;
-  panel.value = open?.dest === dest && open.mode === mode ? null : { dest, mode };
-  if (panel.value) outcome.value = null;
+  panel.value = { dest, mode };
+  outcome.value = null;
 }
-
-const isOpen = (dest: string, mode: Panel["mode"]) => panel.value?.dest === dest && panel.value.mode === mode;
 
 function done(result: NonNullable<typeof outcome.value>) {
   outcome.value = result;
   panel.value = null;
   if (result.kind === "success") emit("changed");
+}
+
+/** The copy itself, a link included, not what it points at. */
+async function reveal(dest: string) {
+  try {
+    await revealItemInDir(dest);
+  } catch (e) {
+    outcome.value = { kind: "error", text: `Could not show ${dest}.`, detail: String(e) };
+  }
 }
 
 /** The PR or compare link, in the real browser rather than the app's WebView. */
@@ -67,6 +74,8 @@ const copies = computed(() =>
     dest,
     fromCatalog: props.entry.receipt?.catalog.id ?? null,
     managed: props.entry.receipt !== null,
+    // Without a receipt there's no telling whether it was edited, so the dry run decides.
+    sendable: props.entry.state === "drifted" || props.entry.receipt === null,
   })),
 );
 </script>
@@ -141,6 +150,13 @@ const copies = computed(() =>
             from {{ copy.fromCatalog }}, not {{ entry.catalog }}
           </span>
           <span class="copies__actions">
+            <button
+              type="button"
+              class="ghost btn-sm"
+              @click="reveal(copy.dest)"
+            >
+              Reveal in Finder
+            </button>
             <!-- The install page asks before anything is replaced. -->
             <button
               v-if="!copy.managed"
@@ -151,9 +167,9 @@ const copies = computed(() =>
               Replace with the catalog's copy
             </button>
             <button
+              v-if="copy.sendable"
               type="button"
               class="ghost btn-sm"
-              :aria-expanded="isOpen(copy.dest, 'push')"
               @click="show(copy.dest, 'push')"
             >
               Send edits back
@@ -161,33 +177,27 @@ const copies = computed(() =>
             <button
               type="button"
               class="danger btn-sm"
-              :aria-expanded="isOpen(copy.dest, 'remove')"
               @click="show(copy.dest, 'remove')"
             >
               Remove
             </button>
           </span>
         </div>
-        <div
-          v-if="panel?.dest === copy.dest"
-          class="copies__panel fade-in"
-        >
-          <PushControl
-            v-if="panel.mode === 'push'"
-            :entry="entry"
-            :dest="copy.dest"
-            @done="done"
-            @close="panel = null"
-          />
-          <UninstallControl
-            v-else
-            :entry="entry"
-            :dest="copy.dest"
-            :affected="affected"
-            @done="done"
-            @close="panel = null"
-          />
-        </div>
+        <PushControl
+          v-if="panel?.dest === copy.dest && panel.mode === 'push'"
+          :entry="entry"
+          :dest="copy.dest"
+          @done="done"
+          @close="panel = null"
+        />
+        <UninstallControl
+          v-else-if="panel?.dest === copy.dest"
+          :entry="entry"
+          :dest="copy.dest"
+          :affected="affected"
+          @done="done"
+          @close="panel = null"
+        />
       </li>
     </ul>
   </section>
@@ -230,9 +240,6 @@ const copies = computed(() =>
   display: flex;
   gap: 0.4rem;
   margin-left: auto;
-}
-.copies__panel {
-  margin-top: 0.75rem;
 }
 .copies__outcome,
 .copies__outcome-detail {

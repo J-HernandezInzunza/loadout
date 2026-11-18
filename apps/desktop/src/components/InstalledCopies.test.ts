@@ -2,7 +2,7 @@ import type { EntryDetail as Detail, Library } from "@loadout/core";
 import { installedRecord } from "@loadout/core/testing";
 import { flushPromises } from "@vue/test-utils";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCatalogStore } from "../stores/catalog.ts";
 import { useViewStore } from "../stores/views.ts";
 import { mountView } from "../testing/mountView.ts";
@@ -41,31 +41,65 @@ async function mountPage(library: Partial<Library>, shows: Detail[] = [detail()]
 type Wrapper = Awaited<ReturnType<typeof mountPage>>["wrapper"];
 const press = async (w: Wrapper, label: string) => {
   await w.findAll("button").find((b) => b.text() === label)!.trigger("click");
+  await vi.dynamicImportSettled();
   await flushPromises();
 };
+const actions = (w: Wrapper) => w.findAll(".copies__actions button").map((b) => b.text());
+const dialog = (w: Wrapper) => w.find("dialog.modal-dialog");
+const drifted = () => detail(installedRecord("drifted", { name: "tidy", catalog: "team" }));
+
+// jsdom has <dialog> but not showModal, the call that makes it modal.
+const showModal = vi.fn(function (this: HTMLDialogElement) {
+  this.open = true;
+});
+beforeEach(() => {
+  showModal.mockClear();
+  HTMLDialogElement.prototype.showModal = showModal;
+});
+afterEach(() => Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal"));
 
 describe("UI-25: actions on the copy", () => {
-  it("offers Send edits back and Remove, one panel open at a time", async () => {
-    const { wrapper } = await mountPage({ planPush: () => new Promise(() => {}) });
-    expect(wrapper.findAll(".copies__actions button").map((b) => b.text())).toEqual(["Send edits back", "Remove"]);
+  it("offers Send edits back only for a copy with local edits", async () => {
+    const clean = await mountPage({});
+    expect(actions(clean.wrapper)).toEqual(["Reveal in Finder", "Remove"]);
+
+    const edited = await mountPage({}, [drifted()]);
+    expect(actions(edited.wrapper)).toEqual(["Reveal in Finder", "Send edits back", "Remove"]);
+  });
+
+  it("opens each action in a modal that Escape closes", async () => {
+    const { wrapper } = await mountPage({ planPush: () => new Promise(() => {}) }, [drifted()]);
     await press(wrapper, "Remove");
-    expect(wrapper.find(".uninstall").exists()).toBe(true);
+    expect(dialog(wrapper).find(".uninstall").exists()).toBe(true);
+    expect(dialog(wrapper).find(".modal-dialog__title").text()).toBe("Remove tidy");
+    expect(showModal.mock.contexts).toEqual([dialog(wrapper).element]);
+    await dialog(wrapper).trigger("cancel");
+    expect(dialog(wrapper).exists()).toBe(false);
+
     await press(wrapper, "Send edits back");
-    expect(wrapper.find(".uninstall").exists()).toBe(false);
-    expect(wrapper.find(".push").exists()).toBe(true);
-    expect(wrapper.find(".copies__actions button").attributes("aria-expanded")).toBe("true");
+    expect(dialog(wrapper).find(".push").exists()).toBe(true);
+    expect(dialog(wrapper).find(".modal-dialog__title").text()).toBe("Send tidy's edits back");
+  });
+
+  it("reveals the copy in Finder", async () => {
+    const ipc: [string, unknown][] = [];
+    mockIPC((cmd, payload) => void ipc.push([cmd, payload]));
+    const { wrapper } = await mountPage({});
+    await press(wrapper, "Reveal in Finder");
+    expect(ipc).toContainEqual(["plugin:opener|reveal_item_in_dir", { paths: [DEST] }]);
+    clearMocks();
   });
 });
 
 describe("a copy Loadout didn't install (Q8 A)", () => {
   it("offers the catalog's copy in its place, on the install page that asks first; a copy Loadout installed doesn't", async () => {
     const { wrapper } = await mountPage({}, [detail(installedRecord("unmanaged", { name: "tidy", catalog: "team" }))]);
-    expect(wrapper.findAll(".copies__actions button").map((b) => b.text())).toEqual(["Replace with the catalog's copy", "Send edits back", "Remove"]);
+    expect(actions(wrapper)).toEqual(["Reveal in Finder", "Replace with the catalog's copy", "Send edits back", "Remove"]);
     await press(wrapper, "Replace with the catalog's copy");
     expect(useViewStore().current).toEqual({ kind: "install", name: "tidy" });
 
     const managed = await mountPage({});
-    expect(managed.wrapper.findAll(".copies__actions button").map((b) => b.text())).not.toContain("Replace with the catalog's copy");
+    expect(actions(managed.wrapper)).not.toContain("Replace with the catalog's copy");
   });
 });
 
@@ -158,7 +192,7 @@ describe("UI-27: sending edits back", () => {
         applied.push(o?.message),
         ok({ name: "tidy", catalog: "team", dest: DEST, note: null, changed: true, kind: "remote" as const, pr: { method: "api" as const, branch: "library/update-tidy-1", prUrl: "https://github.com/acme/skills/pull/7", compareUrl: null } })
       ),
-    });
+    }, [drifted()]);
     await press(wrapper, "Send edits back");
     expect(wrapper.find(".push__provenance").text()).toBe("Your copy came from personal, not team.");
     expect(wrapper.find(".push__diff").text()).toContain("+new");
@@ -176,7 +210,7 @@ describe("UI-27: sending edits back", () => {
 
   it("says when there is nothing to send, and discards the plan when closed", async () => {
     const discarded: unknown[] = [];
-    const { wrapper } = await mountPage({ planPush: async () => ok({ ...remotePlan, note: null, changed: false } as never), discardPush: async (p) => (discarded.push(p), ok(undefined)) });
+    const { wrapper } = await mountPage({ planPush: async () => ok({ ...remotePlan, note: null, changed: false } as never), discardPush: async (p) => (discarded.push(p), ok(undefined)) }, [drifted()]);
     await press(wrapper, "Send edits back");
     expect(wrapper.find(".push__question").text()).toBe("Nothing to send — this copy already matches its source.");
     expect(wrapper.findAll(".push button").map((b) => b.text())).toEqual(["Cancel"]);
@@ -185,7 +219,7 @@ describe("UI-27: sending edits back", () => {
   });
 
   it("names the local file a local source would overwrite", async () => {
-    const { wrapper } = await mountPage({ planPush: async () => ok({ kind: "local", name: "tidy", catalog: "team", dest: DEST, note: null, changed: true, target: "/Users/dev/src/tidy" } as never), discardPush: async () => ok(undefined) });
+    const { wrapper } = await mountPage({ planPush: async () => ok({ kind: "local", name: "tidy", catalog: "team", dest: DEST, note: null, changed: true, target: "/Users/dev/src/tidy" } as never), discardPush: async () => ok(undefined) }, [drifted()]);
     await press(wrapper, "Send edits back");
     expect(wrapper.find(".push__note").text()).toContain("overwrites it directly — no pull request, no review.");
     expect(wrapper.find(".push__dest").text()).toBe("Would overwrite /Users/dev/src/tidy");

@@ -1836,19 +1836,21 @@ Tags: app/mvp/free
   receipt; "put here by hand — the tool has no record of it" without a receipt; "from {c}, not {subject}"
   when the receipt's catalog differs; per row "Send edits back" and "Remove", one panel open at a
   time. Empty: "Not installed anywhere yet. …". Source: `components/InstalledCopies.vue:37-125`,
-  `catalog.ts:638-647`; specs `InstalledCopies.spec.ts`.
+  `catalog.ts:638-647`; specs `InstalledCopies.spec.ts`. Rebuild: each row also has "Reveal in Finder";
+  "Send edits back" shows only for a drifted copy or one without a receipt; the actions open in a modal, not a panel under the row.
 - **UI-26** Per-copy uninstall is two-step: "Delete the {scope} copy of {name}?" + dest + dependents
   that will be left incomplete + "The catalog entry is untouched…"; Delete sends `force:false`; a
   refusal becomes a **second** confirmation ("The tool has no install receipt for this path…"; "Leave
   it alone" / "Delete anyway" with `force:true`); force is never offered first. The "Removed …" success
-  banner is effectively never seen (the page reloads and unmounts it). Source: `components/UninstallControl.vue:33-102`; specs `UninstallControl.spec.ts:36-161`.
+  banner is effectively never seen (the page reloads and unmounts it). Rebuild: in a modal titled "Remove {name}". Source: `components/UninstallControl.vue:33-102`; specs `UninstallControl.spec.ts:36-161`.
 - **UI-27** Push ("Send edits back"): dry run on open; shows the provenance `note` first; "Nothing to
   send — this copy already matches its source." when unchanged; else the diff (`<pre>`, max 18rem) or
   "Would overwrite {dest}" for a local source; a message field for PR sources (placeholder "library:
   updated {name}"); confirm "Push and open a pull request" | "Overwrite the source". Outcomes
   (`describePush`): "Nothing to push." / "Copied {name} back to its source." / "Pull request opened." +
   "View the pull request" / "Branch pushed — the pull request is not open yet." + "Open a pull request"
-  (compare URL); it never says "opened" unless `method == gh`. Links open in the system browser. Source: `components/PushControl.vue:42-160`, `catalog.ts:669-705`; spec `catalog.spec.ts:895-951`.
+  (compare URL); it never says "opened" unless `method == gh`. Links open in the system browser. Rebuild: in a modal titled "Send {name}'s edits back"; Escape does
+  nothing while the check or the push runs. Source: `components/PushControl.vue:42-160`, `catalog.ts:669-705`; spec `catalog.spec.ts:895-951`.
 - **UI-28** Install-and-set-up card → `EntryInstall` page. Source: `components/EntryDetail.vue:153-157`, `394-400`.
 - **UI-29** Copies and pins: "Where this comes from ({n} catalogs)" or "Catalog holding this name";
   per copy: "pinned — this is what installs" / "first by catalog order — this is what installs" /
