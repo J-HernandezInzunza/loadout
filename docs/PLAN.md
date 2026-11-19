@@ -1797,8 +1797,8 @@ change through the demo URL; a release build holds none of it.
 Decided 2026-11-18 (owner, from the ROADMAP item "Recording workflows", open-questions Q13 c):
 
 - Playwright, in a browser, over driving the native app. One script per workflow both verifies it
-  and records it, with `page.screencast` (Playwright 1.59+) drawing the cursor, click highlights and
-  chapter cards. Driving the real app (WebdriverIO's Tauri service with its embedded WebDriver
+  and records it, with `page.screencast` (Playwright 1.59+) drawing the cursor and chapter
+  cards (cursor only, no click highlights: owner, 2026-11-19, after S16). Driving the real app (WebdriverIO's Tauri service with its embedded WebDriver
   plugin, plus a window recorder) stays a ROADMAP item: its macOS support is unconfirmed beyond
   starting the app, and it would read the real app-data folder.
 - The real core, sandboxed, not a fake. In browser mode the frontend runs `createLibrary` as the app
@@ -1897,7 +1897,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: both flows pass headless twice in a row from one server start.
 
 - [ ] **M16.07 Recording.** `npm run record -- <flow>` runs one flow with `RECORD=1`: the screencast
-  with the cursor and click highlights, its `chapter` cards, pacing that lets each change settle, and
+  with the cursor (no click point, highlight or action title), its `chapter` cards, pacing that lets each change settle, and
   the encoder S16 chose, written to `apps/desktop/demo/out/<flow>`. Add a "Flows and recordings"
   section to CONTRIBUTING.md.
   - Rules: none (tooling)

@@ -506,3 +506,70 @@ leaves. Agents need no baseline to load from a loadout. Copies and links behave 
 reloading and losing scripts. They differ in two ways: links to one target list a shared item once
 where copies list it twice, and a link needs its target allowed for file reads, which shows in a
 loadout, where a copy needs nothing.
+
+## S16. Screencast on this app (M16.01)
+
+Whether Playwright's `page.screencast` can record the app well enough for a README, in which
+browser, with which encoder, and whether the Mac-window frame can be drawn in the page. Run on
+2026-11-18 with Playwright 1.65.1 (its Chromium and WebKit 27.2 builds) and Homebrew ffmpeg 9.0.1.
+The harness, not committed: a dev-server entry mounting `App` over `createFakeLibrary(seededState())`
+(with `planPush` answering a canned remote diff, so a diff is on screen), `mockWindows("main")` and
+`mockIPC(…, { shouldMockEvents: true })` logging every call; and a frame page, a gradient with a
+macOS-style window holding that entry in an iframe at 1100×760. The flow: a chapter card, a search
+typed, the `lint` entry opened, Reveal in Finder, Send edits back (the diff modal), back, Unmanaged,
+Catalogs; three times over for a 65 s recording. `showActions` drew the cursor, with a 700 ms
+duration that also paces the actions.
+
+**Encoder: the JPEG frames to H.264, with a system ffmpeg.** `onFrame` hands each JPEG with its
+timestamp; ffmpeg's concat demuxer holds each frame until the next one's timestamp and encodes H.264
+(`libx264 -crf 20 -preset slow -pix_fmt yuv420p`, 30 fps, `+faststart`). The diff and the catalog
+list read equally well in that and in the `path` WebM (VP9, slightly softer), at a third of the size.
+Playwright's own ffmpeg encodes VP9 only, so H.264 needs a system ffmpeg: `npm run record` checks for
+one and says to `brew install ffmpeg`, rather than a dependency such as `ffmpeg-static`, which
+downloads a binary at install. Transcoding the WebM to H.264 instead gives nearly the same file
+(2.8 MB against 2.6 MB), so it is the fallback if the frame bookkeeping proves fragile.
+
+| 65 s, Chromium | `path` WebM (VP9) | JPEG frames → H.264 | WebM → H.264 |
+|---|---|---|---|
+| framed, 1600×1000 | 9.0 MB | 2.6 MB | 2.8 MB |
+| bare app, 1100×760 | 6.7 MB | 2.1 MB | 2.3 MB |
+
+**Recordings are 1x.** The screencast captures CSS pixels: with `deviceScaleFactor: 2` the frames
+stay 1100×760, and a `size` of 2200×1520 makes a WebM that size with the 1x picture in its top-left
+corner. Chromium's own `Page.startScreencast`, old and new headless, was 1x as well; only
+screenshots come out at 2x. A framed recording is 1600×1000, which is about what a README column
+shows on a Retina screen.
+
+**Browsers: WebKit to verify, Chromium to record.** The same script ran on both. WebKit is the
+app's engine (WKWebView, build target `safari17`), but its screencast delivers about 3 frames a
+second (196 in 66 s, against 1434 from Chromium), so the cursor jumps between points instead of
+gliding. So `npm run flows` runs WebKit, and `npm run record` runs Chromium.
+
+**Chromium needs a monospace alias.** Chromium has no `ui-monospace` and finds no `SFMono-Regular`,
+so the app's code stack (`ui-monospace, SFMono-Regular, monospace`) falls to Courier. Browser mode
+adds `@font-face { font-family: "SFMono-Regular"; src: local("SF Mono Regular"),
+local("SFMono-Regular"), local("Menlo-Regular"); }`, which gave a proper monospace face with no
+change to the app's styles. `-apple-system` resolves in both browsers.
+
+**`mockIPC` answers every call the UI makes itself.** Outside `host-tauri` (which browser mode
+replaces with the bridge), the UI calls `plugin:app|version`, `plugin:app|set_app_theme`,
+`plugin:window|set_focus` (needs `mockWindows`), the deep-link event through `onOpenUrl` (needs
+`shouldMockEvents`), `plugin:opener|open_url`, `plugin:opener|reveal_item_in_dir` and
+`plugin:dialog|open`. The run made the first two and `reveal_item_in_dir`; the rest come from the
+imports. None needs more than an answer. One answers and does nothing: the appearance toggle sets
+the native theme, and the page follows `prefers-color-scheme`, so in a browser it changes nothing;
+a flow sets the scheme with Playwright's `colorScheme` instead.
+
+**The in-page frame works; no ffmpeg composite is needed.** In the iframe, the cursor lands on the
+right elements, and a modal's backdrop stays inside the window. Recordings show the cursor only
+(owner, 2026-11-19): `showActions({ cursor: "pointer", style: { title: "display:none" } })`, with no
+`point` or `highlight` style. Both of those looked wrong. They appear at the target when the action
+starts, while the cursor is still on its way there. And a type or fill action's highlight is drawn
+at the iframe's own coordinates, off the window by the iframe's offset (clicks were placed right).
+The title has to be hidden too: by default it shows the locator, such as
+`locator('#app').contentFrame().getByRole(…)`.
+
+The chapter card centres on the whole page and blurs the wallpaper with the window; a card drawn
+inside the window would need `showOverlay` with our own markup.
+
+The owner watched the H.264 output, framed with the cursor only, and judged it legible (2026-11-19).
