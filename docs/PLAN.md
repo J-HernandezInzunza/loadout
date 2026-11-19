@@ -1858,7 +1858,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: every existing test passes unchanged in substance, and a Node script (no Vitest)
     creates a sandbox, a remote and the stub, then removes them all.
 
-- [ ] **M16.03 A seeded sandbox.** `seedDemo(sandbox)` registers a local `personal` catalog and a
+- [x] **M16.03 A seeded sandbox.** `seedDemo(sandbox)` registers a local `personal` catalog and a
   remote `team` catalog (`bitbucket.org/acme/catalog`, PR mode), and installs through the real core
   so receipts are real. Then it edits one copy (drifted), copies one in by hand (unmanaged), moves
   one source ahead (stale), switches one off, pins one name, and connects a GitHub account through
