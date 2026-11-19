@@ -573,3 +573,91 @@ The chapter card centres on the whole page and blurs the wallpaper with the wind
 inside the window would need `showOverlay` with our own markup.
 
 The owner watched the H.264 output, framed with the cursor only, and judged it legible (2026-11-19).
+
+## S17. Driving and recording the real app on macOS (M16.06)
+
+Whether WebDriver can drive the real app on macOS, and how to record it. Run on 2026-11-19 on the
+owner's Mac (macOS 15.7, a 1x main display, the built-in Retina display beside it) with
+`tauri-plugin-wdio-webdriver` 1.5.1 in a debug build (`tauri build --debug --no-bundle`), webdriverio
+9.31.9 talking to it directly, ffmpeg 9.0.1, and Swift 6.0.3 from the Command Line Tools 16.2. The app
+ran with `HOME` pointed at a scratch folder holding a local catalog of two skills. Spike code, not
+committed: the plugin registered under `cfg(debug_assertions)`, its permission in the capability
+file, a ScreenCaptureKit recorder in Swift, and the driving scripts.
+
+**WebDriver drives the real app.** The embedded server answers on 127.0.0.1:4445 once the app starts.
+Finding an element by its accessible name took about 20 ms; clicking, typing, reading the window's
+rect, moving the window and screenshots all worked. An install through its preview and a Remove
+through its dialog changed the scratch home's files. Two catches for flows:
+
+- `aria/<name>` matches any element by name, whatever its role: `aria/Install and set up` clicked the
+  section heading, not the button of the same name. Flows need a helper that finds by role and
+  name; `button=<text>` worked meanwhile.
+- The app keeps its screen between WebDriver sessions, so each flow starts a fresh app.
+
+The WebdriverIO Tauri service, which launches the app and connects for you, was not tried: talking
+to the port directly was enough here. M16.11 chooses between the two.
+
+**`HOME` is enough for a profile.** Launched with `HOME=<dir>`, the app read and wrote `<dir>/.claude`
+and `<dir>/Library/Application Support/<identifier>` and nothing of the real ones. The fs scope
+(`$HOME/**`) followed. The Keychain is the exception: its items are not under `HOME`, so a profile
+still needs its own key prefix (M16.09).
+
+**A debug-only crate still compiles into release builds.** Cargo doesn't apply the build profile to
+`[target.'cfg(debug_assertions)'.dependencies]`, so the crate was built for `--release` too. Only its
+registration is gated, so the server's code was dropped by the linker ("webdriver is ready" is in
+the debug binary, not the release one), but the plugin's permission name stays in the release
+build's ACL table, because the capability file names it. M16 uses an off-by-default Cargo feature
+for the crate and a capability file that only debug builds load, so a release build names neither.
+
+**Recording: ScreenCaptureKit, not a screen grab.** What was tried:
+
+| Capture | Result |
+|---|---|
+| ffmpeg `avfoundation`, the whole screen, cropped to the window | Records whatever is on top: other apps' windows appear in the crop, and Orca, full screen on the main display, hid the app entirely (it opened in that display's desktop Space). Rejected. |
+| `screencapture -v -l<window>` | Ignores `-l` and records the whole screen. Rejected. |
+| ScreenCaptureKit, the window alone (`desktopIndependentWindow`) | Only the window, with alpha around its rounded corners, at 2x (2200×1520) on the Retina display, even while covered. But macOS draws a sharing indicator in place of the window buttons while a window is captured this way. |
+| ScreenCaptureKit, the display with only the window included | The real macOS shadow, alpha elsewhere; the same sharing indicator. |
+| ScreenCaptureKit, the whole display cropped to the window's frame (`region`) | The real window buttons and no indicator. Whatever is drawn over that rectangle is recorded, so the window must be in front, and a notification banner would show: record with Do Not Disturb on. |
+
+The recorder writes ProRes 4444 (alpha kept, 160 MB for 27 s), from which ffmpeg composites the
+window, its rounded corners masked, onto a gradient wallpaper with a soft shadow, and encodes H.264
+(S16's encoder): 824 KB at 1600×1000, 2.0 MB at 3200×2000, for 27 s. Notes on the recorder:
+ScreenCaptureKit sends a frame only when the window changes, so it holds the last frame until stop;
+a command-line program must open its window-server connection (`NSApplication.shared`) first.
+
+**The window must be visible, not just captured.** With the window covered by another app, WebKit
+stopped painting it: 53 frames in 27 s, no chapter cards, a jumping cursor. In front, the same flow
+gave 373 to 395 frames. The flow brings the window forward from inside the app
+(`plugin:window|set_focus`, a permission the app already has) and moves it with WebDriver's
+`setWindowRect`. Bringing it forward from outside, by activating the process from a script, was
+running when Orca, the owner's terminal app, quit on its own; that cause is unconfirmed, and the
+in-app focus did not repeat it. The window buttons record grey, since the app is in front but not
+the active app.
+
+**Cursor and chapter cards are drawn in the page.** WebDriver's clicks move no pointer, and
+ScreenCaptureKit records none (`showsCursor` off). The flow injects a cursor that glides to each
+target before WebDriver clicks it, a ring where it clicks, and a chapter card (title and a line,
+over a blurred page). No app code changes. They live in one overlay in the browser's top layer (a
+manual popover), raised again before each move: a modal `<dialog>` opened with `showModal()` is in
+the top layer above any z-index, and the first recording's cursor went under the Remove dialog, so
+Delete was clicked with no cursor travelling to it (the owner caught it). Re-showing the overlay
+resets the cursor's transition, so the flow reads its style once afterwards to keep the glide.
+
+**Permissions.** Screen Recording for the app the recorder runs from (here Orca, which then needed a
+restart), plus a one-time macOS prompt to let it capture without the system window picker. Nothing
+else: no Accessibility, since no real mouse or keyboard events are sent. Keychain prompts didn't
+come up, since no account was connected.
+
+**Swift on this machine.** The Command Line Tools 16.2 here can't compile anything importing
+Foundation ("redefinition of module 'SwiftBridging'": two module maps define it). The spike compiled
+with a VFS overlay hiding the duplicate. The fix is reinstalling the Command Line Tools (or removing
+the duplicate, with `sudo`); M16.12 should build the recorder from source and say so when it can't.
+
+**Paths.** The app shows the profile's real paths, such as
+`/Users/<you>/…/home/.claude/skills/test-first`, so a profile's location shows in recordings. A short
+location keeps them readable.
+
+Owner's decisions (2026-11-19): record the region with Do Not Disturb on, for the real window
+buttons; grey buttons are fine for now; the owner reinstalls the Command Line Tools; profiles live
+somewhere short. The owner watched the recording, judged the approach worth building on, and caught
+the cursor under the dialog, fixed above.
