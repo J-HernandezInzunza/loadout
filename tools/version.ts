@@ -4,8 +4,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PACKAGES = ["apps/desktop/package.json", "packages/core/package.json", "packages/host-node/package.json"];
-const WORKSPACES = ["apps/desktop", "packages/core", "packages/host-node"];
+const PACKAGES = ["apps/desktop/package.json", "packages/core/package.json", "packages/host-node/package.json", "packages/sandbox/package.json"];
+const WORKSPACES = ["apps/desktop", "packages/core", "packages/host-node", "packages/sandbox"];
 const CARGO_TOML = "apps/desktop/src-tauri/Cargo.toml";
 const CARGO_LOCK = "apps/desktop/src-tauri/Cargo.lock";
 

@@ -17,6 +17,7 @@ export type { Link, ScanItem } from "./scan/scan.ts";
 export type { Attribution } from "./scan/tools.ts";
 export type { PlanItem } from "./install/plan.ts";
 export type { AccountHost } from "./accounts/accounts.ts";
+export type { ApiBases } from "./accounts/apiBases.ts";
 export type { CatalogRepo, HostedRepo } from "./git/repos.ts";
 export { parseRepoLink, type RepoLink } from "./source/source.ts";
 export type { AccountInfo } from "./config/config.ts";

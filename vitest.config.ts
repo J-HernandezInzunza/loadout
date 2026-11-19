@@ -10,6 +10,7 @@ export default defineConfig({
       // parallel on a busy machine, so the default timeout reported contention as failure.
       { test: { name: "core", root: "packages/core", environment: "node", testTimeout: 15_000 } },
       { test: { name: "host-node", root: "packages/host-node", environment: "node", testTimeout: 15_000 } },
+      { test: { name: "sandbox", root: "packages/sandbox", environment: "node", testTimeout: 15_000 } },
       { test: { name: "repo", root: "test", environment: "node" } },
       "apps/desktop",
     ],

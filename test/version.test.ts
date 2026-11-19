@@ -50,7 +50,7 @@ describe("version", () => {
     expect(new Set(Object.values(readVersions(dir)))).toEqual(new Set(["1.2.3-rc.4"]));
     for (const file of VERSION_FILES) {
       const changed = changedLines(before[file]!, readFileSync(join(dir, file), "utf8"));
-      const lines = file === "package-lock.json" ? 3 : 1;
+      const lines = file === "package-lock.json" ? 4 : 1;
       expect(changed, file).toHaveLength(lines);
       for (const line of changed) expect(line, file).toMatch(/^\s*"?version"?(:| =) "1\.2\.3-rc\.4",?$/);
     }
