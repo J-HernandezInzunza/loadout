@@ -1808,8 +1808,10 @@ Decided 2026-11-19 (owner):
   `HOME`, and so does the Keychain: a profile gets its own keychain in its home, and the app needs
   no change at all. Only the WebDriver plugin is debug-only, behind a Cargo feature (S17). Nothing
   is stood in for: the shipped WKWebView, git, Keychain and network.
-- Remote states come from real demo repos: a team catalog on Bitbucket in PR mode, its sources on
-  GitHub. No stubs, so a demo needs network, and Send edits back opens a real PR on the demo repo.
+- Remote states come from a real demo repo, `J-HernandezInzunza/loadout-demo` on GitHub (public):
+  the team catalog in PR mode, with its skills, agent and prompt beside `library.yaml`, as the
+  owner's own catalog is laid out (owner, 2026-11-19, over a Bitbucket catalog with sources in a
+  second repo). No stubs, so a demo needs network, and Send edits back opens a real PR there.
 - One command: `npm run app:profile -- <dir>` seeds the folder when it is empty, then runs `app:dev`
   on it.
 - Flows drive the real app over WebDriver, and the same flow records (owner, over recording by
@@ -1825,14 +1827,12 @@ Defaults, reversible (say so in review if one should change):
   the profile folder. With no keychain there, the app's Keychain calls fail rather than reach the
   real one.
 - The launcher sets `HOME` for the app's process only: cargo, rustup and npm keep the real one.
-- `release-notes`'s source lives on a `demo-stale` branch of the sources repo, which the seed resets
-  to an older commit before installing and moves forward after: a force push to the demo repo, with
-  the owner's git credentials, on every seed.
+- `release-notes`'s source lives on the repo's `demo-stale` branch, which the seed resets to the
+  `demo-stale-v1` tag before installing and moves to `demo-stale-v2` after: a force push to the demo
+  repo, with the owner's git credentials, on every seed, and no new commits.
 - The seed doesn't connect GitHub, having no token to give: connecting once in the app is a demo's
   first step, and the profile's Keychain item keeps it. Flows reuse a profile already connected.
 - A flow that opens a PR on a demo repo closes it before it ends, so the repos don't fill up.
-- The demo repos are public, `loadout-demo-skills` on GitHub and `loadout-demo-catalog` on Bitbucket,
-  under the owner's accounts; the owner creates them and pushes their first content.
 - Seeding runs the core under plain Node, with the Node host over the profile. `seedDemo` keeps its
   content and is still tested hermetically: the sandbox maps the demo repos' URLs to local bare repos.
 
@@ -1914,13 +1914,13 @@ Defaults, reversible (say so in review if one should change):
   - Done when: `npm run check` passes with the flag on, and the plain-node test passes importing the
     index.
 
-- [ ] **M16.08 The demo repos.** `tools/demo-repos.ts <dir>` writes the team content from `seedDemo`'s
-  lists into two local repos under `<dir>`, committed and with their remotes set: the sources (every
-  team entry on `main`, and `demo-stale` one commit behind on `release-notes`) and the catalog
-  (`library.yaml` pointing at the sources repo). The owner creates the two public repos and pushes.
+- [ ] **M16.08 The demo repo.** `tools/demo-repo.ts <dir>` writes the team content from `seedDemo`'s
+  lists into a local repo: on `main`, `library.yaml` and every team entry, sources pointing into the
+  repo itself; the `demo-stale-v1` tag on that commit and `demo-stale-v2` one commit on, changing
+  `release-notes`; `demo-stale` at v1. Then it's created on GitHub and pushed (owner OK'd `gh`).
   - Rules: none (tooling)
   - Depends: M16.07
-  - Done when: both repos hold the content, and registering the catalog in a scratch profile lists
+  - Done when: the repo holds that content, and registering it as a catalog in a scratch home lists
     every team entry.
 
 - [x] **M16.09 A profile's home and keychain.** `tools/profile.ts init <dir>` makes `<dir>/home` with
@@ -1931,15 +1931,15 @@ Defaults, reversible (say so in review if one should change):
   - Done when: an app opened on a profile writes only under `<dir>/home`, and the real default
     keychain, search list and Loadout items are unchanged afterwards (checked before and after).
 
-- [ ] **M16.10 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repos'
-  URLs instead of a sandbox and the API stub, and keeps its states: drifted, unmanaged, stale (the
+- [ ] **M16.10 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repo's
+  URL instead of a sandbox and the API stub, and keeps its states: drifted, unmanaged, stale (the
   `demo-stale` reset and push), switched off and pinned, with GitHub left to connect in the app.
   `npm run app:profile -- <dir>` builds the debug app, makes and seeds `<dir>` when it is empty (with
-  a git identity in its home, for commits), then opens the app on it (M16.09). The seed test keeps running against local bare repos at the same URLs.
+  a git identity in its home, for commits), then opens the app on it (M16.09). The seed test keeps running against a local bare repo at the same URL.
   - Rules: none (tooling)
   - Depends: M16.07, M16.08, M16.09
   - Done when: from an empty folder the command opens the app on the seeded machine showing every
-    state, the demo repos untouched apart from `demo-stale`; the owner walked it.
+    state, the demo repo untouched apart from `demo-stale`; the owner walked it.
 
 - [ ] **M16.11 The first flows.** WebdriverIO specs in `apps/desktop/flows/`, one file per workflow;
   `npm run flows` builds the debug app once and runs each flow on a freshly seeded copy of a
