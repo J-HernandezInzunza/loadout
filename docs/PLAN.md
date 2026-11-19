@@ -1914,7 +1914,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: `npm run check` passes with the flag on, and the plain-node test passes importing the
     index.
 
-- [ ] **M16.08 The demo repo.** `tools/demo-repo.ts <dir>` writes the team content from `seedDemo`'s
+- [x] **M16.08 The demo repo.** `tools/demo-repo.ts <dir>` writes the team content from `seedDemo`'s
   lists into a local repo: on `main`, `library.yaml` and every team entry, sources pointing into the
   repo itself; the `demo-stale-v1` tag on that commit and `demo-stale-v2` one commit on, changing
   `release-notes`; `demo-stale` at v1. Then it's created on GitHub and pushed (owner OK'd `gh`).
