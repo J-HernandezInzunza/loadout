@@ -1,6 +1,9 @@
-// Runs under plain `node` (no Vitest), as the demo server will: creates a sandbox, a remote and the API
-// stub, uses each once, runs their clean-ups, and prints what the test checks afterwards.
-import { createApiStub, createGitHarness, createSandbox } from "../src/index.ts";
+// Runs under plain `node` (no Vitest): creates a sandbox, a remote and the API
+// stub, uses each once, runs their clean-ups, and prints what the test checks afterwards. It imports
+// the three modules, not the index: the index brings in the core, whose syntax Node can't strip.
+import { createApiStub } from "../src/apiStub.ts";
+import { createGitHarness } from "../src/git.ts";
+import { createSandbox } from "../src/sandbox.ts";
 
 const cleanups: (() => Promise<void>)[] = [];
 const sandbox = await createSandbox((cleanup) => void cleanups.push(cleanup));
