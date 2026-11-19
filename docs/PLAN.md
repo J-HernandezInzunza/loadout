@@ -1867,7 +1867,7 @@ Defaults, reversible (say so in review if one should change):
   - Depends: M16.02
   - Done when: a Node test seeds a sandbox and `list` and `show` report every one of those states.
 
-- [ ] **M16.04 The bridge host.** `createBridgeHost(base)` implements `Host` in the browser with
+- [x] **M16.04 The bridge host.** `createBridgeHost(base)` implements `Host` in the browser with
   one POST per call; bytes travel as base64, an `AbortSignal` aborts the request, and a rejection
   keeps its `code` (`ENOENT`, `EXDEV`, `AbortError`, `TimeoutError`). A Vite plugin, applied only in
   browser mode, answers those calls with the sandbox's Node host and serves `POST /__demo/reset`,
