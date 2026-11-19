@@ -1923,7 +1923,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: both repos hold the content, and registering the catalog in a scratch profile lists
     every team entry.
 
-- [ ] **M16.09 A profile's home and keychain.** `tools/profile.ts init <dir>` makes `<dir>/home` with
+- [x] **M16.09 A profile's home and keychain.** `tools/profile.ts init <dir>` makes `<dir>/home` with
   its own login keychain, made that home's default; `tools/profile.ts open <dir>` unlocks it and runs
   the built debug app with `HOME=<dir>/home`. No app change.
   - Rules: none (tooling)
