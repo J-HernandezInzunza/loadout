@@ -599,8 +599,13 @@ to the port directly was enough here. M16.11 chooses between the two.
 
 **`HOME` is enough for a profile.** Launched with `HOME=<dir>`, the app read and wrote `<dir>/.claude`
 and `<dir>/Library/Application Support/<identifier>` and nothing of the real ones. The fs scope
-(`$HOME/**`) followed. The Keychain is the exception: its items are not under `HOME`, so a profile
-still needs its own key prefix (M16.09).
+(`$HOME/**`) followed. The Keychain follows `HOME` too (corrected 2026-11-19, while doing M16.09; this
+first said it didn't): macOS finds the default keychain and the search list through `HOME`'s
+preferences, so with no keychain under the profile's home the app's Keychain calls fail ("A default
+keychain could not be found") and never reach the real one. A keychain created in the profile's home
+and made its default there (`security create-keychain`, `default-keychain -d user`, run with that
+`HOME`) took the app's token, while the real default keychain, search list and items were unchanged.
+So a profile needs no app change at all.
 
 **A debug-only crate still compiles into release builds.** Cargo doesn't apply the build profile to
 `[target.'cfg(debug_assertions)'.dependencies]`, so the crate was built for `--release` too. Only its

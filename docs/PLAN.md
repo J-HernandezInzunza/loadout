@@ -1805,10 +1805,9 @@ Decided 2026-11-19 (owner):
 
 - The real app on a profile, in debug builds only, not a mode. A profile is a folder whose `home/`
   the app is launched with as `HOME`: S17 found its `.claude`, app data and fs scope all follow
-  `HOME`, so the app needs no path switch. The Keychain doesn't follow `HOME`, so a debug build
-  launched with `LOADOUT_PROFILE` keeps its own Keychain items; that is the only app change, behind
-  `cfg(debug_assertions)` (Rust, since WebDriver launches a built debug binary), and a release build
-  has no switch at all. Nothing is stood in for: the shipped WKWebView, git, Keychain and network.
+  `HOME`, and so does the Keychain: a profile gets its own keychain in its home, and the app needs
+  no change at all. Only the WebDriver plugin is debug-only, behind a Cargo feature (S17). Nothing
+  is stood in for: the shipped WKWebView, git, Keychain and network.
 - Remote states come from real demo repos: a team catalog on Bitbucket in PR mode, its sources on
   GitHub. No stubs, so a demo needs network, and Send edits back opens a real PR on the demo repo.
 - One command: `npm run app:profile -- <dir>` seeds the folder when it is empty, then runs `app:dev`
@@ -1821,8 +1820,10 @@ Decided 2026-11-19 (owner):
 
 Defaults, reversible (say so in review if one should change):
 
-- A profile's Keychain items are its own: keys are prefixed with the profile's folder, so connecting
-  in a demo never replaces the installed app's tokens.
+- A profile's keychain is its own file in its home, with a random password kept beside it
+  (`<dir>/keychain-password`, owner-only), so a launcher can unlock it; its tokens are as safe as
+  the profile folder. With no keychain there, the app's Keychain calls fail rather than reach the
+  real one.
 - The launcher sets `HOME` for the app's process only: cargo, rustup and npm keep the real one.
 - `release-notes`'s source lives on a `demo-stale` branch of the sources repo, which the seed resets
   to an older commit before installing and moves forward after: a force push to the demo repo, with
@@ -1922,21 +1923,19 @@ Defaults, reversible (say so in review if one should change):
   - Done when: both repos hold the content, and registering the catalog in a scratch profile lists
     every team entry.
 
-- [ ] **M16.09 A profile in debug builds.** Under `cfg(debug_assertions)`, when `LOADOUT_PROFILE` is
-  set, the Keychain commands prefix each key with it. Everything else about a profile comes from
-  launching the app with `HOME=<dir>/home` (S17).
+- [ ] **M16.09 A profile's home and keychain.** `tools/profile.ts init <dir>` makes `<dir>/home` with
+  its own login keychain, made that home's default; `tools/profile.ts open <dir>` unlocks it and runs
+  the built debug app with `HOME=<dir>/home`. No app change.
   - Rules: none (tooling)
   - Depends: M16.06
-  - Done when: a debug build launched with `HOME=<dir>/home` and `LOADOUT_PROFILE=<dir>` shows that
-    folder's catalogs and installs, and connecting an account there leaves the real `~/.claude`, app
-    data and Keychain items alone (checked before and after); a release build ignores the variable.
+  - Done when: an app opened on a profile writes only under `<dir>/home`, and the real default
+    keychain, search list and Loadout items are unchanged afterwards (checked before and after).
 
 - [ ] **M16.10 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repos'
   URLs instead of a sandbox and the API stub, and keeps its states: drifted, unmanaged, stale (the
   `demo-stale` reset and push), switched off and pinned, with GitHub left to connect in the app.
-  `npm run app:profile -- <dir>` builds the debug app, seeds `<dir>` when it is empty (with a git
-  identity in its home, for commits), then runs the app with `HOME=<dir>/home` and
-  `LOADOUT_PROFILE=<dir>`. The seed test keeps running against local bare repos at the same URLs.
+  `npm run app:profile -- <dir>` builds the debug app, makes and seeds `<dir>` when it is empty (with
+  a git identity in its home, for commits), then opens the app on it (M16.09). The seed test keeps running against local bare repos at the same URLs.
   - Rules: none (tooling)
   - Depends: M16.07, M16.08, M16.09
   - Done when: from an empty folder the command opens the app on the seeded machine showing every
