@@ -1,15 +1,9 @@
-// The machine browser mode shows (M16.03): two catalogs and a copy in each state the app draws, built
-// through the real core so receipts, settings and config are what the app would have written. Names
+// The machine a debug profile shows (M16.03, M16.10): two catalogs and a copy in each state the app draws,
+// built through the real core so receipts, settings and config are what the app would have written. Names
 // and descriptions read as real content, since recordings show them.
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { createLibrary, type CoreError, type Result } from "@loadout/core";
-import type { ApiStub } from "./apiStub.ts";
-import { createGitHarness } from "./git.ts";
-import type { Sandbox } from "./sandbox.ts";
-
-/** The GitHub account the demo is signed in as. */
-export const demoLogin = "acme-dev";
+import { createLibrary, type CoreError, type Host, type Result } from "@loadout/core";
 
 interface Seed {
   type: "skill" | "agent" | "prompt";
@@ -68,8 +62,6 @@ const team: Seed[] = [
   },
 ];
 
-const skillsRepo = "https://github.com/acme/skills";
-
 /** The public repo holding the demo's team catalog and its sources (M16.08). */
 export const demoRepo = "https://github.com/J-HernandezInzunza/loadout-demo";
 
@@ -121,31 +113,43 @@ async function put(path: string, text: string): Promise<void> {
 }
 
 /**
- * Seeds an empty sandbox: a local `personal` catalog over a PR-mode `team` catalog on
- * bitbucket.org/acme/catalog, whose sources live on github.com/acme/skills. Installed through the core,
- * then: `code-review` edited (drifted), `pr-description` copied in by hand (unmanaged), `release-notes`'s
- * source moved ahead (stale), `explain-errors` switched off, `commit-message` pinned to `team`, and GitHub
- * connected as {@link demoLogin} through the stub. `test-first` stays not installed.
+ * Moves the demo repo's `demo-stale` branch to one of its two tags, from a throwaway bare repo: a force
+ * push, with whatever git credentials the host's git has.
  */
-export async function seedDemo(sandbox: Sandbox, stub: ApiStub): Promise<void> {
-  const { home } = sandbox.host.paths;
-  const git = createGitHarness(sandbox);
+async function moveStale(host: Host, repo: string, tag: "demo-stale-v1" | "demo-stale-v2"): Promise<void> {
+  const dir = await host.fs.makeTempDir("demo-stale-");
+  const git = async (args: string[]) => {
+    const r = await host.proc.run("git", args, { cwd: dir });
+    if (r.code !== 0) throw new Error(`seedDemo: git ${args[0]}: ${r.stderr.trim()}`);
+  };
+  try {
+    await git(["init", "--quiet", "--bare"]);
+    await git(["fetch", "--quiet", "--no-tags", `${repo}.git`, `+refs/tags/${tag}:refs/tags/${tag}`]);
+    await git(["push", "--quiet", "--force", `${repo}.git`, `refs/tags/${tag}^{commit}:refs/heads/demo-stale`]);
+  } finally {
+    await host.fs.remove(dir, { recursive: true });
+  }
+}
 
-  const sources = git.createRepo("github.com", "acme/skills");
-  sources.commit(Object.fromEntries(team.map((s) => [sourcePath(s), fileText(s)])), { message: "Add the team's skills" });
-  git.createRepo("bitbucket.org", "acme/catalog").commit(
-    { "library.yaml": catalogYaml(team, (s) => `${skillsRepo}/blob/main/${sourcePath(s)}`) },
-    { message: "Add the team catalog" },
-  );
+/**
+ * Seeds an empty profile through the core: a local `personal` catalog over the PR-mode `team` catalog in
+ * the demo repo. Installed, then: `code-review` edited (drifted), `pr-description` copied in by hand
+ * (unmanaged), `explain-errors` switched off, `commit-message` pinned to `team`, and `release-notes`
+ * installed from `demo-stale` at v1 before the branch moves to v2 (stale). `test-first` stays not installed,
+ * and no account is connected: there is no token to give.
+ */
+export async function seedDemo(host: Host, repo = demoRepo): Promise<void> {
+  const { home } = host.paths;
   const personalDir = join(home, "catalog");
   for (const s of personal) await put(join(personalDir, sourcePath(s)), fileText(s));
   await put(join(personalDir, "library.yaml"), catalogYaml(personal, (s) => `~/catalog/${sourcePath(s)}`));
 
-  const library = createLibrary(sandbox.host, { apiBases: stub.bases });
+  await moveStale(host, repo, "demo-stale-v1");
+  const library = createLibrary(host);
   const register = async (req: Parameters<typeof library.planAddCatalog>[0]) =>
     value(`register ${req.id}`, await library.applyAddCatalog(value(`plan ${req.id}`, await library.planAddCatalog(req))));
   await register({ kind: "local", id: "personal", path: personalDir, position: "last" });
-  await register({ kind: "remote", id: "team", repo: "https://bitbucket.org/acme/catalog.git", protected: true, position: "last" });
+  await register({ kind: "remote", id: "team", repo: `${repo}.git`, protected: true, position: "last" });
 
   const plan = value("plan install", await library.planInstall({ names: ["code-review", "release-notes", "security-reviewer", "standup", "explain-errors"] }));
   const report = value("install", await library.applyInstall(plan));
@@ -156,12 +160,8 @@ export async function seedDemo(sandbox: Sandbox, stub: ApiStub): Promise<void> {
   await put(join(home, ".claude", "skills", review.name, "SKILL.md"), fileText(review, `${review.body}\nEnd with a one-line verdict: ship, fix first, or discuss.`));
   const byHand = teamSeed("pr-description");
   await put(join(home, ".claude", "skills", byHand.name, "SKILL.md"), fileText(byHand));
-  const notes = teamSeed("release-notes");
-  sources.commit({ [sourcePath(notes)]: fileText(notes, releaseNotesAhead(notes.body)) }, { message: "release-notes: breaking changes first" });
+  await moveStale(host, repo, "demo-stale-v2");
 
   value("switch off", await library.setSkillState(["explain-errors"], "off"));
   value("pin", await library.applyPin(value("plan pin", await library.planPin({ name: "commit-message", catalog: "team" })), { switchInstalled: false }));
-
-  stub.addToken("github", "demo-token", demoLogin, ["repo", "read:org"]);
-  value("connect", await library.connect("github", { accessToken: "demo-token" }));
 }

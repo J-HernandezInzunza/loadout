@@ -1,22 +1,36 @@
 import { createLibrary, type Library } from "@loadout/core";
 import { describe, expect, it, onTestFinished } from "vitest";
-import { createApiStub, createSandbox, demoLogin, seedDemo } from "../src/index.ts";
+import { createGitHarness, createSandbox, demoRepo, demoRepoContent, seedDemo, type Remote } from "../src/index.ts";
 
 function must<T>(r: { ok: true; value: T } | { ok: false; error: { message: string } }): T {
   if (!r.ok) throw new Error(r.error.message);
   return r.value;
 }
 
-async function seeded(): Promise<Library> {
+/** The demo repo as tools/demo-repo.ts lays it out, as a local bare repo the sandbox maps its URL to. */
+function demoRemote(git: ReturnType<typeof createGitHarness>): { remote: Remote; v1: string; v2: string } {
+  const remote = git.createRepo("github.com", demoRepo.replace("https://github.com/", ""));
+  const { main, ahead } = demoRepoContent();
+  const v1 = remote.commit(main, { message: "Add the demo team catalog" });
+  remote.setBranch("ahead", v1);
+  const v2 = remote.commit(ahead, { branch: "ahead", message: "release-notes: breaking changes first" });
+  for (const [tag, oid] of [["demo-stale-v1", v1], ["demo-stale-v2", v2]]) git.git(["update-ref", `refs/tags/${tag}`, oid!], { cwd: remote.path });
+  git.git(["update-ref", "-d", "refs/heads/ahead"], { cwd: remote.path });
+  // As if a previous seed had left it at v2.
+  remote.setBranch("demo-stale", v2);
+  return { remote, v1, v2 };
+}
+
+async function seeded(): Promise<{ library: Library; remote: Remote; v2: string }> {
   const sandbox = await createSandbox(onTestFinished);
-  const stub = await createApiStub(onTestFinished);
-  await seedDemo(sandbox, stub);
-  return createLibrary(sandbox.host, { apiBases: stub.bases });
+  const { remote, v2 } = demoRemote(createGitHarness(sandbox));
+  await seedDemo(sandbox.host);
+  return { library: createLibrary(sandbox.host), remote, v2 };
 }
 
 describe("seedDemo", () => {
   it("leaves a copy in every state the app draws, as list and show report them", async () => {
-    const library = await seeded();
+    const { library, remote, v2 } = await seeded();
 
     // The winning copy of each name, with its remote checked so a moved source reads stale.
     const winners = must(await library.list({ checkRemote: true })).filter((e) => e.overriddenBy === null);
@@ -51,8 +65,11 @@ describe("seedDemo", () => {
       expect(must(await library.show(name)).installs, name).toHaveLength(1);
     }
     expect(must(await library.show("pr-description")).installs).toEqual([]);
-
     expect(must(await library.pins())).toMatchObject([{ name: "commit-message", catalog: "team" }]);
-    expect(must(await library.accounts()).github).toMatchObject({ login: demoLogin });
+    expect(must(await library.accounts())).toEqual({});
+
+    // The seed moved demo-stale back to v1 for the install and on to v2 after.
+    expect(remote.head("demo-stale")).toBe(v2);
+    expect(remote.head("main")).not.toBe(v2);
   });
 });

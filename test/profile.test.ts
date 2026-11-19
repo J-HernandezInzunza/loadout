@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { initProfile, unlockProfile } from "../tools/profile.ts";
+import { initProfile, profileEnv, unlockProfile } from "../tools/profile.ts";
 
 const dir = join(realpathSync(mkdtempSync(join(tmpdir(), "loadout-profile-"))), "demo");
 afterAll(() => rmSync(join(dir, ".."), { recursive: true, force: true }));
@@ -31,5 +31,10 @@ describe("tools/profile.ts", () => {
     const password = readFileSync(p.password, "utf8");
     initProfile(dir);
     expect(readFileSync(p.password, "utf8")).toBe(password);
+  });
+
+  it("starts the app with a launchd-like environment and the profile's HOME, nothing else from the shell", () => {
+    const env = profileEnv("/p/home", { HOME: "/Users/me", USER: "me", SHELL: "/bin/zsh", CLAUDE_CONFIG_DIR: "/Users/me/.claude-x", GIT_DIR: "/x", PATH: "/opt/homebrew/bin:/usr/bin" });
+    expect(env).toEqual({ USER: "me", SHELL: "/bin/zsh", HOME: "/p/home", PATH: "/usr/bin:/bin:/usr/sbin:/sbin" });
   });
 });
