@@ -1878,7 +1878,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: tests round-trip every `Host` method through the plugin's handler, show each error
     code kept, a path outside the root refused, and reset giving back the seeded state.
 
-- [ ] **M16.05 Browser mode.** `npm run demo` (`vite --mode browser`) loads `src/main.browser.ts`:
+- [x] **M16.05 Browser mode.** `npm run demo` (`vite --mode browser`) loads `src/main.browser.ts`:
   `createLibrary` over the bridge host, `apiBases` pointing at the stub, and `mockIPC` for the
   plugin calls, recording opener calls on the page. `main.ts` and release builds don't import it.
   - Rules: none (tooling)
