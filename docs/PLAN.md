@@ -1789,28 +1789,34 @@ change):
 ## M16. Debug profiles for demos and troubleshooting
 
 Exit: every M16 task checked; `npm run app:profile -- <dir>` seeds an empty folder from the demo
-repos and opens the real app on it in a debug build, with every install state the app draws; a
-release bundle holds none of it; the owner recorded one workflow from a profile by hand and judged
-the setup fit for README demos.
+repos and opens the real app on it in a debug build, with every install state the app draws; `npm
+run flows` drives the real app through every flow over WebDriver and passes; `npm run record --
+<flow>` writes a video of the app's real window on the desktop that the owner judged fit for a
+README; a release build holds none of it.
 
 First planned 2026-11-18 as browser mode: the app in a browser over the real core through a bridge
 host, driven and recorded by Playwright. M16.01 to M16.05 built it. Set aside 2026-11-19 (owner): it
 needed a growing list of stand-ins (answers for the Tauri calls the UI makes, a Chromium font alias,
 loading the core through Vite's module runner, path mapping next), each a place where the demo
 differs from the app. M16.04 and M16.05 were reverted in 21254c3; S16, `@loadout/sandbox` and
-`seedDemo` stay. Scripted flows and recordings went back to the ROADMAP.
+`seedDemo` stay.
 
 Decided 2026-11-19 (owner):
 
 - The real app on a profile, in debug builds only, not a mode. A profile is a folder holding a home
-  and an app-data folder. The app reads it from `LOADOUT_PROFILE` behind `import.meta.env.DEV`, so a
-  release bundle has no switch at all. Nothing is stood in for: the shipped WKWebView, git, Keychain
-  and network.
+  and an app-data folder, read from `LOADOUT_PROFILE` behind `cfg(debug_assertions)`, so a release
+  build has no switch at all. Rust, not Vite's `import.meta.env.DEV`: WebDriver launches a built
+  debug binary, whose frontend is a production Vite build. Nothing is stood in for: the shipped
+  WKWebView, git, Keychain and network.
 - Remote states come from real demo repos: a team catalog on Bitbucket in PR mode, its sources on
   GitHub. No stubs, so a demo needs network, and Send edits back opens a real PR on the demo repo.
 - One command: `npm run app:profile -- <dir>` seeds the folder when it is empty, then runs `app:dev`
   on it.
-- Recordings are made by hand (macOS screen recording); there are no scripted flows.
+- Flows drive the real app over WebDriver, and the same flow records (owner, over recording by
+  hand): WebdriverIO's Tauri service with `tauri-plugin-wdio-webdriver`, the WebDriver server
+  embedded in debug builds, which its docs list as supported on macOS. Unverified here, so S17 comes
+  first. WebDriver records nothing, so a recording is a screen capture of the app's window on the
+  desktop, which brings the real frame and shadow.
 
 Defaults, reversible (say so in review if one should change):
 
@@ -1822,7 +1828,8 @@ Defaults, reversible (say so in review if one should change):
   to an older commit before installing and moves forward after: a force push to the demo repo, with
   the owner's git credentials, on every seed.
 - The seed doesn't connect GitHub, having no token to give: connecting once in the app is a demo's
-  first step, and the profile's Keychain item keeps it.
+  first step, and the profile's Keychain item keeps it. Flows reuse a profile already connected.
+- A flow that opens a PR on a demo repo closes it before it ends, so the repos don't fill up.
 - The demo repos are public, `loadout-demo-skills` on GitHub and `loadout-demo-catalog` on Bitbucket,
   under the owner's accounts; the owner creates them and pushes their first content.
 - Seeding runs the core under plain Node, with the Node host over the profile. `seedDemo` keeps its
@@ -1881,7 +1888,23 @@ Defaults, reversible (say so in review if one should change):
     sandbox's files, and a test fails if the release bundle (`vite build`) contains the bridge or
     the sandbox code.
 
-- [ ] **M16.06 The core under plain Node.** `LibraryError` declares its fields instead of using
+- [ ] **M16.06 Spike: drive the real app on macOS.** In a debug build with `tauri-plugin-wdio-webdriver`
+  (registered under `cfg(debug_assertions)`), drive the app from WebdriverIO's Tauri service: find
+  elements by role and label, click, type, open and close a modal, read the window's rect, take a
+  screenshot. Then record it: capture the screen around the window (window, shadow and a margin of
+  desktop) with ffmpeg's avfoundation input while a script runs, and compare ways to show a cursor
+  (WebDriver's pointer actions, a cursor drawn in the page, the system cursor moved to each target)
+  and to show a chapter card. Note the macOS permissions each needs (Screen Recording,
+  Accessibility, Keychain prompts for a debug binary), whether a release build is free of the plugin,
+  and what can't be driven (the native file dialog, Finder). Record it as S17 in `docs/spec/spikes.md`.
+  - Rules: none (spike)
+  - Depends: none
+  - Done when: S17 records whether WebDriver drives this app on macOS and what it can't do, the
+    capture command and its output, the cursor and chapter-card approach chosen, the permissions, and
+    the release build checked free of the plugin; the owner watched a recording and judged the
+    approach worth building on.
+
+- [ ] **M16.07 The core under plain Node.** `LibraryError` declares its fields instead of using
   parameter properties (the only non-erasable syntax in the repo), and `tsconfig.base.json` sets
   `erasableSyntaxOnly`, so Node's type stripping runs every package and a script can use the core with
   no loader. The plain-node script imports `@loadout/sandbox`'s index again.
@@ -1890,41 +1913,61 @@ Defaults, reversible (say so in review if one should change):
   - Done when: `npm run check` passes with the flag on, and the plain-node test passes importing the
     index.
 
-- [ ] **M16.07 The demo repos.** `tools/demo-repos.ts <dir>` writes the team content from `seedDemo`'s
+- [ ] **M16.08 The demo repos.** `tools/demo-repos.ts <dir>` writes the team content from `seedDemo`'s
   lists into two local repos under `<dir>`, committed and with their remotes set: the sources (every
   team entry on `main`, and `demo-stale` one commit behind on `release-notes`) and the catalog
   (`library.yaml` pointing at the sources repo). The owner creates the two public repos and pushes.
   - Rules: none (tooling)
-  - Depends: M16.06
+  - Depends: M16.07
   - Done when: both repos hold the content, and registering the catalog in a scratch profile lists
     every team entry.
 
-- [ ] **M16.08 A profile in debug builds.** In `main.ts`, only when `import.meta.env.DEV` and
-  `LOADOUT_PROFILE` is set: paths `{ home: <dir>/home, appData: <dir>/appData }`, `claudeConfigDir`
-  `<dir>/home/.claude`, Keychain keys prefixed with the profile, and a refusal (a message in the
-  window, nothing read or written) for a folder outside the home folder.
+- [ ] **M16.09 A profile in debug builds.** Only under `cfg(debug_assertions)`, and only when
+  `LOADOUT_PROFILE` is set: the app's paths become `{ home: <dir>/home, appData: <dir>/appData }`,
+  `claudeConfigDir` `<dir>/home/.claude`, and Keychain keys are prefixed with the profile; a folder
+  outside the home folder is refused with a message in the window, nothing read or written.
   - Rules: none (tooling)
-  - Depends: none
-  - Done when: `LOADOUT_PROFILE=<dir> npm run app:dev` shows that folder's catalogs and installs and
-    leaves the real `~/.claude`, app data and Keychain items alone (checked before and after); a test
-    builds the release bundle with `LOADOUT_PROFILE` set and fails if the bundle contains it.
+  - Depends: M16.06
+  - Done when: a debug build run with `LOADOUT_PROFILE=<dir>` shows that folder's catalogs and
+    installs and leaves the real `~/.claude`, app data and Keychain items alone (checked before and
+    after); a release build ignores the variable.
 
-- [ ] **M16.09 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repos'
+- [ ] **M16.10 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repos'
   URLs instead of a sandbox and the API stub, and keeps its states: drifted, unmanaged, stale (the
   `demo-stale` reset and push), switched off and pinned, with GitHub left to connect in the app.
   `npm run app:profile -- <dir>` seeds `<dir>` when it is empty, then runs `app:dev` with
   `LOADOUT_PROFILE`. The seed test keeps running against local bare repos at the same URLs.
   - Rules: none (tooling)
-  - Depends: M16.06, M16.07, M16.08
+  - Depends: M16.07, M16.08, M16.09
   - Done when: from an empty folder the command opens the app on the seeded machine showing every
     state, the demo repos untouched apart from `demo-stale`; the owner walked it.
 
-- [ ] **M16.10 Docs.** A "Debug profiles" section in CONTRIBUTING.md: seeding and opening a demo
-  profile, connecting GitHub once, recording by hand, and troubleshooting by copying someone's
-  `config.json` and `.claude` into a profile.
-  - Rules: none (docs)
-  - Depends: M16.09
-  - Done when: the owner recorded one workflow from a profile by hand, following it.
+- [ ] **M16.11 The first flows.** WebdriverIO specs in `apps/desktop/flows/`, one file per workflow;
+  `npm run flows` builds the debug app once and runs each flow on a freshly seeded copy of a
+  connected profile. Two flows: install a skill from the catalog, through its preview; and an
+  installed copy on its entry page: Send edits back on the drifted copy (its modal, the diff, a real
+  PR on the demo repo, closed after) and Remove (its modal, the files gone).
+  - Rules: none (tooling)
+  - Depends: M16.06, M16.10
+  - Done when: both flows pass twice in a row, and the release build is checked free of the
+    WebDriver plugin.
+
+- [ ] **M16.12 Recording.** `npm run record -- <flow>` runs one flow at recording pace while the
+  capture S17 chose films the app's window on the desktop, with the cursor and chapter cards S17
+  chose and S16's encoder (H.264), written to `apps/desktop/demo/out/<flow>` (git-ignored). Add a
+  "Profiles, flows and recordings" section to CONTRIBUTING.md: seeding a profile, connecting GitHub
+  once, running and recording flows, the permissions to grant, and troubleshooting by copying
+  someone's `config.json` and `.claude` into a profile.
+  - Rules: none (tooling)
+  - Depends: M16.11
+  - Done when: both flows record; the owner watched both and judged them fit for a README.
+
+- [ ] **M16.13 The skill.** A project skill, tracked at `.claude/skills/`, that runs or records a named
+  flow, or writes a new flow from steps the user describes.
+  - Rules: none (tooling)
+  - Depends: M16.12
+  - Done when: the skill wrote a flow from described steps that passes, and recorded it; its runs are
+    in PROGRESS.md.
 
 ---
 
