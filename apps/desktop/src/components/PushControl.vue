@@ -5,6 +5,7 @@ import { describePush, type PushOutcome } from "../catalog.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import BusyIndicator from "./BusyIndicator.vue";
+import ModalDialog from "./ModalDialog.vue";
 
 type Plan = Parameters<Library["applyPush"]>[0];
 
@@ -41,6 +42,11 @@ onUnmounted(() => {
   if (plan.value) void library.discardPush(plan.value);
 });
 
+/** Escape mid-check or mid-push would unmount the control and lose its outcome. */
+function close() {
+  if (!running.value) emit("close");
+}
+
 async function confirm() {
   const issued = plan.value;
   if (!issued) return;
@@ -55,91 +61,96 @@ async function confirm() {
 </script>
 
 <template>
-  <section class="push">
-    <p class="push__note">
-      <template v-if="remote">
-        This opens a pull request against the entry's source repository. Nobody's installed copy changes until
-        that is merged.
-      </template>
-      <template v-else-if="plan">
-        The source is a file on this machine, so this overwrites it directly — no pull request, no review.
-      </template>
-    </p>
-
-    <BusyIndicator
-      v-if="running && !plan"
-      inline
-      label="Checking what would be sent…"
-    />
-
-    <div
-      v-if="plan"
-      class="push__confirm fade-in"
-    >
-      <!-- Before the push, because afterwards it is a post-mortem. -->
-      <p
-        v-if="plan.note"
-        class="push__provenance"
-      >
-        {{ plan.note }}
+  <ModalDialog
+    :title="`Send ${entry.name}'s edits back`"
+    @close="close()"
+  >
+    <section class="push">
+      <p class="push__note">
+        <template v-if="remote">
+          This opens a pull request against the entry's source repository. Nobody's installed copy changes until
+          that is merged.
+        </template>
+        <template v-else-if="plan">
+          The source is a file on this machine, so this overwrites it directly — no pull request, no review.
+        </template>
       </p>
-      <p
-        v-if="!plan.changed"
-        class="push__question"
-      >
-        Nothing to send — this copy already matches its source.
-      </p>
-      <template v-else>
-        <pre
-          v-if="plan.kind === 'remote'"
-          class="push__diff"
-        >{{ plan.diff }}</pre>
-        <p
-          v-else
-          class="push__dest"
-        >
-          Would overwrite <code>{{ plan.target }}</code>
-        </p>
-        <label
-          v-if="remote"
-          class="push__field"
-        >
-          <span>Message — the commit, and the pull request's title</span>
-          <input
-            v-model="message"
-            type="text"
-            :placeholder="`library: updated ${entry.name}`"
-            autocomplete="off"
-            autocorrect="off"
-            spellcheck="false"
-          >
-        </label>
-      </template>
 
-      <div class="push__actions">
-        <button
-          type="button"
-          class="ghost"
-          @click="emit('close')"
-        >
-          Cancel
-        </button>
-        <button
-          v-if="plan.changed"
-          type="button"
-          :disabled="running"
-          @click="confirm()"
-        >
-          {{ remote ? "Push and open a pull request" : "Overwrite the source" }}
-        </button>
-      </div>
       <BusyIndicator
-        v-if="running"
+        v-if="running && !plan"
         inline
-        label="Sending…"
+        label="Checking what would be sent…"
       />
-    </div>
-  </section>
+
+      <div
+        v-if="plan"
+        class="push__confirm fade-in"
+      >
+        <!-- Before the push, because afterwards it is a post-mortem. -->
+        <p
+          v-if="plan.note"
+          class="push__provenance"
+        >
+          {{ plan.note }}
+        </p>
+        <p
+          v-if="!plan.changed"
+          class="push__question"
+        >
+          Nothing to send — this copy already matches its source.
+        </p>
+        <template v-else>
+          <pre
+            v-if="plan.kind === 'remote'"
+            class="push__diff"
+          >{{ plan.diff }}</pre>
+          <p
+            v-else
+            class="push__dest"
+          >
+            Would overwrite <code>{{ plan.target }}</code>
+          </p>
+          <label
+            v-if="remote"
+            class="push__field"
+          >
+            <span>Message — the commit, and the pull request's title</span>
+            <input
+              v-model="message"
+              type="text"
+              :placeholder="`library: updated ${entry.name}`"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+            >
+          </label>
+        </template>
+
+        <div class="push__actions">
+          <button
+            type="button"
+            class="ghost"
+            @click="emit('close')"
+          >
+            Cancel
+          </button>
+          <button
+            v-if="plan.changed"
+            type="button"
+            :disabled="running"
+            @click="confirm()"
+          >
+            {{ remote ? "Push and open a pull request" : "Overwrite the source" }}
+          </button>
+        </div>
+        <BusyIndicator
+          v-if="running"
+          inline
+          label="Sending…"
+        />
+      </div>
+    </section>
+  </ModalDialog>
 </template>
 
 <style scoped>

@@ -4,6 +4,7 @@ import { ref } from "vue";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import BusyIndicator from "./BusyIndicator.vue";
+import ModalDialog from "./ModalDialog.vue";
 
 const props = defineProps<{
   entry: EntryRecord;
@@ -26,6 +27,11 @@ const refused = ref(false);
 /** Q17 A: an override for the name goes with the copy, so the confirmation names it. */
 const override = props.entry.disabled ? "off" : props.entry.skillOverride;
 
+/** Escape mid-deletion would unmount the control and lose its outcome. */
+function close() {
+  if (!running.value) emit("close");
+}
+
 async function remove(force: boolean) {
   running.value = true;
   const result = await activity.withActivity(`removing ${props.entry.name}…`, () =>
@@ -44,92 +50,97 @@ async function remove(force: boolean) {
 </script>
 
 <template>
-  <section class="uninstall">
-    <!-- A refusal is a second confirmation, never a retry: force is only ever pressed from here. -->
-    <div
-      v-if="refused"
-      class="uninstall__refused"
-    >
-      <p class="uninstall__question">
-        Loadout has no install receipt for this path, so it cannot prove it created it:
-      </p>
-      <p class="uninstall__paths">
-        <code>{{ dest }}</code>
-      </p>
-      <p class="uninstall__note">
-        Deleting anyway removes whatever is there, including anything you put there yourself.
-      </p>
-      <div class="uninstall__actions">
-        <button
-          type="button"
-          class="ghost"
-          @click="emit('close')"
-        >
-          Leave it alone
-        </button>
-        <button
-          type="button"
-          class="danger"
-          :disabled="running"
-          @click="remove(true)"
-        >
-          Delete anyway
-        </button>
-      </div>
-    </div>
-
-    <div
-      v-else
-      class="uninstall__confirm"
-    >
-      <p class="uninstall__question">
-        Delete the installed copy of {{ entry.name }}?
-      </p>
-      <p class="uninstall__paths">
-        <code>{{ dest }}</code>
-      </p>
-      <p
-        v-if="affected.length"
-        class="uninstall__affected"
+  <ModalDialog
+    :title="`Remove ${entry.name}`"
+    @close="close()"
+  >
+    <section class="uninstall">
+      <!-- A refusal is a second confirmation, never a retry: force is only ever pressed from here. -->
+      <div
+        v-if="refused"
+        class="uninstall__refused"
       >
-        {{ affected.length }} installed
-        {{ affected.length === 1 ? "entry depends" : "entries depend" }} on this and will be left incomplete:
-        {{ affected.join(", ") }}.
-      </p>
-      <p
-        v-if="override"
-        class="uninstall__override"
-      >
-        Its {{ override }} setting in Claude Code's settings is removed with it.
-      </p>
-      <p class="uninstall__note">
-        The catalog entry is untouched. Installing it again brings the files back.
-      </p>
-      <div class="uninstall__actions">
-        <button
-          type="button"
-          class="ghost"
-          @click="emit('close')"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="danger"
-          :disabled="running"
-          @click="remove(false)"
-        >
-          Delete
-        </button>
+        <p class="uninstall__question">
+          Loadout has no install receipt for this path, so it cannot prove it created it:
+        </p>
+        <p class="uninstall__paths">
+          <code>{{ dest }}</code>
+        </p>
+        <p class="uninstall__note">
+          Deleting anyway removes whatever is there, including anything you put there yourself.
+        </p>
+        <div class="uninstall__actions">
+          <button
+            type="button"
+            class="ghost"
+            @click="emit('close')"
+          >
+            Leave it alone
+          </button>
+          <button
+            type="button"
+            class="danger"
+            :disabled="running"
+            @click="remove(true)"
+          >
+            Delete anyway
+          </button>
+        </div>
       </div>
-    </div>
 
-    <BusyIndicator
-      v-if="running"
-      inline
-      label="Removing files…"
-    />
-  </section>
+      <div
+        v-else
+        class="uninstall__confirm"
+      >
+        <p class="uninstall__question">
+          Delete the installed copy of {{ entry.name }}?
+        </p>
+        <p class="uninstall__paths">
+          <code>{{ dest }}</code>
+        </p>
+        <p
+          v-if="affected.length"
+          class="uninstall__affected"
+        >
+          {{ affected.length }} installed
+          {{ affected.length === 1 ? "entry depends" : "entries depend" }} on this and will be left incomplete:
+          {{ affected.join(", ") }}.
+        </p>
+        <p
+          v-if="override"
+          class="uninstall__override"
+        >
+          Its {{ override }} setting in Claude Code's settings is removed with it.
+        </p>
+        <p class="uninstall__note">
+          The catalog entry is untouched. Installing it again brings the files back.
+        </p>
+        <div class="uninstall__actions">
+          <button
+            type="button"
+            class="ghost"
+            @click="emit('close')"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="danger"
+            :disabled="running"
+            @click="remove(false)"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+
+      <BusyIndicator
+        v-if="running"
+        inline
+        label="Removing files…"
+      />
+    </section>
+  </ModalDialog>
 </template>
 
 <style scoped>
