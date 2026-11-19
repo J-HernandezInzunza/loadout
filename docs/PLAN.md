@@ -1834,7 +1834,7 @@ Defaults, reversible (say so in review if one should change):
   covered.
 - The skill that ties it together is tracked in the repo at `.claude/skills/`, so teammates get it.
 
-- [ ] **M16.01 Spike: screencast on this app.** Record the current read-only screens (the dev build
+- [x] **M16.01 Spike: screencast on this app.** Record the current read-only screens (the dev build
   over the in-memory fake, `mockIPC` answering plugin calls in a plain browser) at 1100×760 with the
   cursor, click highlights and one chapter card. Compare `page.screencast`'s WebM with its JPEG frames
   piped to ffmpeg as H.264, for legible text in the catalog list and in a diff. Check whether the
