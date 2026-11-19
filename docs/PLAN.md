@@ -1904,7 +1904,7 @@ Defaults, reversible (say so in review if one should change):
     the release build checked free of the plugin; the owner watched a recording and judged the
     approach worth building on.
 
-- [ ] **M16.07 The core under plain Node.** `LibraryError` declares its fields instead of using
+- [x] **M16.07 The core under plain Node.** `LibraryError` declares its fields instead of using
   parameter properties (the only non-erasable syntax in the repo), and `tsconfig.base.json` sets
   `erasableSyntaxOnly`, so Node's type stripping runs every package and a script can use the core with
   no loader. The plain-node script imports `@loadout/sandbox`'s index again.
