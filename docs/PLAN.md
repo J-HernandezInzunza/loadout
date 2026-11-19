@@ -1790,7 +1790,8 @@ change):
 
 Exit: every M16 task checked; `npm run demo` serves the app in a browser, on the real core over a
 seeded sandbox; `npm run flows` runs every flow headless and passes; `npm run record -- <flow>`
-writes a video of that flow that the owner judged fit for a README; the ui-verifier agent checked a
+writes a video of that flow, the app in a Mac window on a desktop background, that the owner judged
+fit for a README; the ui-verifier agent checked a
 change through the demo URL; a release build holds none of it.
 
 Decided 2026-11-18 (owner, from the ROADMAP item "Recording workflows", open-questions Q13 c):
@@ -1806,6 +1807,11 @@ Decided 2026-11-18 (owner, from the ROADMAP item "Recording workflows", open-que
   `bitbucket.org` URLs (as the git harness does), and the API stub for GitHub and Bitbucket. Installs,
   diffs, receipts and PRs are real; nothing has to be kept in step with the core. The in-memory fake
   refuses almost every mutation, so it can't drive a flow as it stands.
+- Recordings look like a Mac app on a desktop (owner, 2026-11-18): a wallpaper and a macOS-style
+  window around the app, drawn by a page in browser mode, so the frame is in the video as filmed.
+  The app runs in an iframe inside that window, so a modal's backdrop covers the window and not the
+  wallpaper. Compositing a frame over the bare video with ffmpeg afterwards is the fallback if
+  S16 finds the screencast's cursor or highlights can't follow into the iframe.
 - Flows stay out of the gate. `npm run flows` runs them; a CI job comes once they prove stable, so
   `check:offline` needs no browser download.
 
@@ -1813,10 +1819,13 @@ Defaults, reversible (say so in review if one should change):
 
 - Flows are Playwright tests in `apps/desktop/flows/`, one file per workflow. Recording runs the same
   file with `RECORD=1`; a `chapter(title)` helper shows a card when recording and does nothing
-  otherwise, so verifying and recording can't drift apart.
+  otherwise, so verifying and recording can't drift apart. Flows reach the app through one `app`
+  handle: the page itself when verifying, the iframe when recording, so no flow knows about the frame.
 - Each flow starts from a fresh sandbox (a reset endpoint on the bridge), so flows are independent
   and repeatable. The sandbox lives under the OS temp folder and is deleted when the server stops.
-- The window is 1100×760, the app's default size, for verifying and recording.
+- The app is 1100×760, its default window size, for verifying and recording. A recording's frame
+  defaults to a 1600×1000 video with a gradient wallpaper shipped in the repo; the record command
+  takes the wallpaper (an image or a gradient), the window title, the padding and the video size.
 - Output goes to `apps/desktop/demo/out/` (git-ignored). Publishing a video is done by hand.
 - The Tauri calls the UI makes itself (opener, dialog, deep link, events, app version, window) are
   answered with `mockIPC` in browser mode. Opener calls are recorded on the page for flows to read
@@ -1830,13 +1839,15 @@ Defaults, reversible (say so in review if one should change):
   cursor, click highlights and one chapter card. Compare `page.screencast`'s WebM with its JPEG frames
   piped to ffmpeg as H.264, for legible text in the catalog list and in a diff. Check whether the
   screencast works on Playwright's WebKit (closer to the app's WKWebView) or only on Chromium, and
-  whether `mockIPC` covers every plugin call the UI makes. Record it as S16 in
-  `docs/spec/spikes.md`.
+  whether `mockIPC` covers every plugin call the UI makes. With the app in an iframe on a larger
+  page, check that the cursor, click highlights and chapter cards still land on the right elements
+  and that a modal's backdrop stays inside the iframe. Record it as S16 in `docs/spec/spikes.md`.
   - Rules: none (spike)
   - Depends: none
   - Done when: S16 records the encoder chosen (and whether ffmpeg is needed, from where), the
-    browser for verifying and for recording, file sizes for a one-minute flow, and the plugin calls
-    `mockIPC` can't answer; the owner judged the chosen encoder's output legible.
+    browser for verifying and for recording, file sizes for a one-minute flow, the plugin calls
+    `mockIPC` can't answer, and whether the in-page frame works or the ffmpeg fallback is needed;
+    the owner judged the chosen encoder's output legible.
 
 - [ ] **M16.02 The sandbox outside Vitest.** Move the path confinement in `packages/core/test/
   sandbox.ts`, the git harness's remotes and the API stub's server into code that runs in plain
@@ -1891,13 +1902,24 @@ Defaults, reversible (say so in review if one should change):
   section to CONTRIBUTING.md.
   - Rules: none (tooling)
   - Depends: M16.06
-  - Done when: both flows record; the owner watched both and judged them fit for a README.
+  - Done when: both flows record; the owner watched both and judged them legible and well paced.
 
-- [ ] **M16.08 The skill.** A project skill that starts browser mode and does one of three things:
+- [ ] **M16.08 A Mac window on a desktop.** In record mode the screencast films a desktop page instead
+  of the app: a wallpaper, and a macOS-style window (title bar with the title, the three window
+  buttons, rounded corners, a shadow) holding the app in an iframe at 1100×760, centred. `npm run
+  record -- <flow>` takes `--background` (an image path or a CSS gradient), `--title`, `--padding`
+  and `--size`, with the defaults above. If S16 chose the fallback, the same options drive an ffmpeg
+  composite of the bare recording instead.
+  - Rules: none (tooling)
+  - Depends: M16.07
+  - Done when: both flows record framed with the defaults and with a custom background and title;
+    a modal's backdrop stays inside the window; the owner judged them fit for a README.
+
+- [ ] **M16.09 The skill.** A project skill that starts browser mode and does one of three things:
   verify a change (brief the ui-verifier agent with the demo URL, the reset endpoint, what changed
   and the steps), run or record a named flow, or write a new flow from steps the user describes.
   - Rules: none (tooling)
-  - Depends: M16.07
+  - Depends: M16.08
   - Done when: the skill verified a change through the ui-verifier agent end to end and recorded a
     flow, and its runs are recorded in PROGRESS.md.
 
