@@ -1786,53 +1786,47 @@ change):
 
 ---
 
-## M16. Browser mode, flows and recordings
+## M16. Debug profiles for demos and troubleshooting
 
-Exit: every M16 task checked; `npm run demo` serves the app in a browser, on the real core over a
-seeded sandbox; `npm run flows` runs every flow headless and passes; `npm run record -- <flow>`
-writes a video of that flow, the app in a Mac window on a desktop background, that the owner judged
-fit for a README; the ui-verifier agent checked a
-change through the demo URL; a release build holds none of it.
+Exit: every M16 task checked; `npm run app:profile -- <dir>` seeds an empty folder from the demo
+repos and opens the real app on it in a debug build, with every install state the app draws; a
+release bundle holds none of it; the owner recorded one workflow from a profile by hand and judged
+the setup fit for README demos.
 
-Decided 2026-11-18 (owner, from the ROADMAP item "Recording workflows", open-questions Q13 c):
+First planned 2026-11-18 as browser mode: the app in a browser over the real core through a bridge
+host, driven and recorded by Playwright. M16.01 to M16.05 built it. Set aside 2026-11-19 (owner): it
+needed a growing list of stand-ins (answers for the Tauri calls the UI makes, a Chromium font alias,
+loading the core through Vite's module runner, path mapping next), each a place where the demo
+differs from the app. M16.04 and M16.05 were reverted in 21254c3; S16, `@loadout/sandbox` and
+`seedDemo` stay. Scripted flows and recordings went back to the ROADMAP.
 
-- Playwright, in a browser, over driving the native app. One script per workflow both verifies it
-  and records it, with `page.screencast` (Playwright 1.59+) drawing the cursor and chapter
-  cards (cursor only, no click highlights: owner, 2026-11-19, after S16). Driving the real app (WebdriverIO's Tauri service with its embedded WebDriver
-  plugin, plus a window recorder) stays a ROADMAP item: its macOS support is unconfirmed beyond
-  starting the app, and it would read the real app-data folder.
-- The real core, sandboxed, not a fake. In browser mode the frontend runs `createLibrary` as the app
-  does, over a bridge `Host` whose calls go to the Vite dev server, which answers them with
-  `createNodeHost` confined to a temp root: seeded catalogs, bare git remotes behind `github.com` and
-  `bitbucket.org` URLs (as the git harness does), and the API stub for GitHub and Bitbucket. Installs,
-  diffs, receipts and PRs are real; nothing has to be kept in step with the core. The in-memory fake
-  refuses almost every mutation, so it can't drive a flow as it stands.
-- Recordings look like a Mac app on a desktop (owner, 2026-11-18): a wallpaper and a macOS-style
-  window around the app, drawn by a page in browser mode, so the frame is in the video as filmed.
-  The app runs in an iframe inside that window, so a modal's backdrop covers the window and not the
-  wallpaper. Compositing a frame over the bare video with ffmpeg afterwards is the fallback if
-  S16 finds the screencast's cursor or highlights can't follow into the iframe.
-- Flows stay out of the gate. `npm run flows` runs them; a CI job comes once they prove stable, so
-  `check:offline` needs no browser download.
+Decided 2026-11-19 (owner):
+
+- The real app on a profile, in debug builds only, not a mode. A profile is a folder holding a home
+  and an app-data folder. The app reads it from `LOADOUT_PROFILE` behind `import.meta.env.DEV`, so a
+  release bundle has no switch at all. Nothing is stood in for: the shipped WKWebView, git, Keychain
+  and network.
+- Remote states come from real demo repos: a team catalog on Bitbucket in PR mode, its sources on
+  GitHub. No stubs, so a demo needs network, and Send edits back opens a real PR on the demo repo.
+- One command: `npm run app:profile -- <dir>` seeds the folder when it is empty, then runs `app:dev`
+  on it.
+- Recordings are made by hand (macOS screen recording); there are no scripted flows.
 
 Defaults, reversible (say so in review if one should change):
 
-- Flows are Playwright tests in `apps/desktop/flows/`, one file per workflow. Recording runs the same
-  file with `RECORD=1`; a `chapter(title)` helper shows a card when recording and does nothing
-  otherwise, so verifying and recording can't drift apart. Flows reach the app through one `app`
-  handle: the page itself when verifying, the iframe when recording, so no flow knows about the frame.
-- Each flow starts from a fresh sandbox (a reset endpoint on the bridge), so flows are independent
-  and repeatable. The sandbox lives under the OS temp folder and is deleted when the server stops.
-- The app is 1100×760, its default window size, for verifying and recording. A recording's frame
-  defaults to a 1600×1000 video with a gradient wallpaper shipped in the repo; the record command
-  takes the wallpaper (an image or a gradient), the window title, the padding and the video size.
-- Output goes to `apps/desktop/demo/out/` (git-ignored). Publishing a video is done by hand.
-- The Tauri calls the UI makes itself (opener, dialog, deep link, events, app version, window) are
-  answered with `mockIPC` in browser mode. Opener calls are recorded on the page for flows to read
-  rather than opening anything; the file dialog answers a path inside the sandbox.
-- Sign-in uses GitHub's device flow against the API stub. Bitbucket's browser redirect is not
-  covered.
-- The skill that ties it together is tracked in the repo at `.claude/skills/`, so teammates get it.
+- A profile must be under the home folder, which the app's fs scope already allows (`$HOME/**`); one
+  elsewhere is refused at start with a message, rather than widening the scope.
+- A profile's Keychain items are its own: keys are prefixed with the profile's folder, so connecting
+  in a demo never replaces the installed app's tokens.
+- `release-notes`'s source lives on a `demo-stale` branch of the sources repo, which the seed resets
+  to an older commit before installing and moves forward after: a force push to the demo repo, with
+  the owner's git credentials, on every seed.
+- The seed doesn't connect GitHub, having no token to give: connecting once in the app is a demo's
+  first step, and the profile's Keychain item keeps it.
+- The demo repos are public, `loadout-demo-skills` on GitHub and `loadout-demo-catalog` on Bitbucket,
+  under the owner's accounts; the owner creates them and pushes their first content.
+- Seeding runs the core under plain Node, with the Node host over the profile. `seedDemo` keeps its
+  content and is still tested hermetically: the sandbox maps the demo repos' URLs to local bare repos.
 
 - [x] **M16.01 Spike: screencast on this app.** Record the current read-only screens (the dev build
   over the in-memory fake, `mockIPC` answering plugin calls in a plain browser) at 1100×760 with the
@@ -1867,7 +1861,7 @@ Defaults, reversible (say so in review if one should change):
   - Depends: M16.02
   - Done when: a Node test seeds a sandbox and `list` and `show` report every one of those states.
 
-- [x] **M16.04 The bridge host.** `createBridgeHost(base)` implements `Host` in the browser with
+- [x] **M16.04 The bridge host (reverted in 21254c3).** `createBridgeHost(base)` implements `Host` in the browser with
   one POST per call; bytes travel as base64, an `AbortSignal` aborts the request, and a rejection
   keeps its `code` (`ENOENT`, `EXDEV`, `AbortError`, `TimeoutError`). A Vite plugin, applied only in
   browser mode, answers those calls with the sandbox's Node host and serves `POST /__demo/reset`,
@@ -1878,7 +1872,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: tests round-trip every `Host` method through the plugin's handler, show each error
     code kept, a path outside the root refused, and reset giving back the seeded state.
 
-- [x] **M16.05 Browser mode.** `npm run demo` (`vite --mode browser`) loads `src/main.browser.ts`:
+- [x] **M16.05 Browser mode (reverted in 21254c3).** `npm run demo` (`vite --mode browser`) loads `src/main.browser.ts`:
   `createLibrary` over the bridge host, `apiBases` pointing at the stub, and `mockIPC` for the
   plugin calls, recording opener calls on the page. `main.ts` and release builds don't import it.
   - Rules: none (tooling)
@@ -1887,41 +1881,50 @@ Defaults, reversible (say so in review if one should change):
     sandbox's files, and a test fails if the release bundle (`vite build`) contains the bridge or
     the sandbox code.
 
-- [ ] **M16.06 The first flows.** Playwright in `apps/desktop/flows/`, `npm run flows`, every flow
-  starting with a reset, in the browser S16 chose for verifying. Two flows: install a skill from the
-  catalog, through its preview; and an installed copy on its entry page: Reveal in Finder (the call
-  recorded), Send edits back on the drifted copy (its modal, the diff, a PR opened on the stub) and
-  Remove (its modal, the files gone).
+- [ ] **M16.06 The core under plain Node.** `LibraryError` declares its fields instead of using
+  parameter properties (the only non-erasable syntax in the repo), and `tsconfig.base.json` sets
+  `erasableSyntaxOnly`, so Node's type stripping runs every package and a script can use the core with
+  no loader. The plain-node script imports `@loadout/sandbox`'s index again.
   - Rules: none (tooling)
-  - Depends: M16.05
-  - Done when: both flows pass headless twice in a row from one server start.
+  - Depends: none
+  - Done when: `npm run check` passes with the flag on, and the plain-node test passes importing the
+    index.
 
-- [ ] **M16.07 Recording.** `npm run record -- <flow>` runs one flow with `RECORD=1`: the screencast
-  with the cursor (no click point, highlight or action title), its `chapter` cards, pacing that lets each change settle, and
-  the encoder S16 chose, written to `apps/desktop/demo/out/<flow>`. Add a "Flows and recordings"
-  section to CONTRIBUTING.md.
+- [ ] **M16.07 The demo repos.** `tools/demo-repos.ts <dir>` writes the team content from `seedDemo`'s
+  lists into two local repos under `<dir>`, committed and with their remotes set: the sources (every
+  team entry on `main`, and `demo-stale` one commit behind on `release-notes`) and the catalog
+  (`library.yaml` pointing at the sources repo). The owner creates the two public repos and pushes.
   - Rules: none (tooling)
   - Depends: M16.06
-  - Done when: both flows record; the owner watched both and judged them legible and well paced.
+  - Done when: both repos hold the content, and registering the catalog in a scratch profile lists
+    every team entry.
 
-- [ ] **M16.08 A Mac window on a desktop.** In record mode the screencast films a desktop page instead
-  of the app: a wallpaper, and a macOS-style window (title bar with the title, the three window
-  buttons, rounded corners, a shadow) holding the app in an iframe at 1100×760, centred. `npm run
-  record -- <flow>` takes `--background` (an image path or a CSS gradient), `--title`, `--padding`
-  and `--size`, with the defaults above. If S16 chose the fallback, the same options drive an ffmpeg
-  composite of the bare recording instead.
+- [ ] **M16.08 A profile in debug builds.** In `main.ts`, only when `import.meta.env.DEV` and
+  `LOADOUT_PROFILE` is set: paths `{ home: <dir>/home, appData: <dir>/appData }`, `claudeConfigDir`
+  `<dir>/home/.claude`, Keychain keys prefixed with the profile, and a refusal (a message in the
+  window, nothing read or written) for a folder outside the home folder.
   - Rules: none (tooling)
-  - Depends: M16.07
-  - Done when: both flows record framed with the defaults and with a custom background and title;
-    a modal's backdrop stays inside the window; the owner judged them fit for a README.
+  - Depends: none
+  - Done when: `LOADOUT_PROFILE=<dir> npm run app:dev` shows that folder's catalogs and installs and
+    leaves the real `~/.claude`, app data and Keychain items alone (checked before and after); a test
+    builds the release bundle with `LOADOUT_PROFILE` set and fails if the bundle contains it.
 
-- [ ] **M16.09 The skill.** A project skill that starts browser mode and does one of three things:
-  verify a change (brief the ui-verifier agent with the demo URL, the reset endpoint, what changed
-  and the steps), run or record a named flow, or write a new flow from steps the user describes.
+- [ ] **M16.09 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repos'
+  URLs instead of a sandbox and the API stub, and keeps its states: drifted, unmanaged, stale (the
+  `demo-stale` reset and push), switched off and pinned, with GitHub left to connect in the app.
+  `npm run app:profile -- <dir>` seeds `<dir>` when it is empty, then runs `app:dev` with
+  `LOADOUT_PROFILE`. The seed test keeps running against local bare repos at the same URLs.
   - Rules: none (tooling)
-  - Depends: M16.08
-  - Done when: the skill verified a change through the ui-verifier agent end to end and recorded a
-    flow, and its runs are recorded in PROGRESS.md.
+  - Depends: M16.06, M16.07, M16.08
+  - Done when: from an empty folder the command opens the app on the seeded machine showing every
+    state, the demo repos untouched apart from `demo-stale`; the owner walked it.
+
+- [ ] **M16.10 Docs.** A "Debug profiles" section in CONTRIBUTING.md: seeding and opening a demo
+  profile, connecting GitHub once, recording by hand, and troubleshooting by copying someone's
+  `config.json` and `.claude` into a profile.
+  - Rules: none (docs)
+  - Depends: M16.09
+  - Done when: the owner recorded one workflow from a profile by hand, following it.
 
 ---
 
