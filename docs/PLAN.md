@@ -1849,7 +1849,7 @@ Defaults, reversible (say so in review if one should change):
     `mockIPC` can't answer, and whether the in-page frame works or the ffmpeg fallback is needed;
     the owner judged the chosen encoder's output legible.
 
-- [ ] **M16.02 The sandbox outside Vitest.** Move the path confinement in `packages/core/test/
+- [x] **M16.02 The sandbox outside Vitest.** Move the path confinement in `packages/core/test/
   sandbox.ts`, the git harness's remotes and the API stub's server into code that runs in plain
   Node, with clean-up passed in instead of `onTestFinished`; the test helpers become thin wrappers
   over it. Nothing it contains may reach a release build.
