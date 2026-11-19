@@ -1931,7 +1931,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: an app opened on a profile writes only under `<dir>/home`, and the real default
     keychain, search list and Loadout items are unchanged afterwards (checked before and after).
 
-- [ ] **M16.10 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repo's
+- [x] **M16.10 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repo's
   URL instead of a sandbox and the API stub, and keeps its states: drifted, unmanaged, stale (the
   `demo-stale` reset and push), switched off and pinned, with GitHub left to connect in the app.
   `npm run app:profile -- <dir>` builds the debug app, makes and seeds `<dir>` when it is empty (with
