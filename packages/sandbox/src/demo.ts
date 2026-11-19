@@ -70,6 +70,12 @@ const team: Seed[] = [
 
 const skillsRepo = "https://github.com/acme/skills";
 
+/** The public repo holding the demo's team catalog and its sources (M16.08). */
+export const demoRepo = "https://github.com/J-HernandezInzunza/loadout-demo";
+
+/** `release-notes` as its source moves on, so an installed copy reads "update available". */
+const releaseNotesAhead = (body: string) => `${body}\nPut breaking changes first, under their own heading.`;
+
 /** Where a seed's source lives, relative to its repo or catalog folder. */
 const sourcePath = (s: Seed) => (s.type === "skill" ? `skills/${s.name}/SKILL.md` : `${s.type}s/${s.name}.md`);
 
@@ -82,6 +88,26 @@ function catalogYaml(seeds: Seed[], source: (s: Seed) => string): string {
     return `  ${type}s:\n${items.map((s) => `    - name: ${s.name}\n      description: ${s.description}\n      source: ${source(s)}\n`).join("")}`;
   };
   return `library:\n${block("skill")}${block("agent")}${block("prompt")}`;
+}
+
+/**
+ * The demo repo's files: `main` holds `library.yaml` and every team entry, its sources pointing into the
+ * repo itself (`release-notes` on the `demo-stale` branch); `ahead` is the one change from the
+ * `demo-stale-v1` tag to `demo-stale-v2`.
+ */
+export function demoRepoContent(): { main: Record<string, string>; ahead: Record<string, string> } {
+  const notes = team.find((s) => s.name === "release-notes")!;
+  const branchOf = (s: Seed) => (s === notes ? "demo-stale" : "main");
+  return {
+    main: {
+      "README.md":
+        "# loadout-demo\n\nThe team catalog that [Loadout](https://github.com/J-HernandezInzunza/loadout)'s debug profiles and recordings use. " +
+        "Seeding a profile force-pushes the `demo-stale` branch between the `demo-stale-v1` and `demo-stale-v2` tags, and demo flows open and close pull requests here.\n",
+      "library.yaml": catalogYaml(team, (s) => `${demoRepo}/blob/${branchOf(s)}/${sourcePath(s)}`),
+      ...Object.fromEntries(team.map((s) => [sourcePath(s), fileText(s)])),
+    },
+    ahead: { [sourcePath(notes)]: fileText(notes, releaseNotesAhead(notes.body)) },
+  };
 }
 
 function value<T, E extends CoreError>(step: string, r: Result<T, E>): T {
@@ -131,7 +157,7 @@ export async function seedDemo(sandbox: Sandbox, stub: ApiStub): Promise<void> {
   const byHand = teamSeed("pr-description");
   await put(join(home, ".claude", "skills", byHand.name, "SKILL.md"), fileText(byHand));
   const notes = teamSeed("release-notes");
-  sources.commit({ [sourcePath(notes)]: fileText(notes, `${notes.body}\nPut breaking changes first, under their own heading.`) }, { message: "release-notes: breaking changes first" });
+  sources.commit({ [sourcePath(notes)]: fileText(notes, releaseNotesAhead(notes.body)) }, { message: "release-notes: breaking changes first" });
 
   value("switch off", await library.setSkillState(["explain-errors"], "off"));
   value("pin", await library.applyPin(value("plan pin", await library.planPin({ name: "commit-message", catalog: "team" })), { switchInstalled: false }));
