@@ -1803,11 +1803,12 @@ differs from the app. M16.04 and M16.05 were reverted in 21254c3; S16, `@loadout
 
 Decided 2026-11-19 (owner):
 
-- The real app on a profile, in debug builds only, not a mode. A profile is a folder holding a home
-  and an app-data folder, read from `LOADOUT_PROFILE` behind `cfg(debug_assertions)`, so a release
-  build has no switch at all. Rust, not Vite's `import.meta.env.DEV`: WebDriver launches a built
-  debug binary, whose frontend is a production Vite build. Nothing is stood in for: the shipped
-  WKWebView, git, Keychain and network.
+- The real app on a profile, in debug builds only, not a mode. A profile is a folder whose `home/`
+  the app is launched with as `HOME`: S17 found its `.claude`, app data and fs scope all follow
+  `HOME`, so the app needs no path switch. The Keychain doesn't follow `HOME`, so a debug build
+  launched with `LOADOUT_PROFILE` keeps its own Keychain items; that is the only app change, behind
+  `cfg(debug_assertions)` (Rust, since WebDriver launches a built debug binary), and a release build
+  has no switch at all. Nothing is stood in for: the shipped WKWebView, git, Keychain and network.
 - Remote states come from real demo repos: a team catalog on Bitbucket in PR mode, its sources on
   GitHub. No stubs, so a demo needs network, and Send edits back opens a real PR on the demo repo.
 - One command: `npm run app:profile -- <dir>` seeds the folder when it is empty, then runs `app:dev`
@@ -1820,10 +1821,9 @@ Decided 2026-11-19 (owner):
 
 Defaults, reversible (say so in review if one should change):
 
-- A profile must be under the home folder, which the app's fs scope already allows (`$HOME/**`); one
-  elsewhere is refused at start with a message, rather than widening the scope.
 - A profile's Keychain items are its own: keys are prefixed with the profile's folder, so connecting
   in a demo never replaces the installed app's tokens.
+- The launcher sets `HOME` for the app's process only: cargo, rustup and npm keep the real one.
 - `release-notes`'s source lives on a `demo-stale` branch of the sources repo, which the seed resets
   to an older commit before installing and moves forward after: a force push to the demo repo, with
   the owner's git credentials, on every seed.
@@ -1922,21 +1922,21 @@ Defaults, reversible (say so in review if one should change):
   - Done when: both repos hold the content, and registering the catalog in a scratch profile lists
     every team entry.
 
-- [ ] **M16.09 A profile in debug builds.** Only under `cfg(debug_assertions)`, and only when
-  `LOADOUT_PROFILE` is set: the app's paths become `{ home: <dir>/home, appData: <dir>/appData }`,
-  `claudeConfigDir` `<dir>/home/.claude`, and Keychain keys are prefixed with the profile; a folder
-  outside the home folder is refused with a message in the window, nothing read or written.
+- [ ] **M16.09 A profile in debug builds.** Under `cfg(debug_assertions)`, when `LOADOUT_PROFILE` is
+  set, the Keychain commands prefix each key with it. Everything else about a profile comes from
+  launching the app with `HOME=<dir>/home` (S17).
   - Rules: none (tooling)
   - Depends: M16.06
-  - Done when: a debug build run with `LOADOUT_PROFILE=<dir>` shows that folder's catalogs and
-    installs and leaves the real `~/.claude`, app data and Keychain items alone (checked before and
-    after); a release build ignores the variable.
+  - Done when: a debug build launched with `HOME=<dir>/home` and `LOADOUT_PROFILE=<dir>` shows that
+    folder's catalogs and installs, and connecting an account there leaves the real `~/.claude`, app
+    data and Keychain items alone (checked before and after); a release build ignores the variable.
 
 - [ ] **M16.10 Seeding a profile.** `seedDemo` takes a Node host over the profile and the demo repos'
   URLs instead of a sandbox and the API stub, and keeps its states: drifted, unmanaged, stale (the
   `demo-stale` reset and push), switched off and pinned, with GitHub left to connect in the app.
-  `npm run app:profile -- <dir>` seeds `<dir>` when it is empty, then runs `app:dev` with
-  `LOADOUT_PROFILE`. The seed test keeps running against local bare repos at the same URLs.
+  `npm run app:profile -- <dir>` builds the debug app, seeds `<dir>` when it is empty (with a git
+  identity in its home, for commits), then runs the app with `HOME=<dir>/home` and
+  `LOADOUT_PROFILE=<dir>`. The seed test keeps running against local bare repos at the same URLs.
   - Rules: none (tooling)
   - Depends: M16.07, M16.08, M16.09
   - Done when: from an empty folder the command opens the app on the seeded machine showing every
