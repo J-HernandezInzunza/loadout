@@ -1,8 +1,7 @@
 // The demo server behind browser mode (M16.04): a seeded sandbox and API stub, the bridge that answers
 // the browser's Host calls from them, and a reset that swaps in a fresh pair. Mounted at /__demo on the
-// Vite dev server by demoBridge(); loopback only.
+// Vite dev server by demoBridge() (vite.ts); loopback only.
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Plugin } from "vite";
 import { createApiStub, type ApiStub } from "../apiStub.ts";
 import { seedDemo } from "../demo.ts";
 import { createSandbox, type Sandbox } from "../sandbox.ts";
@@ -110,26 +109,5 @@ export async function createDemoServer(): Promise<DemoServer> {
     },
     root: () => run.sandbox.root,
     close: () => stop(run),
-  };
-}
-
-/**
- * Serves the bridge at /__demo on the dev server, bound to loopback; the sandbox is removed when the
- * server closes. Add it to the config in browser mode only.
- */
-export function demoBridge(): Plugin {
-  let demo: DemoServer | undefined;
-  return {
-    name: "loadout-demo-bridge",
-    apply: "serve",
-    config: () => ({ server: { host: "127.0.0.1" } }),
-    async configureServer(server) {
-      demo = await createDemoServer();
-      server.middlewares.use("/__demo", demo.middleware);
-    },
-    async buildEnd() {
-      await demo?.close();
-      demo = undefined;
-    },
   };
 }

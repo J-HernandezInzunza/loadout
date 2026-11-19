@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./bridge": "./src/bridge/client.ts"
+    "./bridge": "./src/bridge/client.ts",
+    "./vite": "./src/bridge/vite.ts"
   },
   "dependencies": {
     "@loadout/core": "*",
