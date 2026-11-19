@@ -86,14 +86,15 @@ export type CoreError = z.infer<typeof CoreError>;
 
 /** Thrown by the pure catalog functions; ops turn it into an `err()` result. */
 export class LibraryError extends Error {
-  constructor(
-    readonly code: ErrorCode,
-    message: string,
-    /** 1-based catalog line, for SPLICE_UNSUPPORTED */
-    readonly line?: number,
-  ) {
+  readonly code: ErrorCode;
+  /** 1-based catalog line, for SPLICE_UNSUPPORTED */
+  readonly line?: number | undefined;
+
+  constructor(code: ErrorCode, message: string, line?: number) {
     super(message);
     this.name = "LibraryError";
+    this.code = code;
+    this.line = line;
   }
 }
 
