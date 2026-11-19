@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./bridge": "./src/bridge/client.ts",
-    "./vite": "./src/bridge/vite.ts"
+    ".": "./src/index.ts"
   },
   "dependencies": {
     "@loadout/core": "*",

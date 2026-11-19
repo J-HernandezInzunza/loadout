@@ -4,4 +4,3 @@ export { createApiStub, type Api, type ApiStub, type RecordedRequest, type StubP
 export { createGitHarness, type GitHarness, type GitHost, type Remote } from "./git.ts";
 export { createSandbox, type Defer, type Sandbox } from "./sandbox.ts";
 export { demoLogin, seedDemo } from "./demo.ts";
-export { createDemoServer, type DemoServer } from "./bridge/server.ts";
