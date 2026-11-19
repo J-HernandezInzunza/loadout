@@ -1888,7 +1888,7 @@ Defaults, reversible (say so in review if one should change):
     sandbox's files, and a test fails if the release bundle (`vite build`) contains the bridge or
     the sandbox code.
 
-- [ ] **M16.06 Spike: drive the real app on macOS.** In a debug build with `tauri-plugin-wdio-webdriver`
+- [x] **M16.06 Spike: drive the real app on macOS.** In a debug build with `tauri-plugin-wdio-webdriver`
   (registered under `cfg(debug_assertions)`), drive the app from WebdriverIO's Tauri service: find
   elements by role and label, click, type, open and close a modal, read the window's rect, take a
   screenshot. Then record it: capture the screen around the window (window, shadow and a margin of
