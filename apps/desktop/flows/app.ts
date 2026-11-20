@@ -3,9 +3,11 @@
 import { execFileSync, type ChildProcess } from "node:child_process";
 import { rmSync } from "node:fs";
 import { createLibrary } from "@loadout/core";
+import { onTestFinished } from "vitest";
 import { remote } from "webdriverio";
 import { initProfile, profileHost, profileLayout, seedProfile, setProfileSecret, startApp } from "../../../tools/profile.ts";
 import { pointAt, recording, settle, startRecording } from "./recording.ts";
+import { flowsToken } from "./token.ts";
 
 const port = 4445;
 
@@ -46,26 +48,33 @@ function refuseIfRunning(): void {
 
 const exited = (app: ChildProcess) => app.exitCode !== null || app.signalCode !== null;
 
-/** Starts the app on a profile and opens a WebDriver session on it. */
+/**
+ * Starts the app on a profile and opens a WebDriver session on it. Should any step fail, the app is stopped
+ * before the error is thrown: left running, it would make every later flow refuse to start.
+ */
 export async function openApp(dir: string): Promise<RunningApp> {
   refuseIfRunning();
   const app = startApp(dir, "ignore");
+  let browser: Browser | undefined;
+  let stopRecording: () => Promise<void>;
   try {
     await ready(app);
     // The server that answered must be this app's, not one it handed over to.
     await new Promise((r) => setTimeout(r, 500));
     if (exited(app)) throw new Error("the app quit right after starting: is another Loadout running?");
+    const session = await remote({ hostname: "127.0.0.1", port, path: "/", capabilities: {}, logLevel: "warn" });
+    browser = session;
+    // WebKit stops animating a window that's covered, leaving a fade-in at opacity 0, which WebDriver reads as
+    // not displayed. Flows check behavior, so they run without motion, as the app does under reduced motion; a
+    // recording keeps it, with the window in front.
+    if (!recording) await session.execute(() => document.head.append(Object.assign(document.createElement("style"), { textContent: "*, *::before, *::after { animation: none !important; transition: none !important; }" })));
+    // In record mode (npm run record), the recorder films from here until close.
+    stopRecording = await startRecording(session, app.pid!, () => invoke(session, "plugin:window|set_focus", { label: "main" }));
   } catch (e) {
-    app.kill();
+    await browser?.deleteSession().catch(() => {});
+    await stop(app);
     throw e;
   }
-  const browser = await remote({ hostname: "127.0.0.1", port, path: "/", capabilities: {}, logLevel: "warn" });
-  // WebKit stops animating a window that's covered, leaving a fade-in at opacity 0, which WebDriver reads as not
-  // displayed. Flows check behavior, so they run without motion, as the app does under reduced motion; a
-  // recording keeps it, with the window in front.
-  if (!recording) await browser.execute(() => document.head.append(Object.assign(document.createElement("style"), { textContent: "*, *::before, *::after { animation: none !important; transition: none !important; }" })));
-  // In record mode (npm run record), the recorder films from here until close.
-  const stopRecording = await startRecording(browser, app.pid!, () => invoke(browser, "plugin:window|set_focus", { label: "main" }));
   return {
     browser,
     home: profileLayout(dir).home,
@@ -75,14 +84,17 @@ export async function openApp(dir: string): Promise<RunningApp> {
       } finally {
         // The app quits even when the recording failed, or the next flow finds it still running.
         await browser.deleteSession().catch(() => {});
-        if (!exited(app)) {
-          const gone = new Promise((r) => app.once("exit", r));
-          app.kill();
-          await gone;
-        }
+        await stop(app);
       }
     },
   };
+}
+
+async function stop(app: ChildProcess): Promise<void> {
+  if (exited(app)) return;
+  const gone = new Promise((r) => app.once("exit", r));
+  app.kill();
+  await gone;
 }
 
 /** One of the app's own commands, invoked from the page. */
@@ -98,24 +110,36 @@ export async function invoke<T>(browser: Browser, cmd: string, args: Record<stri
 }
 
 /**
- * A freshly seeded profile in a temp folder, connected to GitHub with `token`: the core records the account,
- * and the token goes where the app on the profile reads its secrets. Removed by `dispose`.
+ * The app, open for the current test on a freshly seeded profile connected to GitHub with the flows' token: the
+ * core records the account, and the token goes where the app on the profile reads its secrets. When the test
+ * finishes, however it ends, the app is closed and the profile removed.
  */
-export async function freshProfile(token: string): Promise<{ dir: string; open(): Promise<RunningApp>; dispose(): void }> {
+export async function freshApp(): Promise<RunningApp> {
+  const token = flowsToken();
   // A short, fixed place, since the app shows its paths (and recordings film them); one flow runs at a time.
-  const root = "/tmp/loadout-demo";
-  rmSync(root, { recursive: true, force: true });
-  const dir = root;
-  initProfile(dir);
-  await seedProfile(dir);
-  const connected = await createLibrary(profileHost(dir)).connect("github", JSON.parse(token) as never);
-  if (!connected.ok) throw new Error(`connecting GitHub in the fresh profile: ${connected.error.message}`);
-  setProfileSecret(dir, "github", token);
-  return {
-    dir,
-    open: () => openApp(dir),
-    dispose: () => rmSync(root, { recursive: true, force: true }),
-  };
+  const dir = "/tmp/loadout-demo";
+  const dispose = () => rmSync(dir, { recursive: true, force: true });
+  dispose();
+  try {
+    initProfile(dir);
+    await seedProfile(dir);
+    const connected = await createLibrary(profileHost(dir)).connect("github", JSON.parse(token) as never);
+    if (!connected.ok) throw new Error(`connecting GitHub in the fresh profile: ${connected.error.message}`);
+    setProfileSecret(dir, "github", token);
+    const app = await openApp(dir);
+    onTestFinished(async () => {
+      try {
+        await app.close();
+      } finally {
+        dispose();
+      }
+    });
+    return app;
+  } catch (e) {
+    // openApp stops the app itself when it fails; a seed that failed halfway leaves only the profile.
+    dispose();
+    throw e;
+  }
 }
 
 /** A button by its accessible name (its text or aria-label), not any element of that name (S17). */

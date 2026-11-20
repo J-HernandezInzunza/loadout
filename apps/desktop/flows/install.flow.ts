@@ -1,26 +1,13 @@
 // Install a skill from the catalog, through its preview.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { freshProfile, press, sees, type RunningApp } from "./app.ts";
+import { describe, expect, it } from "vitest";
+import { freshApp, press, sees } from "./app.ts";
 import { chapter } from "./recording.ts";
-import { flowsToken } from "./token.ts";
-
-let token: string;
-let app: RunningApp | undefined;
-let profile: Awaited<ReturnType<typeof freshProfile>> | undefined;
-beforeAll(() => {
-  token = flowsToken();
-});
-afterEach(async () => {
-  await app?.close();
-  profile?.dispose();
-});
 
 describe("install a skill", () => {
   it("previews what goes where, then installs test-first", async () => {
-    profile = await freshProfile(token);
-    app = await profile.open();
+    const app = await freshApp();
     const b = app.browser;
     const dest = join(app.home, ".claude/skills/test-first/SKILL.md");
 
