@@ -13,7 +13,7 @@
     "typecheck": "tsc -b && vue-tsc -p apps/desktop --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "cargo:check": "cargo check --locked --offline --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "cargo:check": "cargo check --locked --offline --manifest-path apps/desktop/src-tauri/Cargo.toml && cargo check --locked --offline --features webdriver --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "check": "npm run typecheck && npm run lint && npm run test && npm run cargo:check && npm run cargo:test",
     "check:offline": "sandbox-exec -f tools/offline.sb npm run check",
     "golden": "PYTHONDONTWRITEBYTECODE=1 \"${LIBRARY_SKILL_DIR:-$HOME/Projects/my-tools/the-library-skill}/.venv/bin/python\" -B tools/golden/gen.py",
