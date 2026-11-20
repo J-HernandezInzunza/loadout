@@ -2,7 +2,7 @@
 // data, fs scope and Keychain all follow HOME (S17), so a profile needs no app change; it only needs its own
 // login keychain, which `init` makes, with a random password kept beside it so `open` can unlock it. `demo`
 // (npm run app:profile -- <dir>) builds the debug app, makes and seeds a new profile, and opens it.
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -55,7 +55,7 @@ export function unlockProfile(dir: string): void {
 export async function seedProfile(dir: string): Promise<void> {
   const p = profileLayout(dir);
   writeFileSync(join(p.home, ".gitconfig"), "[user]\n\tname = Loadout Demo\n\temail = demo@loadout.invalid\n");
-  await seedDemo(createNodeHost({ home: p.home, appData: join(p.home, "Library/Application Support", identifier) }));
+  await seedDemo(profileHost(dir));
 }
 
 /**
@@ -64,19 +64,25 @@ export async function seedProfile(dir: string): Promise<void> {
  * user's files; the app repairs PATH from the profile's login shell, as it does when launched from Finder.
  */
 export function profileEnv(home: string, from: NodeJS.ProcessEnv = process.env): Record<string, string> {
-  const kept = ["USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "__CF_USER_TEXT_ENCODING"].flatMap((k) => (from[k] ? [[k, from[k]]] : []));
+  const kept = ["USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "__CF_USER_TEXT_ENCODING", "SECURITYSESSIONID"].flatMap((k) => (from[k] ? [[k, from[k]]] : []));
   return { ...Object.fromEntries(kept), HOME: home, PATH: "/usr/bin:/bin:/usr/sbin:/sbin" };
 }
 
-/** Runs the built debug app on the profile until it quits. */
-function openProfile(dir: string): void {
+/** Starts the built debug app on the profile; flows stop it themselves. */
+export function startApp(dir: string, stdio: "inherit" | "ignore" = "inherit"): ChildProcess {
   const p = profileLayout(dir);
   if (!existsSync(p.keychain)) throw new Error(`${p.root} is not a profile yet: run init first`);
-  if (!existsSync(debugApp)) throw new Error(`no debug build at ${debugApp}: npm run tauri -w apps/desktop -- build --debug --no-bundle`);
+  if (!existsSync(debugApp)) throw new Error(`no debug build at ${debugApp}: npm run app:build:debug`);
   unlockProfile(dir);
   // The app caches what the login shell reported; probing afresh keeps that the profile's own.
   rmSync(join(p.home, "Library/Application Support", identifier, "shell-env.json"), { force: true });
-  spawn(debugApp, [], { env: profileEnv(p.home), stdio: "inherit" }).on("exit", (code) => process.exit(code ?? 0));
+  return spawn(debugApp, [], { env: profileEnv(p.home), stdio });
+}
+
+/** The core over the profile's home and app data, as the app finds them. */
+export function profileHost(dir: string) {
+  const { home } = profileLayout(dir);
+  return createNodeHost({ home, appData: join(home, "Library/Application Support", identifier) });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -89,7 +95,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   if (command === "init") console.log(`profile ready: ${initProfile(dir).home}`);
   if (command === "demo") {
-    execFileSync("npm", ["run", "tauri", "-w", "apps/desktop", "--", "build", "--debug", "--no-bundle"], { cwd: repo, stdio: "inherit" });
+    // The same debug build flows use, its WebDriver server included (M16.11).
+    execFileSync("npm", ["run", "app:build:debug"], { cwd: repo, stdio: "inherit" });
     if (!existsSync(profileLayout(dir).keychain)) {
       const made = !existsSync(dir);
       initProfile(dir);
@@ -103,5 +110,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       console.log(`seeded ${profileLayout(dir).root}`);
     }
   }
-  if (command !== "init") openProfile(dir);
+  if (command !== "init") startApp(dir).on("exit", (code) => process.exit(code ?? 0));
 }

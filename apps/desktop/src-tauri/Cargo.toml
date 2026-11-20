@@ -24,3 +24,9 @@ serde_json = "1"
 keyring = { version = "3.6.3", features = ["apple-native"] }
 tauri-plugin-http = "2"
 tauri-plugin-deep-link = "2"
+# The embedded WebDriver server flows drive the app through (M16.11, S17); only with the webdriver feature.
+tauri-plugin-wdio-webdriver = { version = "=1.5.1", optional = true }
+
+[features]
+# Debug builds for flows only: `tauri build --debug --features webdriver --config src-tauri/tauri.webdriver.conf.json`.
+webdriver = ["dep:tauri-plugin-wdio-webdriver"]

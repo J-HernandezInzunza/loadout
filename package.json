@@ -24,7 +24,10 @@
     "app:dev": "npm run tauri -w apps/desktop -- dev",
     "app:build": "npm run tauri -w apps/desktop -- build --bundles app",
     "app:build:release": "npm run tauri -w apps/desktop -- build --target aarch64-apple-darwin",
-    "app:profile": "node tools/profile.ts demo"
+    "app:build:debug": "npm run tauri -w apps/desktop -- build --debug --no-bundle --features webdriver --config src-tauri/tauri.webdriver.conf.json",
+    "app:profile": "node tools/profile.ts demo",
+    "flows": "npm run app:build:debug && vitest run --config apps/desktop/flows/vitest.config.ts",
+    "flows:connect": "node apps/desktop/flows/connect.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -36,6 +39,7 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "webdriverio": "9.31.9"
   }
 }

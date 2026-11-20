@@ -8,3 +8,6 @@ __pycache__/
 
 # Local secrets, e.g. the Bitbucket OAuth consumer (QUESTIONS.md Q5)
 *.local
+
+# Debug profiles flows run on, the base one holding a GitHub token (M16.11)
+apps/desktop/flows/.profiles/
