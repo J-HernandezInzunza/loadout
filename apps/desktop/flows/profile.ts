@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { createNodeHost } from "@loadout/host-node";
 import { seedDemo } from "@loadout/sandbox";
 
-const repo = fileURLToPath(new URL("..", import.meta.url));
+const repo = fileURLToPath(new URL("../../..", import.meta.url));
 const debugApp = join(repo, "apps/desktop/src-tauri/target/debug/loadout");
 const identifier = (JSON.parse(readFileSync(join(repo, "apps/desktop/src-tauri/tauri.conf.json"), "utf8")) as { identifier: string }).identifier;
 

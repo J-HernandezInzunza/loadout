@@ -58,7 +58,7 @@ pub fn secret_delete(key: String) -> Result<(), String> {
 }
 
 /// A debug profile's secrets (M16): a JSON object of key to value in the owner-only file that
-/// LOADOUT_PROFILE_SECRETS names, which tools/profile.ts sets. macOS 26 won't let a profile's HOME have a
+/// LOADOUT_PROFILE_SECRETS names, which flows/profile.ts sets. macOS 26 won't let a profile's HOME have a
 /// keychain that is both its default and unlockable, so profiles skip the Keychain. Debug builds only: a
 /// release build has no such path, whatever its environment.
 #[cfg(debug_assertions)]

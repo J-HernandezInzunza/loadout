@@ -7,6 +7,6 @@
     // Flows hand functions to the page (browser.execute), which run against the DOM.
     "lib": ["ES2023", "DOM", "DOM.Iterable"]
   },
-  "include": [".", "../../../tools/profile.ts"],
+  "include": ["."],
   "references": [{ "path": "../../../packages/core" }, { "path": "../../../packages/host-node" }, { "path": "../../../packages/sandbox" }]
 }

@@ -4,12 +4,12 @@ import { chmodSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { initProfile, profileEnv, setProfileSecret } from "../tools/profile.ts";
+import { initProfile, profileEnv, setProfileSecret } from "../apps/desktop/flows/profile.ts";
 
 const dir = join(realpathSync(mkdtempSync(join(tmpdir(), "loadout-profile-"))), "demo");
 afterAll(() => rmSync(join(dir, ".."), { recursive: true, force: true }));
 
-describe("tools/profile.ts", () => {
+describe("flows/profile.ts", () => {
   it("makes the profile's home, and leaves a profile already made as it is", () => {
     const p = initProfile(dir);
     expect(statSync(p.home).isDirectory()).toBe(true);

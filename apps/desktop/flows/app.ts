@@ -5,13 +5,14 @@ import { rmSync } from "node:fs";
 import { createLibrary } from "@loadout/core";
 import { onTestFinished } from "vitest";
 import { remote } from "webdriverio";
-import { initProfile, profileHost, profileLayout, seedProfile, setProfileSecret, startApp } from "../../../tools/profile.ts";
+import { initProfile, profileHost, profileLayout, seedProfile, setProfileSecret, startApp } from "./profile.ts";
 import { pointAt, recording, settle, startRecording } from "./recording.ts";
 import { flowsToken } from "./token.ts";
 
 const port = 4445;
 
 export type Browser = WebdriverIO.Browser;
+type TokenSet = Parameters<ReturnType<typeof createLibrary>["connect"]>[1];
 
 export interface RunningApp {
   browser: Browser;
@@ -99,12 +100,20 @@ async function stop(app: ChildProcess): Promise<void> {
 
 /** One of the app's own commands, invoked from the page. */
 export async function invoke<T>(browser: Browser, cmd: string, args: Record<string, unknown> = {}): Promise<T> {
-  // Runs in the page: Tauri's own IPC, as the app's frontend calls it.
-  const run = (cmd: string, args: Record<string, unknown>, done: (r: { ok: unknown } | { err: string }) => void) => {
-    const tauri = (globalThis as unknown as { __TAURI_INTERNALS__: { invoke(c: string, a: unknown): Promise<unknown> } }).__TAURI_INTERNALS__;
-    tauri.invoke(cmd, args).then((ok) => done({ ok }), (e: unknown) => done({ err: String(e) }));
-  };
-  const result = (await browser.executeAsync(run as never, cmd, args)) as { ok: unknown } | { err: string };
+  // Runs in the page: Tauri's own IPC, as the app's frontend calls it. A rejection comes back as a value, since
+  // an error thrown in the page reaches the flow without its message.
+  const result = await browser.execute(
+    async (cmd: string, args: Record<string, unknown>): Promise<{ ok: unknown } | { err: string }> => {
+      const tauri = (globalThis as unknown as { __TAURI_INTERNALS__: { invoke(c: string, a: unknown): Promise<unknown> } }).__TAURI_INTERNALS__;
+      try {
+        return { ok: await tauri.invoke(cmd, args) };
+      } catch (e) {
+        return { err: String(e) };
+      }
+    },
+    cmd,
+    args,
+  );
   if ("err" in result) throw new Error(`${cmd}: ${result.err}`);
   return result.ok as T;
 }
@@ -123,7 +132,7 @@ export async function freshApp(): Promise<RunningApp> {
   try {
     initProfile(dir);
     await seedProfile(dir);
-    const connected = await createLibrary(profileHost(dir)).connect("github", JSON.parse(token) as never);
+    const connected = await createLibrary(profileHost(dir)).connect("github", JSON.parse(token) as TokenSet);
     if (!connected.ok) throw new Error(`connecting GitHub in the fresh profile: ${connected.error.message}`);
     setProfileSecret(dir, "github", token);
     const app = await openApp(dir);

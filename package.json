@@ -25,7 +25,7 @@
     "app:build": "npm run tauri -w apps/desktop -- build --bundles app",
     "app:build:release": "npm run tauri -w apps/desktop -- build --target aarch64-apple-darwin",
     "app:build:debug": "npm run tauri -w apps/desktop -- build --debug --no-bundle --features webdriver --config src-tauri/tauri.webdriver.conf.json",
-    "app:profile": "node tools/profile.ts",
+    "app:profile": "node apps/desktop/flows/profile.ts",
     "flows": "npm run app:build:debug && vitest run --config apps/desktop/flows/vitest.config.ts",
     "flows:connect": "node apps/desktop/flows/connect.ts",
     "record": "node apps/desktop/flows/record.ts"

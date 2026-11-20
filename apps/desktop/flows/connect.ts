@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLibrary, type Host } from "@loadout/core";
-import { initProfile, profileHost } from "../../../tools/profile.ts";
+import { initProfile, profileHost } from "./profile.ts";
 import { storeFlowsToken, tokenFile } from "./token.ts";
 
 const envFile = fileURLToPath(new URL("../.env.local", import.meta.url));
