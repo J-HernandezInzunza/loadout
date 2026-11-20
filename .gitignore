@@ -8,3 +8,6 @@ __pycache__/
 
 # Local secrets, e.g. the Bitbucket OAuth consumer (QUESTIONS.md Q5)
 *.local
+
+# Recordings and the recorder binary npm run record builds (M16.12)
+apps/desktop/demo/

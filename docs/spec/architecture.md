@@ -710,7 +710,10 @@ Users connect a GitHub and/or Bitbucket account from an Accounts screen with a b
   otherwise a one-shot loopback listener; verify in the M4 spike.
 - **Rust.** No official Tauri plugin reaches the Keychain, so the Rust layer gains three commands
   (`secret_get`, `secret_set`, `secret_delete`, via the `keyring` crate) behind which
-  `host-tauri`'s `HostSecrets` sits. This is the one exception to §2.4's "no commands".
+  `host-tauri`'s `HostSecrets` sits. This is the one exception to §2.4's "no commands". Debug
+  builds launched on a debug profile (M16, `LOADOUT_PROFILE_SECRETS` set) keep secrets in that
+  owner-only JSON file instead, since macOS 26 won't give a moved `HOME` a usable default keychain;
+  release builds compile that path out.
 - **Without an account,** everything still works with the user's existing SSH keys or keychain
   credentials (spikes.md S1); PRs are then a compare link, and doctor says how to connect.
 

@@ -6,12 +6,20 @@ mod fs;
 mod path;
 mod secrets;
 
+// The WebDriver server lets anything on this machine drive the app: never in a release build.
+#[cfg(all(feature = "webdriver", not(debug_assertions)))]
+compile_error!("the webdriver feature is for debug builds only");
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     path::repair_env();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         // Must be registered first: one process mutates receipts and clones at a time.
-        .plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}))
+        .plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}));
+    // Flows drive the app through it (M16.11); only builds with the webdriver feature have it.
+    #[cfg(feature = "webdriver")]
+    let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+    builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())

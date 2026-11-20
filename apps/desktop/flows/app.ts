@@ -1,0 +1,170 @@
+// What every flow (M16.11) runs on: the real debug app, built with the webdriver feature, on a freshly seeded
+// profile connected to GitHub with the flows' token (token.ts), driven over the embedded WebDriver server (S17).
+import { execFileSync, type ChildProcess } from "node:child_process";
+import { rmSync } from "node:fs";
+import { createLibrary } from "@loadout/core";
+import { onTestFinished } from "vitest";
+import { remote } from "webdriverio";
+import { initProfile, profileHost, profileLayout, seedProfile, setProfileSecret, startApp } from "./profile.ts";
+import { pointAt, recording, settle, startRecording } from "./recording.ts";
+import { flowsToken } from "./token.ts";
+
+const port = 4445;
+
+export type Browser = WebdriverIO.Browser;
+type TokenSet = Parameters<ReturnType<typeof createLibrary>["connect"]>[1];
+
+export interface RunningApp {
+  browser: Browser;
+  /** the profile's home, where the app's `.claude` lives */
+  home: string;
+  close(): Promise<void>;
+}
+
+async function ready(app: ChildProcess): Promise<void> {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    if (app.exitCode !== null) throw new Error(`the app quit before its WebDriver server came up (exit ${app.exitCode})`);
+    const status = await fetch(`http://127.0.0.1:${port}/status`).then((r) => r.json() as Promise<{ value: { ready: boolean } }>, () => null);
+    if (status?.value.ready) return;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error("the app's WebDriver server didn't come up: is the build missing the webdriver feature?");
+}
+
+/**
+ * Loadout runs one instance at a time, whatever its HOME: a second one hands over to the first and quits, so a
+ * flow would drive the wrong app. The installed app counts too.
+ */
+function refuseIfRunning(): void {
+  const running = (() => {
+    try {
+      return execFileSync("pgrep", ["-x", "loadout"], { encoding: "utf8" }).trim();
+    } catch {
+      return "";
+    }
+  })();
+  if (running) throw new Error(`Loadout is already running (pid ${running.split("\n").join(", ")}): quit it (Cmd-Q, not just its window), since only one instance runs at a time`);
+}
+
+const exited = (app: ChildProcess) => app.exitCode !== null || app.signalCode !== null;
+
+/**
+ * Starts the app on a profile and opens a WebDriver session on it. Should any step fail, the app is stopped
+ * before the error is thrown: left running, it would make every later flow refuse to start.
+ */
+export async function openApp(dir: string): Promise<RunningApp> {
+  refuseIfRunning();
+  const app = startApp(dir, "ignore");
+  let browser: Browser | undefined;
+  let stopRecording: () => Promise<void>;
+  try {
+    await ready(app);
+    // The server that answered must be this app's, not one it handed over to.
+    await new Promise((r) => setTimeout(r, 500));
+    if (exited(app)) throw new Error("the app quit right after starting: is another Loadout running?");
+    const session = await remote({ hostname: "127.0.0.1", port, path: "/", capabilities: {}, logLevel: "warn" });
+    browser = session;
+    // WebKit stops animating a window that's covered, leaving a fade-in at opacity 0, which WebDriver reads as
+    // not displayed. Flows check behavior, so they run without motion, as the app does under reduced motion; a
+    // recording keeps it, with the window in front.
+    if (!recording) await session.execute(() => document.head.append(Object.assign(document.createElement("style"), { textContent: "*, *::before, *::after { animation: none !important; transition: none !important; }" })));
+    // In record mode (npm run record), the recorder films from here until close.
+    stopRecording = await startRecording(session, app.pid!, () => invoke(session, "plugin:window|set_focus", { label: "main" }));
+  } catch (e) {
+    await browser?.deleteSession().catch(() => {});
+    await stop(app);
+    throw e;
+  }
+  return {
+    browser,
+    home: profileLayout(dir).home,
+    async close() {
+      try {
+        await stopRecording();
+      } finally {
+        // The app quits even when the recording failed, or the next flow finds it still running.
+        await browser.deleteSession().catch(() => {});
+        await stop(app);
+      }
+    },
+  };
+}
+
+async function stop(app: ChildProcess): Promise<void> {
+  if (exited(app)) return;
+  const gone = new Promise((r) => app.once("exit", r));
+  app.kill();
+  await gone;
+}
+
+/** One of the app's own commands, invoked from the page. */
+export async function invoke<T>(browser: Browser, cmd: string, args: Record<string, unknown> = {}): Promise<T> {
+  // Runs in the page: Tauri's own IPC, as the app's frontend calls it. A rejection comes back as a value, since
+  // an error thrown in the page reaches the flow without its message.
+  const result = await browser.execute(
+    async (cmd: string, args: Record<string, unknown>): Promise<{ ok: unknown } | { err: string }> => {
+      const tauri = (globalThis as unknown as { __TAURI_INTERNALS__: { invoke(c: string, a: unknown): Promise<unknown> } }).__TAURI_INTERNALS__;
+      try {
+        return { ok: await tauri.invoke(cmd, args) };
+      } catch (e) {
+        return { err: String(e) };
+      }
+    },
+    cmd,
+    args,
+  );
+  if ("err" in result) throw new Error(`${cmd}: ${result.err}`);
+  return result.ok as T;
+}
+
+/**
+ * The app, open for the current test on a freshly seeded profile connected to GitHub with the flows' token: the
+ * core records the account, and the token goes where the app on the profile reads its secrets. When the test
+ * finishes, however it ends, the app is closed and the profile removed.
+ */
+export async function freshApp(): Promise<RunningApp> {
+  const token = flowsToken();
+  // A short, fixed place, since the app shows its paths (and recordings film them); one flow runs at a time.
+  const dir = "/tmp/loadout-demo";
+  const dispose = () => rmSync(dir, { recursive: true, force: true });
+  dispose();
+  try {
+    initProfile(dir);
+    await seedProfile(dir);
+    const connected = await createLibrary(profileHost(dir)).connect("github", JSON.parse(token) as TokenSet);
+    if (!connected.ok) throw new Error(`connecting GitHub in the fresh profile: ${connected.error.message}`);
+    setProfileSecret(dir, "github", token);
+    const app = await openApp(dir);
+    onTestFinished(async () => {
+      try {
+        await app.close();
+      } finally {
+        dispose();
+      }
+    });
+    return app;
+  } catch (e) {
+    // openApp stops the app itself when it fails; a seed that failed halfway leaves only the profile.
+    dispose();
+    throw e;
+  }
+}
+
+/** A button by its accessible name (its text or aria-label), not any element of that name (S17). */
+export const button = (browser: Browser, name: string) =>
+  browser.$(`//button[normalize-space(.)=${JSON.stringify(name)} or @aria-label=${JSON.stringify(name)}]`);
+
+/** Waits for a button, then clicks it; recording, the cursor travels there first. */
+export async function press(browser: Browser, name: string): Promise<void> {
+  const el = await button(browser, name);
+  await el.waitForClickable({ timeout: 15_000, timeoutMsg: `no clickable button "${name}"` });
+  await pointAt(browser, el);
+  await el.click();
+  await settle();
+}
+
+/** Waits for text anywhere on the page. */
+export async function sees(browser: Browser, text: string, timeout = 30_000): Promise<void> {
+  await browser.waitUntil(async () => ((await browser.$("body").getText()) ?? "").includes(text), { timeout, timeoutMsg: `"${text}" never showed` });
+}

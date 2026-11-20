@@ -34,6 +34,41 @@ your shell's environment.
 `app:build:release` is a rehearsal, not a release: only a pushed tag makes one (Releasing, below). The
 release workflow test fails if the workflow's build command and this script stop matching.
 
+## Profiles, flows and recordings
+
+New here, or want a demo video? `docs/recording-demos.md` walks through it from a fresh clone: setup,
+recording, showing the app live, writing a flow, and troubleshooting.
+
+A profile is a folder whose `home/` the debug app runs with as `HOME`. The app's `.claude` and app data
+follow `HOME`, so a profile never touches your real ones (`docs/spec/spikes.md` S17). Its tokens don't go
+to the Keychain: macOS 26 won't give a moved `HOME` a keychain that is both its default and unlockable, so
+a debug build launched on a profile keeps them in the profile's owner-only `secrets.json`, beside `home/`.
+Release builds have no such path.
+
+| Script | Does |
+|---|---|
+| `app:build:debug` | the debug app with the `webdriver` feature: an embedded WebDriver server on 127.0.0.1:4445, which a release build can't have (it refuses to compile) |
+| `app:profile -- <dir>` | builds that, makes and seeds `<dir>` the first time from the demo repo (`J-HernandezInzunza/loadout-demo`), then opens the app on it |
+| `flows:connect` | once: GitHub's device sign-in, keeping the token flows connect their profiles with in `~/Library/Application Support/loadout-dev/flows-github-token.json` (owner-only, outside the repo) |
+| `flows` | runs every flow in `apps/desktop/flows/` against the real app, each on a freshly seeded profile at `/tmp/loadout-demo` |
+| `record -- <flow>` | runs one flow at recording pace and writes `apps/desktop/demo/out/<flow>.mp4` |
+
+The seeded machine has a copy in each state the app draws. Seeding force-pushes the demo repo's
+`demo-stale` branch between its two tags, so `release-notes` reads behind its source, and the
+`entry` flow opens a real pull request there, then closes it. So seeding needs push access to the demo
+repo, and two seeds must not run at once.
+
+Quit every Loadout first, the installed one included (Cmd-Q, not just the window): only one instance runs
+at a time, whatever its profile, and flows refuse to start while one does. Flows aren't part of `npm run
+check`: they need the debug build, the network and GitHub.
+
+Recording needs ffmpeg (`brew install ffmpeg`), Swift from the Command Line Tools (the recorder in
+`apps/desktop/flows/recorder/` is compiled on first use), and Screen Recording permission for your
+terminal app. It films the region of the app's window, which it moves to your sharpest display and brings
+to the front (`RECORD_DISPLAY=<id>` picks another), so turn on Do Not Disturb and leave the mouse alone:
+whatever is drawn over that region is recorded. A flow marks its steps with `chapter()`, which shows a
+card only while recording; the cursor is drawn in the page, gliding to each button `press()` clicks.
+
 ## The gate: `npm run check`
 
 Nothing merges unless this is green. It runs five checks in order and stops at the first failure:
@@ -61,7 +96,9 @@ To run it by hand: Actions tab → CI → Run workflow (only for workflows alrea
 ```
 packages/core/        @loadout/core: all domain logic, UI-free
 packages/host-node/   the Host port on Node (tests, future agent host)
+packages/sandbox/     dev only: the tests' sandbox, git remotes and API stub, and the demo seed
 apps/desktop/         Vue 3 UI + host-tauri; src-tauri/ is the Rust shell (plugins only)
+apps/desktop/flows/   flows over WebDriver, and the recorder (Profiles, flows and recordings)
 tools/golden/         dev-only Python harness that regenerates golden fixtures from the old CLI
 docs/spec/            the spec: behaviors.md (rules by id), architecture.md, open-questions.md
 docs/PLAN.md          the task list for milestones M1 to M3

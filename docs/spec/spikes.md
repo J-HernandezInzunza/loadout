@@ -506,3 +506,165 @@ leaves. Agents need no baseline to load from a loadout. Copies and links behave 
 reloading and losing scripts. They differ in two ways: links to one target list a shared item once
 where copies list it twice, and a link needs its target allowed for file reads, which shows in a
 loadout, where a copy needs nothing.
+
+## S16. Screencast on this app (M16.01)
+
+Whether Playwright's `page.screencast` can record the app well enough for a README, in which
+browser, with which encoder, and whether the Mac-window frame can be drawn in the page. Run on
+2026-11-18 with Playwright 1.65.1 (its Chromium and WebKit 27.2 builds) and Homebrew ffmpeg 9.0.1.
+The harness, not committed: a dev-server entry mounting `App` over `createFakeLibrary(seededState())`
+(with `planPush` answering a canned remote diff, so a diff is on screen), `mockWindows("main")` and
+`mockIPC(…, { shouldMockEvents: true })` logging every call; and a frame page, a gradient with a
+macOS-style window holding that entry in an iframe at 1100×760. The flow: a chapter card, a search
+typed, the `lint` entry opened, Reveal in Finder, Send edits back (the diff modal), back, Unmanaged,
+Catalogs; three times over for a 65 s recording. `showActions` drew the cursor, with a 700 ms
+duration that also paces the actions.
+
+**Encoder: the JPEG frames to H.264, with a system ffmpeg.** `onFrame` hands each JPEG with its
+timestamp; ffmpeg's concat demuxer holds each frame until the next one's timestamp and encodes H.264
+(`libx264 -crf 20 -preset slow -pix_fmt yuv420p`, 30 fps, `+faststart`). The diff and the catalog
+list read equally well in that and in the `path` WebM (VP9, slightly softer), at a third of the size.
+Playwright's own ffmpeg encodes VP9 only, so H.264 needs a system ffmpeg: `npm run record` checks for
+one and says to `brew install ffmpeg`, rather than a dependency such as `ffmpeg-static`, which
+downloads a binary at install. Transcoding the WebM to H.264 instead gives nearly the same file
+(2.8 MB against 2.6 MB), so it is the fallback if the frame bookkeeping proves fragile.
+
+| 65 s, Chromium | `path` WebM (VP9) | JPEG frames → H.264 | WebM → H.264 |
+|---|---|---|---|
+| framed, 1600×1000 | 9.0 MB | 2.6 MB | 2.8 MB |
+| bare app, 1100×760 | 6.7 MB | 2.1 MB | 2.3 MB |
+
+**Recordings are 1x.** The screencast captures CSS pixels: with `deviceScaleFactor: 2` the frames
+stay 1100×760, and a `size` of 2200×1520 makes a WebM that size with the 1x picture in its top-left
+corner. Chromium's own `Page.startScreencast`, old and new headless, was 1x as well; only
+screenshots come out at 2x. A framed recording is 1600×1000, which is about what a README column
+shows on a Retina screen.
+
+**Browsers: WebKit to verify, Chromium to record.** The same script ran on both. WebKit is the
+app's engine (WKWebView, build target `safari17`), but its screencast delivers about 3 frames a
+second (196 in 66 s, against 1434 from Chromium), so the cursor jumps between points instead of
+gliding. So `npm run flows` runs WebKit, and `npm run record` runs Chromium.
+
+**Chromium needs a monospace alias.** Chromium has no `ui-monospace` and finds no `SFMono-Regular`,
+so the app's code stack (`ui-monospace, SFMono-Regular, monospace`) falls to Courier. Browser mode
+adds `@font-face { font-family: "SFMono-Regular"; src: local("SF Mono Regular"),
+local("SFMono-Regular"), local("Menlo-Regular"); }`, which gave a proper monospace face with no
+change to the app's styles. `-apple-system` resolves in both browsers.
+
+**`mockIPC` answers every call the UI makes itself.** Outside `host-tauri` (which browser mode
+replaces with the bridge), the UI calls `plugin:app|version`, `plugin:app|set_app_theme`,
+`plugin:window|set_focus` (needs `mockWindows`), the deep-link event through `onOpenUrl` (needs
+`shouldMockEvents`), `plugin:opener|open_url`, `plugin:opener|reveal_item_in_dir` and
+`plugin:dialog|open`. The run made the first two and `reveal_item_in_dir`; the rest come from the
+imports. None needs more than an answer. One answers and does nothing: the appearance toggle sets
+the native theme, and the page follows `prefers-color-scheme`, so in a browser it changes nothing;
+a flow sets the scheme with Playwright's `colorScheme` instead.
+
+**The in-page frame works; no ffmpeg composite is needed.** In the iframe, the cursor lands on the
+right elements, and a modal's backdrop stays inside the window. Recordings show the cursor only
+(owner, 2026-11-19): `showActions({ cursor: "pointer", style: { title: "display:none" } })`, with no
+`point` or `highlight` style. Both of those looked wrong. They appear at the target when the action
+starts, while the cursor is still on its way there. And a type or fill action's highlight is drawn
+at the iframe's own coordinates, off the window by the iframe's offset (clicks were placed right).
+The title has to be hidden too: by default it shows the locator, such as
+`locator('#app').contentFrame().getByRole(…)`.
+
+The chapter card centres on the whole page and blurs the wallpaper with the window; a card drawn
+inside the window would need `showOverlay` with our own markup.
+
+The owner watched the H.264 output, framed with the cursor only, and judged it legible (2026-11-19).
+
+## S17. Driving and recording the real app on macOS (M16.06)
+
+Whether WebDriver can drive the real app on macOS, and how to record it. Run on 2026-11-19 on the
+owner's Mac (macOS 15.7, a 1x main display, the built-in Retina display beside it) with
+`tauri-plugin-wdio-webdriver` 1.5.1 in a debug build (`tauri build --debug --no-bundle`), webdriverio
+9.31.9 talking to it directly, ffmpeg 9.0.1, and Swift 6.0.3 from the Command Line Tools 16.2. The app
+ran with `HOME` pointed at a scratch folder holding a local catalog of two skills. Spike code, not
+committed: the plugin registered under `cfg(debug_assertions)`, its permission in the capability
+file, a ScreenCaptureKit recorder in Swift, and the driving scripts.
+
+**WebDriver drives the real app.** The embedded server answers on 127.0.0.1:4445 once the app starts.
+Finding an element by its accessible name took about 20 ms; clicking, typing, reading the window's
+rect, moving the window and screenshots all worked. An install through its preview and a Remove
+through its dialog changed the scratch home's files. Two catches for flows:
+
+- `aria/<name>` matches any element by name, whatever its role: `aria/Install and set up` clicked the
+  section heading, not the button of the same name. Flows need a helper that finds by role and
+  name; `button=<text>` worked meanwhile.
+- The app keeps its screen between WebDriver sessions, so each flow starts a fresh app.
+
+The WebdriverIO Tauri service, which launches the app and connects for you, was not tried: talking
+to the port directly was enough here. M16.11 chooses between the two.
+
+**`HOME` is enough for a profile.** Launched with `HOME=<dir>`, the app read and wrote `<dir>/.claude`
+and `<dir>/Library/Application Support/<identifier>` and nothing of the real ones. The fs scope
+(`$HOME/**`) followed. The Keychain follows `HOME` too (corrected 2026-11-19, while doing M16.09; this
+first said it didn't): macOS finds the default keychain and the search list through `HOME`'s
+preferences, so with no keychain under the profile's home the app's Keychain calls fail ("A default
+keychain could not be found") and never reach the real one. A keychain created in the profile's home
+and made its default there (`security create-keychain`, `default-keychain -d user`, run with that
+`HOME`) took the app's token, while the real default keychain, search list and items were unchanged.
+So a profile needs no app change at all. (Superseded 2026-11-20: on macOS 26 a keychain under a moved
+`HOME` can't be both its default and unlocked, so debug builds on a profile keep secrets in a file
+instead; PLAN.md M16, Defaults.)
+
+**A debug-only crate still compiles into release builds.** Cargo doesn't apply the build profile to
+`[target.'cfg(debug_assertions)'.dependencies]`, so the crate was built for `--release` too. Only its
+registration is gated, so the server's code was dropped by the linker ("webdriver is ready" is in
+the debug binary, not the release one), but the plugin's permission name stays in the release
+build's ACL table, because the capability file names it. M16 uses an off-by-default Cargo feature
+for the crate and a capability file that only debug builds load, so a release build names neither.
+
+**Recording: ScreenCaptureKit, not a screen grab.** What was tried:
+
+| Capture | Result |
+|---|---|
+| ffmpeg `avfoundation`, the whole screen, cropped to the window | Records whatever is on top: other apps' windows appear in the crop, and Orca, full screen on the main display, hid the app entirely (it opened in that display's desktop Space). Rejected. |
+| `screencapture -v -l<window>` | Ignores `-l` and records the whole screen. Rejected. |
+| ScreenCaptureKit, the window alone (`desktopIndependentWindow`) | Only the window, with alpha around its rounded corners, at 2x (2200×1520) on the Retina display, even while covered. But macOS draws a sharing indicator in place of the window buttons while a window is captured this way. |
+| ScreenCaptureKit, the display with only the window included | The real macOS shadow, alpha elsewhere; the same sharing indicator. |
+| ScreenCaptureKit, the whole display cropped to the window's frame (`region`) | The real window buttons and no indicator. Whatever is drawn over that rectangle is recorded, so the window must be in front, and a notification banner would show: record with Do Not Disturb on. |
+
+The recorder writes ProRes 4444 (alpha kept, 160 MB for 27 s), from which ffmpeg composites the
+window, its rounded corners masked, onto a gradient wallpaper with a soft shadow, and encodes H.264
+(S16's encoder): 824 KB at 1600×1000, 2.0 MB at 3200×2000, for 27 s. Notes on the recorder:
+ScreenCaptureKit sends a frame only when the window changes, so it holds the last frame until stop;
+a command-line program must open its window-server connection (`NSApplication.shared`) first.
+
+**The window must be visible, not just captured.** With the window covered by another app, WebKit
+stopped painting it: 53 frames in 27 s, no chapter cards, a jumping cursor. In front, the same flow
+gave 373 to 395 frames. The flow brings the window forward from inside the app
+(`plugin:window|set_focus`, a permission the app already has) and moves it with WebDriver's
+`setWindowRect`. Bringing it forward from outside, by activating the process from a script, was
+running when Orca, the owner's terminal app, quit on its own; that cause is unconfirmed, and the
+in-app focus did not repeat it. The window buttons record grey, since the app is in front but not
+the active app.
+
+**Cursor and chapter cards are drawn in the page.** WebDriver's clicks move no pointer, and
+ScreenCaptureKit records none (`showsCursor` off). The flow injects a cursor that glides to each
+target before WebDriver clicks it, a ring where it clicks, and a chapter card (title and a line,
+over a blurred page). No app code changes. They live in one overlay in the browser's top layer (a
+manual popover), raised again before each move: a modal `<dialog>` opened with `showModal()` is in
+the top layer above any z-index, and the first recording's cursor went under the Remove dialog, so
+Delete was clicked with no cursor travelling to it (the owner caught it). Re-showing the overlay
+resets the cursor's transition, so the flow reads its style once afterwards to keep the glide.
+
+**Permissions.** Screen Recording for the app the recorder runs from (here Orca, which then needed a
+restart), plus a one-time macOS prompt to let it capture without the system window picker. Nothing
+else: no Accessibility, since no real mouse or keyboard events are sent. Keychain prompts didn't
+come up, since no account was connected.
+
+**Swift on this machine.** The Command Line Tools 16.2 here can't compile anything importing
+Foundation ("redefinition of module 'SwiftBridging'": two module maps define it). The spike compiled
+with a VFS overlay hiding the duplicate. The fix is reinstalling the Command Line Tools (or removing
+the duplicate, with `sudo`); M16.12 should build the recorder from source and say so when it can't.
+
+**Paths.** The app shows the profile's real paths, such as
+`/Users/<you>/…/home/.claude/skills/test-first`, so a profile's location shows in recordings. A short
+location keeps them readable.
+
+Owner's decisions (2026-11-19): record the region with Do Not Disturb on, for the real window
+buttons; grey buttons are fine for now; the owner reinstalls the Command Line Tools; profiles live
+somewhere short. The owner watched the recording, judged the approach worth building on, and caught
+the cursor under the dialog, fixed above.
