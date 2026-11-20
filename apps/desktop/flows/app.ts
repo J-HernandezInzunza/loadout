@@ -4,7 +4,7 @@ import { execFileSync, type ChildProcess } from "node:child_process";
 import { rmSync } from "node:fs";
 import { createLibrary } from "@loadout/core";
 import { remote } from "webdriverio";
-import { initProfile, profileHost, profileLayout, seedProfile, startApp } from "../../../tools/profile.ts";
+import { initProfile, profileHost, profileLayout, seedProfile, setProfileSecret, startApp } from "../../../tools/profile.ts";
 import { pointAt, settle, startRecording } from "./recording.ts";
 
 const port = 4445;
@@ -95,7 +95,7 @@ export async function invoke<T>(browser: Browser, cmd: string, args: Record<stri
 
 /**
  * A freshly seeded profile in a temp folder, connected to GitHub with `token`: the core records the account,
- * and the app stores the token in the profile's keychain once it's open. Removed by `dispose`.
+ * and the token goes where the app on the profile reads its secrets. Removed by `dispose`.
  */
 export async function freshProfile(token: string): Promise<{ dir: string; open(): Promise<RunningApp>; dispose(): void }> {
   // A short, fixed place, since the app shows its paths (and recordings film them); one flow runs at a time.
@@ -106,13 +106,10 @@ export async function freshProfile(token: string): Promise<{ dir: string; open()
   await seedProfile(dir);
   const connected = await createLibrary(profileHost(dir)).connect("github", JSON.parse(token) as never);
   if (!connected.ok) throw new Error(`connecting GitHub in the fresh profile: ${connected.error.message}`);
+  setProfileSecret(dir, "github", token);
   return {
     dir,
-    async open() {
-      const app = await openApp(dir);
-      await invoke(app.browser, "secret_set", { key: "github", value: token });
-      return app;
-    },
+    open: () => openApp(dir),
     dispose: () => rmSync(root, { recursive: true, force: true }),
   };
 }

@@ -13,10 +13,10 @@ on a freshly seeded profile at `/tmp/loadout-demo`. The same file verifies the w
 
 - Every Loadout quit (Cmd-Q), the installed one included: one instance runs at a time, whatever its
   profile, and flows refuse to start while one does.
-- `apps/desktop/flows/.profiles/token/` exists. If not, run `npm run flows:connect` and have the user
+- `apps/desktop/flows/.profiles/github-token.json` exists. If not, run `npm run flows:connect` and have the user
   approve the GitHub code it prints, in their browser.
 
-Done when `pgrep -x loadout` prints nothing and the token folder exists.
+Done when `pgrep -x loadout` prints nothing and the token file exists.
 
 ## Run
 

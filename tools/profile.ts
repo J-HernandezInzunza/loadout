@@ -1,9 +1,9 @@
 // Debug profiles (M16.09, M16.10): a folder whose `home/` the app runs with as HOME. The app's `.claude`, app
-// data, fs scope and Keychain all follow HOME (S17), so a profile needs no app change; it only needs its own
-// login keychain, which `init` makes, with a random password kept beside it so `open` can unlock it. `demo`
+// data and fs scope all follow HOME (S17). Its tokens don't go to the Keychain: macOS 26 won't give a moved HOME
+// a keychain that is both its default and unlockable, so a debug build keeps them in the profile's owner-only
+// `secrets.json` instead, which LOADOUT_PROFILE_SECRETS names (src-tauri/src/secrets.rs). `demo`
 // (npm run app:profile -- <dir>) builds the debug app, makes and seeds a new profile, and opens it.
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,34 +17,22 @@ const identifier = (JSON.parse(readFileSync(join(repo, "apps/desktop/src-tauri/t
 export function profileLayout(dir: string) {
   const root = resolve(dir);
   const home = join(root, "home");
-  return { root, home, keychain: join(home, "Library/Keychains/login.keychain-db"), password: join(root, "keychain-password") };
+  // Beside home, not in it, so nothing the app or a skill does in its HOME comes across it.
+  return { root, home, secrets: join(root, "secrets.json") };
 }
 
-/** `security`, run as the profile: with its HOME, so the keychain settings it writes are the profile's own. */
-function security(home: string, args: string[]): void {
-  execFileSync("security", args, { env: { ...process.env, HOME: home }, stdio: ["ignore", "ignore", "inherit"] });
-}
-
-/** Makes the profile's home and its login keychain; a profile already made is left as it is. */
+/** Makes the profile's home; a profile already made is left as it is. */
 export function initProfile(dir: string): ReturnType<typeof profileLayout> {
   const p = profileLayout(dir);
-  mkdirSync(join(p.home, "Library/Keychains"), { recursive: true });
-  if (!existsSync(p.keychain)) {
-    const password = randomBytes(24).toString("hex");
-    writeFileSync(p.password, password + "\n", { mode: 0o600 });
-    security(p.home, ["create-keychain", "-p", password, p.keychain]);
-    security(p.home, ["list-keychains", "-d", "user", "-s", p.keychain]);
-    security(p.home, ["default-keychain", "-d", "user", "-s", p.keychain]);
-    // No timeout: a demo can sit for a while without the keychain locking under it.
-    security(p.home, ["set-keychain-settings", p.keychain]);
-  }
+  mkdirSync(p.home, { recursive: true });
   return p;
 }
 
-/** Unlocks the profile's keychain, which locks when the Mac does. */
-export function unlockProfile(dir: string): void {
-  const p = profileLayout(dir);
-  security(p.home, ["unlock-keychain", "-p", readFileSync(p.password, "utf8").trim(), p.keychain]);
+/** Stores a secret where the app on this profile reads it, as its secret_set would. */
+export function setProfileSecret(dir: string, key: string, value: string): void {
+  const { secrets } = profileLayout(dir);
+  const stored = existsSync(secrets) ? (JSON.parse(readFileSync(secrets, "utf8")) as Record<string, string>) : {};
+  writeFileSync(secrets, JSON.stringify({ ...stored, [key]: value }, null, 2), { mode: 0o600 });
 }
 
 /**
@@ -63,20 +51,20 @@ export async function seedProfile(dir: string): Promise<void> {
  * else from the calling shell, so a variable such as CLAUDE_CONFIG_DIR can't point the app back at the real
  * user's files; the app repairs PATH from the profile's login shell, as it does when launched from Finder.
  */
-export function profileEnv(home: string, from: NodeJS.ProcessEnv = process.env): Record<string, string> {
-  const kept = ["USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "__CF_USER_TEXT_ENCODING", "SECURITYSESSIONID"].flatMap((k) => (from[k] ? [[k, from[k]]] : []));
-  return { ...Object.fromEntries(kept), HOME: home, PATH: "/usr/bin:/bin:/usr/sbin:/sbin" };
+export function profileEnv(dir: string, from: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const p = profileLayout(dir);
+  const kept = ["USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "__CF_USER_TEXT_ENCODING"].flatMap((k) => (from[k] ? [[k, from[k]]] : []));
+  return { ...Object.fromEntries(kept), HOME: p.home, PATH: "/usr/bin:/bin:/usr/sbin:/sbin", LOADOUT_PROFILE_SECRETS: p.secrets };
 }
 
 /** Starts the built debug app on the profile; flows stop it themselves. */
 export function startApp(dir: string, stdio: "inherit" | "ignore" = "inherit"): ChildProcess {
   const p = profileLayout(dir);
-  if (!existsSync(p.keychain)) throw new Error(`${p.root} is not a profile yet: run init first`);
+  if (!existsSync(p.home)) throw new Error(`${p.root} is not a profile yet: run init first`);
   if (!existsSync(debugApp)) throw new Error(`no debug build at ${debugApp}: npm run app:build:debug`);
-  unlockProfile(dir);
   // The app caches what the login shell reported; probing afresh keeps that the profile's own.
   rmSync(join(p.home, "Library/Application Support", identifier, "shell-env.json"), { force: true });
-  return spawn(debugApp, [], { env: profileEnv(p.home), stdio });
+  return spawn(debugApp, [], { env: profileEnv(dir), stdio });
 }
 
 /** The core over the profile's home and app data, as the app finds them. */
@@ -97,7 +85,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (command === "demo") {
     // The same debug build flows use, its WebDriver server included (M16.11).
     execFileSync("npm", ["run", "app:build:debug"], { cwd: repo, stdio: "inherit" });
-    if (!existsSync(profileLayout(dir).keychain)) {
+    if (!existsSync(profileLayout(dir).home)) {
       const made = !existsSync(dir);
       initProfile(dir);
       try {

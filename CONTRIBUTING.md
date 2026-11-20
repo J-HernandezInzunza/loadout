@@ -36,15 +36,17 @@ release workflow test fails if the workflow's build command and this script stop
 
 ## Profiles, flows and recordings
 
-A profile is a folder whose `home/` the debug app runs with as `HOME`. The app's `.claude`, app data and
-Keychain all follow `HOME`, so a profile never touches your real ones, and the app needs no switch for it
-(`docs/spec/spikes.md` S17). A profile has its own keychain, with its password kept beside it.
+A profile is a folder whose `home/` the debug app runs with as `HOME`. The app's `.claude` and app data
+follow `HOME`, so a profile never touches your real ones (`docs/spec/spikes.md` S17). Its tokens don't go
+to the Keychain: macOS 26 won't give a moved `HOME` a keychain that is both its default and unlockable, so
+a debug build launched on a profile keeps them in the profile's owner-only `secrets.json`, beside `home/`.
+Release builds have no such path.
 
 | Script | Does |
 |---|---|
 | `app:build:debug` | the debug app with the `webdriver` feature: an embedded WebDriver server on 127.0.0.1:4445, which a release build can't have (it refuses to compile) |
 | `app:profile -- <dir>` | builds that, makes and seeds `<dir>` the first time from the demo repo (`J-HernandezInzunza/loadout-demo`), then opens the app on it |
-| `flows:connect` | once: GitHub's device sign-in, keeping the token flows connect their profiles with in a keychain of their own |
+| `flows:connect` | once: GitHub's device sign-in, keeping the token flows connect their profiles with in `apps/desktop/flows/.profiles/github-token.json` (owner-only, git-ignored) |
 | `flows` | runs every flow in `apps/desktop/flows/` against the real app, each on a freshly seeded profile at `/tmp/loadout-demo` |
 | `record -- <flow>` | runs one flow at recording pace and writes `apps/desktop/demo/out/<flow>.mp4` |
 

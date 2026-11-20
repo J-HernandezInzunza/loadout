@@ -1806,7 +1806,7 @@ Decided 2026-11-19 (owner):
 - The real app on a profile, in debug builds only, not a mode. A profile is a folder whose `home/`
   the app is launched with as `HOME`: S17 found its `.claude`, app data and fs scope all follow
   `HOME`, and so does the Keychain: a profile gets its own keychain in its home, and the app needs
-  no change at all. Only the WebDriver plugin is debug-only, behind a Cargo feature (S17). Nothing
+  no change at all (the keychain was replaced on 2026-11-20 by a debug-only secrets file; see Defaults). Only the WebDriver plugin is debug-only, behind a Cargo feature (S17). Nothing
   is stood in for: the shipped WKWebView, git, Keychain and network.
 - Remote states come from a real demo repo, `J-HernandezInzunza/loadout-demo` on GitHub (public):
   the team catalog in PR mode, with its skills, agent and prompt beside `library.yaml`, as the
@@ -1822,19 +1822,19 @@ Decided 2026-11-19 (owner):
 
 Defaults, reversible (say so in review if one should change):
 
-- A profile's keychain is its own file in its home, with a random password kept beside it
-  (`<dir>/keychain-password`, owner-only), so a launcher can unlock it; its tokens are as safe as
-  the profile folder. With no keychain there, the app's Keychain calls fail rather than reach the
-  real one.
+- A profile's tokens are in `<dir>/secrets.json` (owner-only), which a debug build launched on the
+  profile reads and writes instead of the Keychain (owner, 2026-11-20, replacing a keychain of the
+  profile's own with its password beside it: on macOS 26, CI's runner, a moved `HOME` can't have a
+  keychain that is both its default and unlockable). Release builds compile that path out. Flows no
+  longer exercise the app's Keychain code, which stays unit-tested in Rust.
 - The launcher sets `HOME` for the app's process only: cargo, rustup and npm keep the real one.
 - `release-notes`'s source lives on the repo's `demo-stale` branch, which the seed resets to the
   `demo-stale-v1` tag before installing and moves to `demo-stale-v2` after: a force push to the demo
   repo, with the owner's git credentials, on every seed, and no new commits.
 - The seed doesn't connect GitHub, having no token to give: connecting once in the app is a demo's
-  first step, and the profile's Keychain item keeps it. Flows take a token from a keychain of their
-  own, filled once by `npm run flows:connect` through the core's device flow (owner, 2026-11-19: once,
-  through Loadout's own OAuth app); the app's own items ask again after every rebuild of an unsigned
-  debug app.
+  first step, and the profile's secrets file keeps it. Flows take a token from an owner-only,
+  git-ignored file, filled once by `npm run flows:connect` through the core's device flow (owner,
+  2026-11-19: once, through Loadout's own OAuth app).
 - A flow that opens a PR on a demo repo closes it before it ends, so the repos don't fill up.
 - Seeding runs the core under plain Node, with the Node host over the profile. `seedDemo` keeps its
   content and is still tested hermetically: the sandbox maps the demo repos' URLs to local bare repos.
