@@ -1,10 +1,10 @@
 // Debug profiles (M16.09, M16.10): a folder whose `home/` the app runs with as HOME. The app's `.claude`, app
 // data and fs scope all follow HOME (S17). Its tokens don't go to the Keychain: macOS 26 won't give a moved HOME
 // a keychain that is both its default and unlockable, so a debug build keeps them in the profile's owner-only
-// `secrets.json` instead, which LOADOUT_PROFILE_SECRETS names (src-tauri/src/secrets.rs). `demo`
-// (npm run app:profile -- <dir>) builds the debug app, makes and seeds a new profile, and opens it.
+// `secrets.json` instead, which LOADOUT_PROFILE_SECRETS names (src-tauri/src/secrets.rs). Run as a script
+// (npm run app:profile -- <dir>), it builds the debug app, makes and seeds the profile when new, and opens it.
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createNodeHost } from "@loadout/host-node";
@@ -33,6 +33,8 @@ export function setProfileSecret(dir: string, key: string, value: string): void 
   const { secrets } = profileLayout(dir);
   const stored = existsSync(secrets) ? (JSON.parse(readFileSync(secrets, "utf8")) as Record<string, string>) : {};
   writeFileSync(secrets, JSON.stringify({ ...stored, [key]: value }, null, 2), { mode: 0o600 });
+  // mode applies only when the file is created.
+  chmodSync(secrets, 0o600);
 }
 
 /**
@@ -60,7 +62,7 @@ export function profileEnv(dir: string, from: NodeJS.ProcessEnv = process.env): 
 /** Starts the built debug app on the profile; flows stop it themselves. */
 export function startApp(dir: string, stdio: "inherit" | "ignore" = "inherit"): ChildProcess {
   const p = profileLayout(dir);
-  if (!existsSync(p.home)) throw new Error(`${p.root} is not a profile yet: run init first`);
+  if (!existsSync(p.home)) throw new Error(`${p.root} is not a profile yet: npm run app:profile -- <dir> makes one`);
   if (!existsSync(debugApp)) throw new Error(`no debug build at ${debugApp}: npm run app:build:debug`);
   // The app caches what the login shell reported; probing afresh keeps that the profile's own.
   rmSync(join(p.home, "Library/Application Support", identifier, "shell-env.json"), { force: true });
@@ -74,29 +76,29 @@ export function profileHost(dir: string) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [command, arg] = process.argv.slice(2);
-  // npm runs scripts from the repo root; a relative folder means the one the command was typed in.
-  const dir = arg && resolve(process.env.INIT_CWD ?? ".", arg);
-  if (!["init", "open", "demo"].includes(command ?? "") || !dir) {
-    console.error("usage: node tools/profile.ts init|open|demo <dir>   (demo: build, make and seed when new, open)");
+  const arg = process.argv[2];
+  if (!arg) {
+    console.error("usage: npm run app:profile -- <dir>   (builds the debug app, makes and seeds <dir> when new, opens it)");
     process.exit(1);
   }
-  if (command === "init") console.log(`profile ready: ${initProfile(dir).home}`);
-  if (command === "demo") {
-    // The same debug build flows use, its WebDriver server included (M16.11).
-    execFileSync("npm", ["run", "app:build:debug"], { cwd: repo, stdio: "inherit" });
-    if (!existsSync(profileLayout(dir).home)) {
-      const made = !existsSync(dir);
-      initProfile(dir);
-      try {
-        await seedProfile(dir);
-      } catch (e) {
-        // Half-seeded, the next run would take it for a profile: remove what this run made.
-        if (made) rmSync(dir, { recursive: true, force: true });
-        throw e;
-      }
-      console.log(`seeded ${profileLayout(dir).root}`);
+  // npm runs scripts from the repo root; a relative folder means the one the command was typed in.
+  const dir = resolve(process.env.INIT_CWD ?? ".", arg);
+  // The same debug build flows use, its WebDriver server included (M16.11).
+  execFileSync("npm", ["run", "app:build:debug"], { cwd: repo, stdio: "inherit" });
+  const p = profileLayout(dir);
+  if (!existsSync(p.home)) {
+    const made = !existsSync(dir);
+    initProfile(dir);
+    try {
+      await seedProfile(dir);
+    } catch (e) {
+      // Half-seeded, the next run would take it for a profile: remove what this run made, the folder itself
+      // when this run made that too.
+      rmSync(made ? dir : p.home, { recursive: true, force: true });
+      rmSync(p.secrets, { force: true });
+      throw e;
     }
+    console.log(`seeded ${p.root}`);
   }
-  if (command !== "init") startApp(dir).on("exit", (code) => process.exit(code ?? 0));
+  startApp(dir).on("exit", (code) => process.exit(code ?? 0));
 }
