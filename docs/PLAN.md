@@ -1964,7 +1964,7 @@ Defaults, reversible (say so in review if one should change):
   - Depends: M16.11
   - Done when: both flows record; the owner watched both and judged them fit for a README.
 
-- [ ] **M16.13 The skill.** A project skill, tracked at `.claude/skills/`, that runs or records a named
+- [x] **M16.13 The skill.** A project skill, tracked at `.claude/skills/`, that runs or records a named
   flow, or writes a new flow from steps the user describes.
   - Rules: none (tooling)
   - Depends: M16.12
