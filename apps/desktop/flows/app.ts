@@ -5,7 +5,7 @@ import { rmSync } from "node:fs";
 import { createLibrary } from "@loadout/core";
 import { remote } from "webdriverio";
 import { initProfile, profileHost, profileLayout, seedProfile, setProfileSecret, startApp } from "../../../tools/profile.ts";
-import { pointAt, settle, startRecording } from "./recording.ts";
+import { pointAt, recording, settle, startRecording } from "./recording.ts";
 
 const port = 4445;
 
@@ -60,6 +60,10 @@ export async function openApp(dir: string): Promise<RunningApp> {
     throw e;
   }
   const browser = await remote({ hostname: "127.0.0.1", port, path: "/", capabilities: {}, logLevel: "warn" });
+  // WebKit stops animating a window that's covered, leaving a fade-in at opacity 0, which WebDriver reads as not
+  // displayed. Flows check behavior, so they run without motion, as the app does under reduced motion; a
+  // recording keeps it, with the window in front.
+  if (!recording) await browser.execute(() => document.head.append(Object.assign(document.createElement("style"), { textContent: "*, *::before, *::after { animation: none !important; transition: none !important; }" })));
   // In record mode (npm run record), the recorder films from here until close.
   const stopRecording = await startRecording(browser, app.pid!, () => invoke(browser, "plugin:window|set_focus", { label: "main" }));
   return {
