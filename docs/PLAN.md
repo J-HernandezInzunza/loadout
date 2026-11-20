@@ -1831,7 +1831,10 @@ Defaults, reversible (say so in review if one should change):
   `demo-stale-v1` tag before installing and moves to `demo-stale-v2` after: a force push to the demo
   repo, with the owner's git credentials, on every seed, and no new commits.
 - The seed doesn't connect GitHub, having no token to give: connecting once in the app is a demo's
-  first step, and the profile's Keychain item keeps it. Flows reuse a profile already connected.
+  first step, and the profile's Keychain item keeps it. Flows take a token from a keychain of their
+  own, filled once by `npm run flows:connect` through the core's device flow (owner, 2026-11-19: once,
+  through Loadout's own OAuth app); the app's own items ask again after every rebuild of an unsigned
+  debug app.
 - A flow that opens a PR on a demo repo closes it before it ends, so the repos don't fill up.
 - Seeding runs the core under plain Node, with the Node host over the profile. `seedDemo` keeps its
   content and is still tested hermetically: the sandbox maps the demo repos' URLs to local bare repos.
@@ -1941,7 +1944,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: from an empty folder the command opens the app on the seeded machine showing every
     state, the demo repo untouched apart from `demo-stale`; the owner walked it.
 
-- [ ] **M16.11 The first flows.** WebdriverIO specs in `apps/desktop/flows/`, one file per workflow;
+- [x] **M16.11 The first flows.** WebdriverIO specs in `apps/desktop/flows/`, one file per workflow;
   `npm run flows` builds the debug app once and runs each flow on a freshly seeded copy of a
   connected profile. Two flows: install a skill from the catalog, through its preview; and an
   installed copy on its entry page: Send edits back on the drifted copy (its modal, the diff, a real
