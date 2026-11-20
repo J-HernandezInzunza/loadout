@@ -135,14 +135,16 @@ export async function startRecording(browser: Browser, appPid: number, invokeFoc
   await pause(1000);
   if (recorder.exitCode !== null) throw new Error(said.trim() || `the recorder quit (exit ${recorder.exitCode})`);
   await pause(400);
+  // Listened for now, since the recorder can die mid-recording, long before the stop.
+  const exited = new Promise<number | null>((r) => recorder.once("exit", (code) => r(code)));
   return async () => {
     await pause(1500);
-    const gone = new Promise<boolean>((r) => recorder.once("exit", () => r(true)));
     recorder.kill("SIGINT");
-    if (!(await Promise.race([gone, pause(20_000).then(() => false)]))) {
+    const code = await Promise.race([exited, pause(20_000).then(() => "timeout" as const)]);
+    if (code === "timeout") {
       recorder.kill("SIGKILL");
       throw new Error(`the recorder didn't stop within 20 s: ${said.trim()}`);
     }
-    if (!said.includes("wrote")) throw new Error(`the recorder didn't finish: ${said.trim()}`);
+    if (code !== 0) throw new Error(`the recorder failed (exit ${code}): ${said.trim()}`);
   };
 }

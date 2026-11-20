@@ -27,12 +27,17 @@ func scale(of display: SCDisplay) -> Double {
   return Double(screen?.backingScaleFactor ?? 1)
 }
 
+/// Writes the stream's frames to a ProRes file. Its state is touched only on `queue`, where frames arrive, which
+/// is what makes the unchecked Sendable sound.
 final class Writer: NSObject, SCStreamOutput, @unchecked Sendable {
-  let writer: AVAssetWriter
-  let input: AVAssetWriterInput
-  var started = false
-  var frames = 0
+  let queue = DispatchQueue(label: "frames")
+  private let url: URL
+  private let writer: AVAssetWriter
+  private let input: AVAssetWriterInput
+  private var started = false
+  private var frames = 0
   init(url: URL, width: Int, height: Int) throws {
+    self.url = url
     try? FileManager.default.removeItem(at: url)
     writer = try AVAssetWriter(outputURL: url, fileType: .mov)
     input = AVAssetWriterInput(mediaType: .video, outputSettings: [
@@ -47,11 +52,29 @@ final class Writer: NSObject, SCStreamOutput, @unchecked Sendable {
       let status = attachments.first?[.status] as? Int, status == SCFrameStatus.complete.rawValue
     else { return }
     if !started {
-      writer.startWriting()
+      // A writer that fails to start is reported by finish(), from its status.
+      guard writer.startWriting() else { return }
       writer.startSession(atSourceTime: sb.presentationTimeStamp)
       started = true
     }
-    if input.isReadyForMoreMediaData { input.append(sb); frames += 1 }
+    if input.isReadyForMoreMediaData, input.append(sb) { frames += 1 }
+  }
+
+  /// Ends the file once the stream has stopped, failing when nothing was written or the writer failed.
+  func finish() async -> Int {
+    let (started, frames) = queue.sync { (self.started, self.frames) }
+    // Finishing a writer that never started raises an Objective-C exception, so it's checked first.
+    guard started else {
+      fail(writer.status == .failed
+        ? "writing \(url.path) failed to start: \(writer.error?.localizedDescription ?? "unknown error")"
+        : "no frames were captured: was the window covered, or on another display?", 4)
+    }
+    input.markAsFinished()
+    await writer.finishWriting()
+    guard writer.status == .completed else {
+      fail("writing \(url.path) failed: \(writer.error?.localizedDescription ?? "unknown error")", 4)
+    }
+    return frames
   }
 }
 
@@ -119,15 +142,13 @@ struct Recorder {
     config.queueDepth = 8
     let writer = try Writer(url: url, width: config.width, height: config.height)
     let stream = SCStream(filter: SCContentFilter(display: display, excludingWindows: []), configuration: config, delegate: nil)
-    try stream.addStreamOutput(writer, type: .screen, sampleHandlerQueue: DispatchQueue(label: "frames"))
+    try stream.addStreamOutput(writer, type: .screen, sampleHandlerQueue: writer.queue)
     try await stream.startCapture()
     say("recording window \(window.windowID) at \(config.width)x\(config.height)")
 
     await untilStopped()
     try await stream.stopCapture()
     // The file ends at the last change; record.ts holds that frame on for the closing pause.
-    writer.input.markAsFinished()
-    await writer.writer.finishWriting()
-    say("wrote \(writer.frames) frames")
+    say("wrote \(await writer.finish()) frames")
   }
 }

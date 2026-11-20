@@ -2,7 +2,7 @@
 // then composites it: the window, its corners masked, on a gradient wallpaper with a soft shadow, as H.264
 // (S16, S17). Writes apps/desktop/demo/out/<flow>.mp4.
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,8 +12,8 @@ const out = join(repo, "apps/desktop/demo/out");
 const recorder = join(repo, "apps/desktop/demo/.bin/recorder");
 const recorderSource = join(flows, "recorder/recorder.swift");
 
-/** The window in points, and the frame around it, as the app opens (tauri.conf.json). */
-const window = { width: 1100, height: 760 };
+/** The window in points, as the app opens it, and the frame around it. */
+const appWindow = (JSON.parse(readFileSync(join(repo, "apps/desktop/src-tauri/tauri.conf.json"), "utf8")) as { app: { windows: { width: number; height: number }[] } }).app.windows[0]!;
 const canvas = { width: 1600, height: 1000 };
 
 function need(program: string, hint: string): void {
@@ -23,6 +23,7 @@ function need(program: string, hint: string): void {
 /** Compiled on demand, and again when its source changes. */
 function buildRecorder(): void {
   if (existsSync(recorder) && statSync(recorder).mtimeMs > statSync(recorderSource).mtimeMs) return;
+  need("swiftc", "xcode-select --install (the Command Line Tools)");
   mkdirSync(join(recorder, ".."), { recursive: true });
   const built = spawnSync("swiftc", ["-O", "-parse-as-library", recorderSource, "-o", recorder], { encoding: "utf8" });
   if (built.status !== 0) {
@@ -33,10 +34,10 @@ function buildRecorder(): void {
 /** The ProRes capture onto the wallpaper, at the capture's scale, then down to the canvas size. */
 function composite(mov: string, mp4: string): void {
   const [w] = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v", "-show_entries", "stream=width", "-of", "csv=p=0", mov], { encoding: "utf8" }).trim().split(",").map(Number);
-  const s = w! / window.width;
+  const s = w! / appWindow.width;
   const px = (n: number) => Math.round(n * s);
-  const [cw, ch, ww, wh] = [px(canvas.width), px(canvas.height), px(window.width), px(window.height)];
-  const [x, y, r, pad] = [px((canvas.width - window.width) / 2), px((canvas.height - window.height) / 2), px(10), px(100)];
+  const [cw, ch, ww, wh] = [px(canvas.width), px(canvas.height), px(appWindow.width), px(appWindow.height)];
+  const [x, y, r, pad] = [px((canvas.width - appWindow.width) / 2), px((canvas.height - appWindow.height) / 2), px(10), px(100)];
   const graph = [
     // A rounded-rectangle mask: whatever showed behind the window's corners goes.
     `color=black:s=${ww}x${wh}:d=1,format=gray,geq=lum='255*lte(pow(X-clip(X\\,${r}\\,${ww - r})\\,2)+pow(Y-clip(Y\\,${r}\\,${wh - r})\\,2)\\,${r * r})',loop=-1:1:0[mask]`,
