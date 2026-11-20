@@ -36,6 +36,9 @@ release workflow test fails if the workflow's build command and this script stop
 
 ## Profiles, flows and recordings
 
+New here, or want a demo video? `docs/recording-demos.md` walks through it from a fresh clone: setup,
+recording, showing the app live, writing a flow, and troubleshooting.
+
 A profile is a folder whose `home/` the debug app runs with as `HOME`. The app's `.claude` and app data
 follow `HOME`, so a profile never touches your real ones (`docs/spec/spikes.md` S17). Its tokens don't go
 to the Keychain: macOS 26 won't give a moved `HOME` a keychain that is both its default and unlockable, so
