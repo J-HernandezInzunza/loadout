@@ -1954,7 +1954,7 @@ Defaults, reversible (say so in review if one should change):
   - Done when: both flows pass twice in a row, and the release build is checked free of the
     WebDriver plugin.
 
-- [ ] **M16.12 Recording.** `npm run record -- <flow>` runs one flow at recording pace while the
+- [x] **M16.12 Recording.** `npm run record -- <flow>` runs one flow at recording pace while the
   capture S17 chose films the app's window on the desktop, with the cursor and chapter cards S17
   chose and S16's encoder (H.264), written to `apps/desktop/demo/out/<flow>` (git-ignored). Add a
   "Profiles, flows and recordings" section to CONTRIBUTING.md: seeding a profile, connecting GitHub
