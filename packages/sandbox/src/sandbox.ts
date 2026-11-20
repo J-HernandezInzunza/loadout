@@ -1,5 +1,5 @@
-// A Node Host rooted in a temp dir (architecture.md §6, after the Python suite's TempTool), for tests
-// and for browser mode's demo. Any fs path or process cwd outside the root, or HTTP request off loopback,
+// A Node Host rooted in a temp dir (architecture.md §6, after the Python suite's TempTool), for tests.
+// Any fs path or process cwd outside the root, or HTTP request off loopback,
 // is rejected and recorded; clean-up throws on an unverified escape, even if the code under test swallowed
 // the rejection.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";

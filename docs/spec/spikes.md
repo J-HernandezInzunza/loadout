@@ -605,7 +605,9 @@ preferences, so with no keychain under the profile's home the app's Keychain cal
 keychain could not be found") and never reach the real one. A keychain created in the profile's home
 and made its default there (`security create-keychain`, `default-keychain -d user`, run with that
 `HOME`) took the app's token, while the real default keychain, search list and items were unchanged.
-So a profile needs no app change at all.
+So a profile needs no app change at all. (Superseded 2026-11-20: on macOS 26 a keychain under a moved
+`HOME` can't be both its default and unlocked, so debug builds on a profile keep secrets in a file
+instead; PLAN.md M16, Defaults.)
 
 **A debug-only crate still compiles into release builds.** Cargo doesn't apply the build profile to
 `[target.'cfg(debug_assertions)'.dependencies]`, so the crate was built for `--release` too. Only its

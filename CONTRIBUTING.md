@@ -46,13 +46,14 @@ Release builds have no such path.
 |---|---|
 | `app:build:debug` | the debug app with the `webdriver` feature: an embedded WebDriver server on 127.0.0.1:4445, which a release build can't have (it refuses to compile) |
 | `app:profile -- <dir>` | builds that, makes and seeds `<dir>` the first time from the demo repo (`J-HernandezInzunza/loadout-demo`), then opens the app on it |
-| `flows:connect` | once: GitHub's device sign-in, keeping the token flows connect their profiles with in `apps/desktop/flows/.profiles/github-token.json` (owner-only, git-ignored) |
+| `flows:connect` | once: GitHub's device sign-in, keeping the token flows connect their profiles with in `~/Library/Application Support/loadout-dev/flows-github-token.json` (owner-only, outside the repo) |
 | `flows` | runs every flow in `apps/desktop/flows/` against the real app, each on a freshly seeded profile at `/tmp/loadout-demo` |
 | `record -- <flow>` | runs one flow at recording pace and writes `apps/desktop/demo/out/<flow>.mp4` |
 
 The seeded machine has a copy in each state the app draws. Seeding force-pushes the demo repo's
 `demo-stale` branch between its two tags, so `release-notes` reads behind its source, and the
-`entry` flow opens a real pull request there, then closes it.
+`entry` flow opens a real pull request there, then closes it. So seeding needs push access to the demo
+repo, and two seeds must not run at once.
 
 Quit every Loadout first, the installed one included (Cmd-Q, not just the window): only one instance runs
 at a time, whatever its profile, and flows refuse to start while one does. Flows aren't part of `npm run
