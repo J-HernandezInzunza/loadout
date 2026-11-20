@@ -27,7 +27,8 @@
     "app:build:debug": "npm run tauri -w apps/desktop -- build --debug --no-bundle --features webdriver --config src-tauri/tauri.webdriver.conf.json",
     "app:profile": "node tools/profile.ts demo",
     "flows": "npm run app:build:debug && vitest run --config apps/desktop/flows/vitest.config.ts",
-    "flows:connect": "node apps/desktop/flows/connect.ts"
+    "flows:connect": "node apps/desktop/flows/connect.ts",
+    "record": "node apps/desktop/flows/record.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -1,12 +1,11 @@
 // What every flow (M16.11) runs on: the real debug app, built with the webdriver feature, on a freshly seeded
 // profile connected to GitHub with the flows' token (token.ts), driven over the embedded WebDriver server (S17).
 import { execFileSync, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { rmSync } from "node:fs";
 import { createLibrary } from "@loadout/core";
 import { remote } from "webdriverio";
 import { initProfile, profileHost, profileLayout, seedProfile, startApp } from "../../../tools/profile.ts";
+import { pointAt, settle, startRecording } from "./recording.ts";
 
 const port = 4445;
 
@@ -61,15 +60,23 @@ export async function openApp(dir: string): Promise<RunningApp> {
     throw e;
   }
   const browser = await remote({ hostname: "127.0.0.1", port, path: "/", capabilities: {}, logLevel: "warn" });
+  // In record mode (npm run record), the recorder films from here until close.
+  const stopRecording = await startRecording(browser, app.pid!, () => invoke(browser, "plugin:window|set_focus", { label: "main" }));
   return {
     browser,
     home: profileLayout(dir).home,
     async close() {
-      await browser.deleteSession().catch(() => {});
-      if (exited(app)) return;
-      const gone = new Promise((r) => app.once("exit", r));
-      app.kill();
-      await gone;
+      try {
+        await stopRecording();
+      } finally {
+        // The app quits even when the recording failed, or the next flow finds it still running.
+        await browser.deleteSession().catch(() => {});
+        if (!exited(app)) {
+          const gone = new Promise((r) => app.once("exit", r));
+          app.kill();
+          await gone;
+        }
+      }
     },
   };
 }
@@ -91,8 +98,10 @@ export async function invoke<T>(browser: Browser, cmd: string, args: Record<stri
  * and the app stores the token in the profile's keychain once it's open. Removed by `dispose`.
  */
 export async function freshProfile(token: string): Promise<{ dir: string; open(): Promise<RunningApp>; dispose(): void }> {
-  const root = mkdtempSync(join(tmpdir(), "loadout-flow-"));
-  const dir = join(root, "profile");
+  // A short, fixed place, since the app shows its paths (and recordings film them); one flow runs at a time.
+  const root = "/tmp/loadout-demo";
+  rmSync(root, { recursive: true, force: true });
+  const dir = root;
   initProfile(dir);
   await seedProfile(dir);
   const connected = await createLibrary(profileHost(dir)).connect("github", JSON.parse(token) as never);
@@ -112,11 +121,13 @@ export async function freshProfile(token: string): Promise<{ dir: string; open()
 export const button = (browser: Browser, name: string) =>
   browser.$(`//button[normalize-space(.)=${JSON.stringify(name)} or @aria-label=${JSON.stringify(name)}]`);
 
-/** Waits for a button, then clicks it. */
+/** Waits for a button, then clicks it; recording, the cursor travels there first. */
 export async function press(browser: Browser, name: string): Promise<void> {
   const el = await button(browser, name);
   await el.waitForClickable({ timeout: 15_000, timeoutMsg: `no clickable button "${name}"` });
+  await pointAt(browser, el);
   await el.click();
+  await settle();
 }
 
 /** Waits for text anywhere on the page. */

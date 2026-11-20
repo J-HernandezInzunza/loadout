@@ -5,6 +5,7 @@
     { "path": "packages/host-node" },
     { "path": "packages/sandbox" },
     { "path": "packages/core/test" },
-    { "path": "test" }
+    { "path": "test" },
+    { "path": "apps/desktop/flows" }
   ]
 }

@@ -11,3 +11,5 @@ __pycache__/
 
 # Debug profiles flows run on, the base one holding a GitHub token (M16.11)
 apps/desktop/flows/.profiles/
+# Recordings and the recorder binary npm run record builds (M16.12)
+apps/desktop/demo/

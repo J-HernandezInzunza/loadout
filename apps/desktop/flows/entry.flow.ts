@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { demoRepo } from "@loadout/sandbox";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { freshProfile, press, sees, type RunningApp } from "./app.ts";
+import { chapter } from "./recording.ts";
 import { flowsToken } from "./token.ts";
 
 const slug = demoRepo.replace("https://github.com/", "");
@@ -37,6 +38,7 @@ describe("an installed copy on its entry page", () => {
     const b = app.browser;
     const copy = join(app.home, ".claude/skills/code-review");
 
+    await chapter(b, "Send your edits back", "An edited copy becomes a pull request on its source");
     await press(b, "Open code-review");
     await sees(b, "edited locally");
 
@@ -46,6 +48,7 @@ describe("an installed copy on its entry page", () => {
     await sees(b, "Pull request opened.", 60_000);
     expect(closeCodeReviewPrs()).toBe(1);
 
+    await chapter(b, "Remove a copy", "The catalog entry stays, so it can come back");
     await press(b, "Remove");
     await sees(b, "Delete the installed copy of code-review?");
     await press(b, "Delete");

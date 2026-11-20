@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { freshProfile, press, sees, type RunningApp } from "./app.ts";
+import { chapter } from "./recording.ts";
 import { flowsToken } from "./token.ts";
 
 let token: string;
@@ -23,6 +24,7 @@ describe("install a skill", () => {
     const b = app.browser;
     const dest = join(app.home, ".claude/skills/test-first/SKILL.md");
 
+    await chapter(b, "Install a skill", "See what goes where before anything is written");
     await press(b, "Open test-first");
     await press(b, "Install and set up");
     await press(b, "Preview install");
