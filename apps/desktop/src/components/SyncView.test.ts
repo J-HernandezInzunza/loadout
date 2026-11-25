@@ -76,6 +76,24 @@ describe("UI-38: sync", () => {
     expect(summary(wrapper)).toBe("2 updated · 1 already up to date");
   });
 
+  it("calls a copy it would update behind its source, not already installed", async () => {
+    const { wrapper } = await mountSync([
+      {
+        items: [item("notes"), item("tidy", { state: "drifted" }), item("lint", { requiredBy: ["notes"], state: "absent" })],
+        upToDate: [],
+        unmanaged: [],
+        loadouts: [{ name: "review", items: [item("grill")], upToDate: [] }],
+      },
+    ]);
+    const chips = wrapper.findAll(".sync__item .status-chip").map((c) => `${c.text()} / ${c.classes().find((k) => k.startsWith("status-chip--"))}`);
+    expect(chips).toEqual([
+      "update available / status-chip--attention",
+      "edited locally / status-chip--attention",
+      "new / status-chip--absent",
+      "update available / status-chip--attention",
+    ]);
+  });
+
   it("says everything is up to date when there is nothing to do, and Force re-fetch plans again forced", async () => {
     const { wrapper, calls } = await mountSync([{ items: [], upToDate: [{ ...ref("tidy"), status: "unmoved" }], unmanaged: [] }]);
     expect(summary(wrapper)).toContain("Everything is up to date");

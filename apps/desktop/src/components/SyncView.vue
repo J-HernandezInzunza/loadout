@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { discardsEdits, type Library } from "@loadout/core";
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { describeDestState, destTone, summarizeChanges } from "../catalog.ts";
+import { describeSyncState, summarizeChanges, syncTone } from "../catalog.ts";
 import { useLibrary } from "../services.ts";
 import { useActivityStore } from "../stores/activity.ts";
 import { useCatalogStore } from "../stores/catalog.ts";
@@ -154,8 +154,8 @@ onUnmounted(() => void discard());
                 v-if="item.requiredBy.length"
                 class="sync__badge"
               >dependency</span>
-              <StatusChip :tone="destTone(item.state)">
-                {{ describeDestState(item.state) }}
+              <StatusChip :tone="syncTone(item.state)">
+                {{ describeSyncState(item.state) }}
               </StatusChip>
               <span
                 v-if="item.status !== 'ready'"
@@ -180,8 +180,8 @@ onUnmounted(() => void discard());
             >
               <div class="sync__head">
                 <span class="sync__name">{{ item.name }}</span>
-                <StatusChip :tone="destTone(item.state)">
-                  {{ describeDestState(item.state) }}
+                <StatusChip :tone="syncTone(item.state)">
+                  {{ describeSyncState(item.state) }}
                 </StatusChip>
                 <span
                   v-if="item.status !== 'ready'"
