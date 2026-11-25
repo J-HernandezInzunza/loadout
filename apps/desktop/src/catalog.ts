@@ -189,6 +189,21 @@ export function destTone(state: PlanItem["state"]): Row["tone"] {
   }
 }
 
+/**
+ * A copy sync would update, in words. Sync lists only copies that differ from their source, so one the install
+ * preview would call already installed is behind it, as the list says of a stale copy.
+ */
+export function describeSyncState(state: PlanItem["state"]): string {
+  if (state === "installed") return "update available";
+  return describeDestState(state);
+}
+
+/** The badge tone for the same state. */
+export function syncTone(state: PlanItem["state"]): Row["tone"] {
+  if (state === "installed") return "attention";
+  return destTone(state);
+}
+
 /** One line for what an install changed, as the CLI words it. */
 export function summarizeChanges(preview: PlanItem["preview"]): string {
   if (preview.kind === "destination-only") return "installed";
